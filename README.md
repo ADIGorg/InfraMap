@@ -12,7 +12,7 @@ O projeto busca transformar informações dispersas sobre problemas urbanos em r
 
 ## Objetivo da Solução
 
-O objetivo do SaniCMap é desenvolver uma ferramenta digital que facilite a **participação comunitária na identificação e no acompanhamento de problemas de saneamento urbano**.
+O objetivo do SaniMap é desenvolver uma ferramenta digital que facilite a **participação comunitária na identificação e no acompanhamento de problemas de saneamento urbano**.
 
 A solução pretende:
 
