@@ -1,7 +1,10 @@
+import { env } from "./config/env.js";
 import app from "./app.js";
 
-const PORT = 3000;
+app.listen(env.port, () => {
+  console.log(
+    `InfraMap API executando na porta ${env.port}`
+  );
 
-app.listen(PORT, () => {
-  console.log(`API executando na porta ${PORT}`);
+  console.log(`Ambiente: ${env.nodeEnv}`);
 });
