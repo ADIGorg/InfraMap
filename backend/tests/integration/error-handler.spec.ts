@@ -18,7 +18,8 @@ function createTestApp() {
   const app = express();
 
   // Habilita o processamento de JSON.
-  app.use(express.json());
+  // Parser JSON com o mesmo limite da aplicação principal.
+  app.use(express.json({ limit: "100kb" }));
 
   // Simula um erro HTTP 400.
   app.get("/bad-request", (_req, _res, next) => {
@@ -165,5 +166,23 @@ describe("API1-10 - Tratamento centralizado de erros", () => {
     } finally {
       consoleSpy.mockRestore();
     }
+  });
+
+  it("deve retornar 413 para payload excessivo", async () => {
+    const response = await request(app)
+        .post("/json")
+        .set("Content-Type", "application/json")
+        .send(
+            JSON.stringify({
+                content: "x".repeat(110 * 1024),
+            })
+        );
+
+    expect(response.status).toBe(413);
+
+    expect(response.body.error).toEqual({
+        code: "PAYLOAD_TOO_LARGE",
+        message: "O corpo da requisição excede o limite permitido.",
+    });
   });
 });

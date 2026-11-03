@@ -5,13 +5,12 @@ import {
 } from "../../shared/errors/app-error.js";
 
 // Perfis previstos para a identificação básica.
-export type IdentityRole = "CITIZEN" | "ADMIN";
+export type IdentityRole = 'CITIZEN' | 'ADMIN';
 
-// Estrutura dos dados consultados no banco.
 export interface UserProfile {
-  id: string;
-  role: string;
-  is_active: boolean;
+    id: string;
+    role: IdentityRole;
+    is_active: boolean;
 }
 
 // Contrato para consultar perfis.
