@@ -1,54 +1,68 @@
-import type { Request, Response, NextFunction } from 'express';
-import { ZodError } from 'zod';
-import type { ZodTypeAny } from 'zod';
+import type { Request, RequestHandler } from 'express';
+import { ZodError, type ZodType } from 'zod';
+
 import { AppError } from '../errors/app-error.js';
 
 interface ValidationSchemas {
-    body?: ZodTypeAny;
-    params?: ZodTypeAny;
-    query?: ZodTypeAny;
+    body?: ZodType;
+    params?: ZodType;
+    query?: ZodType;
 }
 
-export function validateRequest(schemas: ValidationSchemas) {
-    return (req: Request, _res: Response, next: NextFunction): void => {
+export function validateRequest(
+    schemas: ValidationSchemas
+): RequestHandler {
+    return (req, _res, next) => {
         try {
-            // Valida o Body
+            const validated: NonNullable<Request['validated']> = {};
+
+            // Valida o corpo da requisição.
             if (schemas.body) {
-                // O Zod substitui o req.body pelos dados validados e tipados.
-                // Isso também remove campos extras (Mass Assignment Protection).
-                req.body = schemas.body.parse(req.body);
+                const parsedBody = schemas.body.parse(req.body);
+
+                req.body = parsedBody;
+                validated.body = parsedBody;
             }
 
-            // Valida os Params (URL)
+            // Valida os parâmetros da URL.
             if (schemas.params) {
-                req.params = schemas.params.parse(req.params) as Request['params'];
+                const parsedParams = schemas.params.parse(req.params);
+
+                req.params = parsedParams as Request['params'];
+                validated.params = parsedParams;
             }
 
-            // Valida a Query (?key=value)
+            // Valida os parâmetros de consulta.
+            // Não modifica req.query, pois no Express 5 ele é um getter.
             if (schemas.query) {
-                // Usamos Object.assign para contornar problemas de getters/setters no Express
-                Object.assign(req.query, schemas.query.parse(req.query));
+                validated.query = schemas.query.parse(req.query);
             }
 
-            // Se passar por tudo, segue o fluxo
+            // Disponibiliza os dados validados para os controllers.
+            req.validated = validated;
+
             return next();
 
         } catch (error) {
             if (error instanceof ZodError) {
-                // Formata os erros do Zod de forma legível.
-                // Exemplo de saída: "email: Formato de e-mail inválido, password: A senha deve ter no mínimo 6 caracteres"
                 const formattedErrors = error.issues
                     .map((issue) => {
-                        const field = issue.path.join('.');
+                        const field = issue.path.length > 0
+                            ? issue.path.join('.')
+                            : 'request';
+
                         return `${field}: ${issue.message}`;
                     })
-                    .join(', ');
+                    .join('; ');
 
-                // Repassa para o error-handler global com status 400
-                return next(new AppError(`Erro de validação: ${formattedErrors}`, 400));
+                return next(
+                    new AppError(
+                        `Erro de validação: ${formattedErrors}`,
+                        400
+                    )
+                );
             }
 
-            // Se for um erro desconhecido, repassa adiante
             return next(error);
         }
     };

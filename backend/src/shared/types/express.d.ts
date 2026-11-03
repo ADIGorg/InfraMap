@@ -4,7 +4,13 @@ declare global {
     namespace Express {
         interface Request {
             user?: User;
-            token?: string; // Adicionado para permitir a consulta RLS no authorize-role
+            token?: string;
+
+            validated?: {
+                body?: unknown;
+                params?: unknown;
+                query?: unknown;
+            };
         }
     }
 }

@@ -3,6 +3,7 @@ import { authenticate } from '../../shared/middlewares/authenticate.js';
 import { authorizeRole } from '../../shared/middlewares/authorize-role.js';
 import { validateRequest } from '../../shared/middlewares/validate-request.js';
 import { createUserBodySchema, getUserParamsSchema } from './identity.schema.js';
+import {getUsersQuerySchema} from './identity.schema.js';
 
 const identityRouter = Router();
 
@@ -29,6 +30,45 @@ identityRouter.get(
     validateRequest({ params: getUserParamsSchema }),
     (req, res) => {
         return res.status(200).json({ message: `Buscando usuário ${req.params.id}` });
+    }
+);
+
+identityRouter.get(
+    '/me',
+    authenticate,
+    (req, res) => {
+        const user = req.user!;
+
+        return res.status(200).json({
+            message: 'Usuário autenticado.',
+            data: {
+                id: user.id,
+                email: user.email,
+            },
+        });
+    }
+);
+
+identityRouter.get(
+    '/admin-check',
+    authenticate,
+    authorizeRole(['ADMIN']),
+    (_req, res) => {
+        return res.status(200).json({
+            message: 'Acesso administrativo autorizado.',
+        });
+    }
+);
+
+identityRouter.get(
+    '/users',
+    authenticate,
+    validateRequest({ query: getUsersQuerySchema }),
+    (req, res) => {
+        return res.status(200).json({
+            message: 'Parâmetros validados com sucesso.',
+            data: req.validated?.query,
+        });
     }
 );
 
