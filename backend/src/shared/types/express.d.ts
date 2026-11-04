@@ -10,6 +10,9 @@ declare global {
             token?: string;
 
             // Dados validados pelo middleware Zod.
+            user?: User;
+            token?: string;
+
             validated?: {
                 body?: unknown;
                 params?: unknown;

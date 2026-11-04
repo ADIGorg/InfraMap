@@ -3,6 +3,9 @@ import type { Request, RequestHandler } from 'express';
 import { ZodError, type ZodType } from 'zod';
 
 import { BadRequestError } from '../errors/app-error.js';
+import { ZodError, type ZodType } from 'zod';
+
+import { AppError } from '../errors/app-error.js';
 
 interface ValidationSchemas {
     body?: ZodType;
@@ -34,11 +37,13 @@ export function validateRequest(
             }
 
             // Valida os parâmetros de consulta.
+            // Não modifica req.query, pois no Express 5 ele é um getter.
             if (schemas.query) {
                 validated.query = schemas.query.parse(req.query);
             }
 
             // Disponibiliza os dados validados.
+            // Disponibiliza os dados validados para os controllers.
             req.validated = validated;
 
             return next();
@@ -58,6 +63,9 @@ export function validateRequest(
                 return next(
                     new BadRequestError(
                         `Erro de validação: ${formattedErrors}`
+                    new AppError(
+                        `Erro de validação: ${formattedErrors}`,
+                        400
                     )
                 );
             }
