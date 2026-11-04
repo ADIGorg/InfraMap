@@ -20,18 +20,6 @@ import { validateRequest } from
 import { errorHandler } from
   "../../src/shared/middlewares/error-handler.js";
 
-declare global {
-  namespace Express {
-    interface Request {
-      validated?: {
-        body?: unknown;
-        params?: unknown;
-        query?: unknown;
-      };
-    }
-  }
-}
-
 // ======================================
 // SCHEMAS DE TESTE
 // ======================================
