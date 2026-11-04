@@ -18,10 +18,11 @@ const { getUserMock } = vi.hoisted(() => ({
 }));
 
 // Substitui o cliente Supabase somente nos testes.
+
 vi.mock(
   "../../src/infrastructure/supabase/auth-client.js",
   () => ({
-    supabase: {
+    supabaseAuth: {
       auth: {
         getUser: getUserMock,
       },
@@ -29,8 +30,15 @@ vi.mock(
   })
 );
 
+
 import { authenticate } from "../../src/shared/middlewares/authenticate.js";
 import { errorHandler } from "../../src/shared/middlewares/error-handler.js";
+
+type AuthenticatedRequest = express.Request & {
+  user?: {
+    id: string;
+  };
+};
 
 // Aplicação Express isolada para testes.
 function createTestApp() {
@@ -39,7 +47,7 @@ function createTestApp() {
   app.get(
     "/protected",
     authenticate,
-    (req, res) => {
+    (req: AuthenticatedRequest, res) => {
       res.status(200).json({
         id: req.user?.id,
       });
