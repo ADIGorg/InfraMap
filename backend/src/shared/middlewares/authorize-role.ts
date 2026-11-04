@@ -1,56 +1,71 @@
 import type { Request, Response, NextFunction } from 'express';
-import { AppError } from '../errors/app-error.js';
+
 import { createUserSupabaseClient } from '../../infrastructure/supabase/user-client.factory.js';
 
-/**
- * Middleware de Autorização Baseada em Perfis (RBAC).
- * Deve ser usado SEMPRE após o middleware 'authenticate'.
- * 
- * @param allowedRoles Lista de papéis permitidos (ex: ['ADMIN']).
- */
+import {
+    AppError,
+    UnauthorizedError,
+    ForbiddenError,
+} from '../errors/app-error.js';
+
 export function authorizeRole(allowedRoles: string[]) {
-    return async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
+    return async (
+        req: Request,
+        _res: Response,
+        next: NextFunction
+    ): Promise<void> => {
         try {
-            // 1. Defesa: O usuário já passou pelo 'authenticate'?
+            // Verifica se a autenticação foi executada.
             if (!req.user || !req.token) {
-                throw new AppError('Usuário não autenticado.', 401);
+                throw new UnauthorizedError(
+                    'Usuário não autenticado.'
+                );
             }
 
-            // 2. Cria o cliente Supabase usando o token do usuário para respeitar o RLS
+            // Cria cliente com o JWT do usuário,
+            // respeitando as políticas RLS.
             const userClient = createUserSupabaseClient(req.token);
 
-            // 3. Consulta o perfil do usuário no banco de dados (nunca confiando no frontend)
+            // Consulta o papel e a situação da conta.
             const { data: userRole, error } = await userClient
                 .from('user_roles')
                 .select('role, is_active')
                 .eq('user_id', req.user.id)
-                .maybeSingle(); // Retorna null se não achar, evitando erro caso não exista
+                .maybeSingle();
 
             if (error) {
-                console.error('Erro ao buscar user_roles:', error);
-                throw new AppError('Erro interno ao verificar permissões.', 500);
+                throw new AppError(
+                    500,
+                    'ROLE_LOOKUP_FAILED',
+                    'Não foi possível verificar as permissões do usuário.'
+                );
             }
 
-            // 4. Verifica se o usuário possui um registro de perfil
+            // Verifica a existência do registro.
             if (!userRole) {
-                throw new AppError('Acesso negado. Perfil de usuário não encontrado.', 403);
+                throw new ForbiddenError(
+                    'Perfil de usuário não encontrado.'
+                );
             }
 
-            // 5. Verifica a situação da conta (Critério de Aceite)
+            // Verifica se a conta está ativa.
             if (!userRole.is_active) {
-                throw new AppError('Acesso negado. Esta conta está inativa.', 403);
+                throw new ForbiddenError(
+                    'Esta conta está inativa.'
+                );
             }
 
-            // 6. Verifica se o papel do usuário está na lista de permitidos (Critério de Aceite)
+            // Verifica se o papel está autorizado.
             if (!allowedRoles.includes(userRole.role)) {
-                throw new AppError('Acesso negado. Você não tem permissão para acessar este recurso.', 403);
+                throw new ForbiddenError(
+                    'Você não possui permissão para acessar este recurso.'
+                );
             }
 
-            // 7. Usuário autorizado, segue o fluxo
             return next();
 
         } catch (error) {
-            return next(error); // Repassa para o error-handler global retornar 403
+            return next(error);
         }
     };
 }

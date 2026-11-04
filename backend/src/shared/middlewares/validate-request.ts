@@ -1,4 +1,8 @@
 import type { Request, RequestHandler } from 'express';
+
+import { ZodError, type ZodType } from 'zod';
+
+import { BadRequestError } from '../errors/app-error.js';
 import { ZodError, type ZodType } from 'zod';
 
 import { AppError } from '../errors/app-error.js';
@@ -38,6 +42,7 @@ export function validateRequest(
                 validated.query = schemas.query.parse(req.query);
             }
 
+            // Disponibiliza os dados validados.
             // Disponibiliza os dados validados para os controllers.
             req.validated = validated;
 
@@ -56,6 +61,8 @@ export function validateRequest(
                     .join('; ');
 
                 return next(
+                    new BadRequestError(
+                        `Erro de validação: ${formattedErrors}`
                     new AppError(
                         `Erro de validação: ${formattedErrors}`,
                         400

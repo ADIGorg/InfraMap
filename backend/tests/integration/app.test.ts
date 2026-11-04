@@ -19,10 +19,11 @@ describe("InfraMap API", () => {
     const response = await request(app).get("/api/v1/rota-inexistente");
 
     expect(response.status).toBe(404);
-    expect(response.body).toHaveProperty("status", "error");
-    expect(response.body).toHaveProperty(
-      "message",
-      "Rota não encontrada."
-    );
+    expect(response.body).toEqual({
+    error: {
+    code: "NOT_FOUND",
+    message: "Rota não encontrada.",
+    },
+    });
   });
 });
