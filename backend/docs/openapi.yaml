@@ -1,0 +1,677 @@
+
+openapi: 3.1.0
+
+info:
+  title: InfraMap API
+  version: 1.0.0
+  description: |
+    API REST do InfraMap, responsável pela autenticação,
+    identificação de usuários, autorização por perfil e
+    integração com os serviços do Supabase.
+
+    A API utiliza Supabase Auth para validar tokens JWT
+    e PostgreSQL com Row Level Security (RLS) para
+    controlar o acesso aos dados.
+
+servers:
+  - url: http://localhost:3000/api/v1
+    description: Ambiente local de desenvolvimento
+
+tags:
+  - name: Health
+    description: Verificação de disponibilidade da API.
+
+  - name: Identity
+    description: Identificação e validação de usuários.
+
+  - name: App
+    description: Endpoints destinados ao aplicativo cidadão.
+
+  - name: Admin
+    description: Endpoints destinados ao painel administrativo.
+
+paths:
+
+  # ==========================================
+  # HEALTH CHECK
+  # ==========================================
+
+  /health:
+    get:
+      tags:
+        - Health
+      summary: Verificar disponibilidade da API
+      description: |
+        Verifica se a API está funcionando.
+        Não exige autenticação.
+      operationId: getHealth
+
+      responses:
+        "200":
+          description: API funcionando.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+              example:
+                status: ok
+                message: InfraMap API funcionando!
+                timestamp: "2026-11-04T14:00:00.000Z"
+
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+
+  # ==========================================
+  # IDENTITY
+  # ==========================================
+
+  /identity/users:
+    post:
+      tags:
+        - Identity
+      summary: Validar dados para criação de usuário
+      description: |
+        Endpoint provisório que valida os dados recebidos
+        utilizando Zod.
+
+        IMPORTANTE: ainda não realiza a criação do usuário
+        no Supabase Auth. A resposta atual devolve os dados
+        validados em data, incluindo a senha. Esse
+        comportamento deve ser removido antes de disponibilizar
+        a operação para uso real.
+        
+        Requer autenticação e perfil ADMIN.
+      operationId: validateUserCreation
+
+      security:
+        - bearerAuth: []
+
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateUserRequest"
+            example:
+              name: Maria Silva
+              email: maria@example.com
+              password: senha123
+              role: CITIZEN
+
+      responses:
+        "201":
+          description: Dados validados. Usuário ainda não criado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserValidationResponse"
+              example:
+                message: Usuário validado e pronto para criação.
+                data:
+                  name: Maria Silva
+                  email: maria@example.com
+                  password: senha123
+                  role: CITIZEN
+
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
+
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+
+    get:
+      tags:
+        - Identity
+      summary: Validar parâmetros de consulta de usuários
+      description: |
+        Valida os parâmetros de paginação utilizando Zod.
+
+        Endpoint provisório: não realiza consulta de usuários
+        no banco de dados. Apenas retorna os parâmetros
+        validados.
+        
+        Requer autenticação.
+      operationId: validateUsersQuery
+
+      security:
+        - bearerAuth: []
+
+      parameters:
+        - name: page
+          in: query
+          required: false
+          description: Número da página.
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+          example: 1
+
+        - name: limit
+          in: query
+          required: false
+          description: Quantidade máxima de registros por página.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          example: 20
+
+      responses:
+        "200":
+          description: Parâmetros validados.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UsersQueryResponse"
+              example:
+                message: Parâmetros validados com sucesso.
+                data:
+                  page: 1
+                  limit: 20
+
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+
+  /identity/users/{id}:
+    get:
+      tags:
+        - Identity
+      summary: Validar identificador de usuário
+      description: |
+        Valida se o identificador informado é um UUID válido.
+
+        Endpoint provisório: ainda não consulta os dados
+        do usuário no banco de dados.
+
+        Requer autenticação.
+      operationId: validateUserId
+
+      security:
+        - bearerAuth: []
+
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: UUID do usuário.
+          schema:
+            type: string
+            format: uuid
+          example: 181227d2-89d7-4ceb-8dff-85b623aeee5b
+
+      responses:
+        "200":
+          description: Identificador válido.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserLookupResponse"
+              example:
+                message: "Buscando usuário 181227d2-89d7-4ceb-8dff-85b623aeee5b"
+
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+
+  /identity/me:
+    get:
+      tags:
+        - Identity
+      summary: Identificar usuário autenticado
+      description: |
+        Retorna os dados básicos do usuário autenticado
+        a partir do token validado pelo Supabase Auth.
+      operationId: getAuthenticatedUser
+
+      security:
+        - bearerAuth: []
+
+      responses:
+        "200":
+          description: Usuário identificado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthenticatedUserResponse"
+              example:
+                message: Usuário autenticado.
+                data:
+                  id: 181227d2-89d7-4ceb-8dff-85b623aeee5b
+                  email: maria@example.com
+
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+
+  /identity/admin-check:
+    get:
+      tags:
+        - Identity
+      summary: Verificar acesso administrativo
+      description: |
+        Verifica se o usuário autenticado possui perfil ADMIN
+        e conta ativa.
+
+        Requer autenticação.
+      operationId: checkAdminAccess
+
+      security:
+        - bearerAuth: []
+
+      responses:
+        "200":
+          description: Acesso administrativo autorizado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              example:
+                message: Acesso administrativo autorizado.
+
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+
+  # ==========================================
+  # APP - IDENTIDADE DO CIDADÃO
+  # ==========================================
+
+  /app/me:
+    get:
+      tags:
+        - App
+      summary: Identificar cidadão autenticado
+      description: |
+        Retorna o identificador, o perfil e a situação
+        da conta do cidadão autenticado.
+
+        Requer token JWT válido, perfil CITIZEN
+        e conta ativa.
+      operationId: getCitizenIdentity
+
+      security:
+        - bearerAuth: []
+
+      responses:
+        "200":
+          description: Identidade do cidadão retornada.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IdentityResponse"
+              example:
+                id: 181227d2-89d7-4ceb-8dff-85b623aeee5b
+                role: CITIZEN
+                is_active: true
+
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+
+  # ==========================================
+  # ADMIN - IDENTIDADE DO ADMINISTRADOR
+  # ==========================================
+
+  /admin/me:
+    get:
+      tags:
+        - Admin
+      summary: Identificar administrador autenticado
+      description: |
+        Retorna o identificador, o perfil e a situação
+        da conta do administrador autenticado.
+
+        Requer token JWT válido, perfil ADMIN
+        e conta ativa.
+      operationId: getAdminIdentity
+
+      security:
+        - bearerAuth: []
+
+      responses:
+        "200":
+          description: Identidade do administrador retornada.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IdentityResponse"
+              example:
+                id: 181227d2-89d7-4ceb-8dff-85b623aeee5b
+                role: ADMIN
+                is_active: true
+
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+
+# ==========================================
+# COMPONENTES REUTILIZÁVEIS
+# ==========================================
+
+components:
+
+  # ----------------------------------------
+  # AUTENTICAÇÃO
+  # ----------------------------------------
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        Informe o Access Token JWT emitido pelo Supabase Auth.
+
+        Formato:
+        Bearer <access_token>
+
+        O token é validado pela API utilizando
+        supabase.auth.getUser(token).
+
+  # ----------------------------------------
+  # SCHEMAS
+  # ----------------------------------------
+
+  schemas:
+
+    HealthResponse:
+      type: object
+      required:
+        - status
+        - message
+        - timestamp
+      properties:
+        status:
+          type: string
+          example: ok
+        message:
+          type: string
+          example: InfraMap API funcionando!
+        timestamp:
+          type: string
+          format: date-time
+
+    CreateUserRequest:
+      type: object
+      required:
+        - name
+        - email
+        - password
+      properties:
+        name:
+          type: string
+          minLength: 3
+          maxLength: 150
+          description: Nome do usuário.
+          example: Maria Silva
+
+        email:
+          type: string
+          format: email
+          description: E-mail do usuário.
+          example: maria@example.com
+
+        password:
+          type: string
+          format: password
+          minLength: 6
+          writeOnly: true
+          description: Senha com pelo menos 6 caracteres.
+          example: senha123
+
+        role:
+          type: string
+          enum:
+            - CITIZEN
+            - ADMIN
+          default: CITIZEN
+          description: Perfil inicial do usuário.
+
+    UserValidationResponse:
+      type: object
+      properties:
+        message:
+          type: string
+        data:
+          type: object
+          description: |
+            Objeto validado pelo Zod. A implementação atual
+            também inclui a senha na resposta. Não utilizar
+            esse comportamento em produção.
+
+    UsersQueryResponse:
+      type: object
+      properties:
+        message:
+          type: string
+        data:
+          type: object
+          properties:
+            page:
+              type: integer
+              example: 1
+            limit:
+              type: integer
+              example: 20
+
+    UserLookupResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: Buscando usuário.
+
+    AuthenticatedUserResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: Usuário autenticado.
+        data:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            email:
+              type:
+                - string
+                - "null"
+              format: email
+
+    IdentityResponse:
+      type: object
+      required:
+        - id
+        - role
+        - is_active
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Identificador do usuário.
+        role:
+          type: string
+          enum:
+            - CITIZEN
+            - ADMIN
+          description: Perfil cadastrado para o usuário.
+        is_active:
+          type: boolean
+          description: Situação da conta.
+
+    MessageResponse:
+      type: object
+      properties:
+        message:
+          type: string
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: object
+          required:
+            - code
+            - message
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+
+  # ----------------------------------------
+  # RESPOSTAS DE ERRO
+  # ----------------------------------------
+
+  responses:
+
+    BadRequest:
+      description: Requisição inválida ou dados não passaram na validação.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error:
+              code: BAD_REQUEST
+              message: "Erro de validação: email inválido."
+
+    Unauthorized:
+      description: Token ausente, inválido ou expirado.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error:
+              code: UNAUTHORIZED
+              message: Token inválido ou expirado.
+
+    Forbidden:
+      description: Usuário não possui permissão ou está inativo.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error:
+              code: FORBIDDEN
+              message: Você não possui permissão para esta operação.
+
+    NotFound:
+      description: Rota ou recurso não encontrado.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error:
+              code: NOT_FOUND
+              message: Rota não encontrada.
+
+    PayloadTooLarge:
+      description: Corpo da requisição excede 100 KB.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error:
+              code: PAYLOAD_TOO_LARGE
+              message: O corpo da requisição excede o limite permitido.
+
+    TooManyRequests:
+      description: Limite de requisições excedido.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error:
+              code: TOO_MANY_REQUESTS
+              message: Muitas requisições. Tente novamente mais tarde.
+
+    InternalServerError:
+      description: Erro interno inesperado.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error:
+              code: INTERNAL_SERVER_ERROR
+              message: Ocorreu um erro interno no servidor.

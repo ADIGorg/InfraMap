@@ -1,4 +1,3 @@
-
 import {
   Router,
   type RequestHandler,
@@ -12,6 +11,98 @@ import {
 import type {
   IdentityRole,
 } from "./identity.service.js";
+
+import { authenticate } from "../../shared/middlewares/authenticate.js";
+import { authorizeRole } from "../../shared/middlewares/authorize-role.js";
+import { validateRequest } from "../../shared/middlewares/validate-request.js";
+
+import {
+  createUserBodySchema,
+  getUserParamsSchema,
+  getUsersQuerySchema,
+} from "./identity.schema.js";
+
+// ==========================================
+// ROTAS ANTERIORES DE IDENTIDADE
+// ==========================================
+
+// Estas rotas permanecem agrupadas em /identity.
+// Exemplo: /api/v1/identity/users
+
+export const identityRouter = Router();
+
+// Apenas administradores podem criar usuários.
+// A implementação da criação será tratada em outro ticket.
+identityRouter.post(
+  "/users",
+  authenticate,
+  authorizeRole(["ADMIN"]),
+  validateRequest({ body: createUserBodySchema }),
+  (req, res) => {
+    return res.status(201).json({
+      message: "Usuário validado e pronto para criação.",
+      data: req.body,
+    });
+  }
+);
+
+// Validação de parâmetros da URL.
+identityRouter.get(
+  "/users/:id",
+  authenticate,
+  validateRequest({ params: getUserParamsSchema }),
+  (req, res) => {
+    return res.status(200).json({
+      message: `Buscando usuário ${req.params.id}`,
+    });
+  }
+);
+
+// Identificação básica do usuário autenticado.
+identityRouter.get(
+  "/me",
+  authenticate,
+  (req, res) => {
+    const user = req.user!;
+
+    return res.status(200).json({
+      message: "Usuário autenticado.",
+      data: {
+        id: user.id,
+        email: user.email,
+      },
+    });
+  }
+);
+
+// Verificação de acesso administrativo.
+identityRouter.get(
+  "/admin-check",
+  authenticate,
+  authorizeRole(["ADMIN"]),
+  (_req, res) => {
+    return res.status(200).json({
+      message: "Acesso administrativo autorizado.",
+    });
+  }
+);
+
+// Validação dos parâmetros de consulta.
+identityRouter.get(
+  "/users",
+  authenticate,
+  validateRequest({ query: getUsersQuerySchema }),
+  (req, res) => {
+    return res.status(200).json({
+      message: "Parâmetros validados com sucesso.",
+      data: req.validated?.query,
+    });
+  }
+);
+
+// ==========================================
+// API-13 - ROTAS DE IDENTIDADE DO USUÁRIO
+// ==========================================
 
 interface IdentityRoutesDependencies {
   authenticate: RequestHandler;
@@ -50,78 +141,3 @@ export function createIdentityRoutes(
 
   return router;
 }
-import { Router } from 'express';
-import { authenticate } from '../../shared/middlewares/authenticate.js';
-import { authorizeRole } from '../../shared/middlewares/authorize-role.js';
-import { validateRequest } from '../../shared/middlewares/validate-request.js';
-import { createUserBodySchema, getUserParamsSchema } from './identity.schema.js';
-import {getUsersQuerySchema} from './identity.schema.js';
-
-const identityRouter = Router();
-
-// Rota Protegida: Apenas Admin pode criar novos usuários
-identityRouter.post(
-    '/users',
-    authenticate,
-    authorizeRole(['ADMIN']),
-    validateRequest({ body: createUserBodySchema }), // <--- Middleware do Zod
-    (req, res) => {
-        // Se chegou aqui, o req.body está 100% limpo e tipado (name, email, password, role)
-        // Nenhum campo extra enviado pelo frontend passou por esta barreira.
-        return res.status(201).json({
-            message: 'Usuário validado e pronto para criação.',
-            data: req.body,
-        });
-    }
-);
-
-// Exemplo usando Params
-identityRouter.get(
-    '/users/:id',
-    authenticate,
-    validateRequest({ params: getUserParamsSchema }),
-    (req, res) => {
-        return res.status(200).json({ message: `Buscando usuário ${req.params.id}` });
-    }
-);
-
-identityRouter.get(
-    '/me',
-    authenticate,
-    (req, res) => {
-        const user = req.user!;
-
-        return res.status(200).json({
-            message: 'Usuário autenticado.',
-            data: {
-                id: user.id,
-                email: user.email,
-            },
-        });
-    }
-);
-
-identityRouter.get(
-    '/admin-check',
-    authenticate,
-    authorizeRole(['ADMIN']),
-    (_req, res) => {
-        return res.status(200).json({
-            message: 'Acesso administrativo autorizado.',
-        });
-    }
-);
-
-identityRouter.get(
-    '/users',
-    authenticate,
-    validateRequest({ query: getUsersQuerySchema }),
-    (req, res) => {
-        return res.status(200).json({
-            message: 'Parâmetros validados com sucesso.',
-            data: req.validated?.query,
-        });
-    }
-);
-
-export { identityRouter };

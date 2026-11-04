@@ -1,18 +1,8 @@
-
 import express from "express";
 import routes from "./routes/index.routes.js";
-
-// ==========================================
-// API1-10 - TRATAMENTO CENTRALIZADO DE ERROS
-// ==========================================
-
+import docsRoutes from "./routes/docs.routes.js";
 import { NotFoundError } from "./shared/errors/app-error.js";
-
 import { errorHandler } from "./shared/middlewares/error-handler.js";
-
-// ==========================================
-// API1-11 - SEGURANÇA HTTP
-// ==========================================
 
 import {
   securityHeaders,
@@ -20,10 +10,6 @@ import {
   restrictHttpMethods,
   apiRateLimiter,
 } from "./shared/middlewares/http-security.js";
-
-// ==========================================
-// API1-12 - LOGS ESTRUTURADOS
-// ==========================================
 
 import { requestLogger } from "./shared/middlewares/request-logger.js";
 
@@ -38,8 +24,7 @@ const app = express();
 // ==========================================
 
 // Registra as requisições HTTP.
-// Deve ser configurado antes dos demais middlewares
-// para acompanhar inclusive requisições rejeitadas.
+// Deve ser configurado antes dos demais middlewares.
 app.use(requestLogger);
 
 // ==========================================
@@ -66,14 +51,14 @@ app.use(express.json({ limit: "100kb" }));
 // ==========================================
 
 // Todas as rotas utilizam o prefixo /api/v1.
+app.use("/api/docs", docsRoutes);
+
 app.use("/api/v1", routes);
 
 // ==========================================
 // API1-10 - TRATAMENTO DE ROTAS INEXISTENTES
 // ==========================================
 
-// Encaminha rotas inexistentes para o
-// middleware centralizado de tratamento de erros.
 app.use((_req, _res, next) => {
   next(new NotFoundError("Rota não encontrada."));
 });
@@ -82,9 +67,6 @@ app.use((_req, _res, next) => {
 // API1-10 / API1-12 - TRATAMENTO E LOGS DE ERROS
 // ==========================================
 
-// Trata erros conhecidos e inesperados.
-// Com a API1-12, também registra falhas utilizando Pino.
-// Deve permanecer após as rotas e demais middlewares.
 app.use(errorHandler);
 
 // ==========================================
