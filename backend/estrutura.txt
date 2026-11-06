@@ -1,0 +1,82 @@
+.
+├── docs
+│   └── openapi.yaml
+├── .env.example
+├── eslint.config.js
+├── .gitignore
+├── package.json
+├── package-lock.json
+├── README.md
+├── scripts
+│   ├── create-test-user.ts
+│   └── get-test-access-token.ts
+├── src
+│   ├── app.ts
+│   ├── config
+│   │   └── env.ts
+│   ├── infrastructure
+│   │   └── supabase
+│   │       ├── auth-client.ts
+│   │       └── user-client.factory.ts
+│   ├── modules
+│   │   ├── health
+│   │   │   ├── health.controller.ts
+│   │   │   └── health.routes.ts
+│   │   └── identity
+│   │       ├── identity.controller.ts
+│   │       ├── identity.repository.ts
+│   │       ├── identity.routes.ts
+│   │       ├── identity.schema.ts
+│   │       └── identity.service.ts
+│   ├── routes
+│   │   ├── docs.routes.ts
+│   │   └── index.routes.ts
+│   ├── server.ts
+│   └── shared
+│       ├── errors
+│       │   └── app-error.ts
+│       ├── logger
+│       │   └── logger.ts
+│       ├── middlewares
+│       │   ├── authenticate.ts
+│       │   ├── authorize-role.ts
+│       │   ├── error-handler.ts
+│       │   ├── http-security.ts
+│       │   ├── request-logger.ts
+│       │   └── validate-request.ts
+│       └── types
+│           └── express.d.ts
+├── supabase
+│   ├── config.toml
+│   ├── .gitignore
+│   ├── migrations
+│   │   └── 20261101202618_create_profiles_and_user_roles.sql
+│   └── .temp
+│       ├── cli-latest
+│       ├── gotrue-version
+│       ├── linked-project.json
+│       ├── pooler-url
+│       ├── postgres-version
+│       ├── project-ref
+│       ├── rest-version
+│       ├── storage-migration
+│       └── storage-version
+├── tests
+│   ├── integration
+│   │   ├── app.test.ts
+│   │   ├── authenticate.spec.ts
+│   │   ├── authorize-role.spec.ts
+│   │   ├── error-handler.spec.ts
+│   │   ├── http-security.spec.ts
+│   │   ├── identity.routes.spec.ts
+│   │   ├── identity.service.spec.ts
+│   │   ├── request-logger.spec.ts
+│   │   ├── supabase.test.ts
+│   │   └── validate-request.spec.ts
+│   ├── setup.ts
+│   └── unit
+├── tsconfig.json
+├── tsconfig.scripts.json
+└── vitest.config.ts
+
+22 directories, 58 files
