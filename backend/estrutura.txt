@@ -53,7 +53,8 @@
 │   │   ├── 20261101202618_create_profiles_and_user_roles.sql
 │   │   ├── 20261106231752_enable_postgis.sql
 │   │   ├── 20261106231820_create_domain_enums.sql
-│   │   └── 20261106234833_create_categories.sql
+│   │   ├── 20261106234833_create_categories.sql
+│   │   └── 20261107000646_create_ai_analyses.sql
 │   └── .temp
 │       ├── cli-latest
 │       ├── gotrue-version
@@ -82,4 +83,4 @@
 ├── tsconfig.scripts.json
 └── vitest.config.ts
 
-22 directories, 61 files
+22 directories, 62 files
