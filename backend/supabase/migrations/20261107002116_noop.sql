@@ -1,0 +1,12 @@
+
+-- Placeholder da migration no-op aplicada durante DB-04.
+--
+-- Contexto: a migration original 20261107002116 foi criada vazia por engano.
+-- O conteúdo real da criação de `occurrences` vive em:
+--   20261107003456_create_occurrences.sql
+--
+-- Este arquivo existe apenas para alinhar o histórico local ao remoto
+-- (schema_migrations já contém o registro 20261107002116 como aplicado).
+-- É preservado por §2.1 do anexo 02: não reescrever histórico de migrations.
+--
+-- Não executar. Não remover enquanto o ambiente remoto mantiver o registro.

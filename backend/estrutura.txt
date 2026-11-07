@@ -54,7 +54,10 @@
 │   │   ├── 20261106231752_enable_postgis.sql
 │   │   ├── 20261106231820_create_domain_enums.sql
 │   │   ├── 20261106234833_create_categories.sql
-│   │   └── 20261107000646_create_ai_analyses.sql
+│   │   ├── 20261107000646_create_ai_analyses.sql
+│   │   ├── 20261107003456_create_occurrences.sql
+│   │   ├── 20261107003942_fix_prevent_location_original_change.sql
+│   │   └── 20261107004244_enable_always_location_trigger.sql
 │   └── .temp
 │       ├── cli-latest
 │       ├── gotrue-version
@@ -83,4 +86,4 @@
 ├── tsconfig.scripts.json
 └── vitest.config.ts
 
-22 directories, 62 files
+22 directories, 65 files
