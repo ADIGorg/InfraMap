@@ -61,7 +61,9 @@
 │   │   ├── 20261107004244_enable_always_location_trigger.sql
 │   │   ├── 20261107133748_create_occurrence_photos.sql
 │   │   ├── 20261107134350_fix_bucket_allowed_mime_types.sql
-│   │   └── 20261107135644_create_history_and_observations.sql
+│   │   ├── 20261107135644_create_history_and_observations.sql
+│   │   ├── 20261107140519_create_votes_and_notifications.sql
+│   │   └── 20261107141923_add_constraints_and_indexes.sql
 │   └── .temp
 │       ├── cli-latest
 │       ├── gotrue-version
@@ -90,4 +92,4 @@
 ├── tsconfig.scripts.json
 └── vitest.config.ts
 
-22 directories, 69 files
+22 directories, 71 files
