@@ -65,7 +65,9 @@
 │   │   ├── 20261107140519_create_votes_and_notifications.sql
 │   │   ├── 20261107141923_add_constraints_and_indexes.sql
 │   │   ├── 20261107143327_configure_rls_and_storage.sql
-│   │   └── 20261107145244_fix_occurrences_select_allow_public.sql
+│   │   ├── 20261107145244_fix_occurrences_select_allow_public.sql
+│   │   ├── 20261107150607_create_views_and_functions.sql
+│   │   └── 20261107151203_fix_register_vote_ambiguous_columns.sql
 │   └── .temp
 │       ├── cli-latest
 │       ├── gotrue-version
@@ -94,4 +96,4 @@
 ├── tsconfig.scripts.json
 └── vitest.config.ts
 
-22 directories, 73 files
+22 directories, 75 files
