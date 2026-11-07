@@ -50,7 +50,9 @@
 │   ├── config.toml
 │   ├── .gitignore
 │   ├── migrations
-│   │   └── 20261101202618_create_profiles_and_user_roles.sql
+│   │   ├── 20261101202618_create_profiles_and_user_roles.sql
+│   │   ├── 20261106231752_enable_postgis.sql
+│   │   └── 20261106231820_create_domain_enums.sql
 │   └── .temp
 │       ├── cli-latest
 │       ├── gotrue-version
@@ -79,4 +81,4 @@
 ├── tsconfig.scripts.json
 └── vitest.config.ts
 
-22 directories, 58 files
+22 directories, 60 files
