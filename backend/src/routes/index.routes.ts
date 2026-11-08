@@ -2,12 +2,16 @@ import { Router } from "express";
 
 import healthRoutes from "../modules/health/health.routes.js";
 
+
 import {
   createIdentityRoutes,
   identityRouter,
-} from "../modules/identity/identity.routes.js";
+} from "../modules/identity/presentation/identity.routes.js";
 
-import { createProfileReader } from "../modules/identity/identity.repository.js";
+import {
+  createProfileReader,
+} from "../modules/identity/infrastructure/repositories/supabase-identity.repository.js";
+
 
 import { authenticate } from "../shared/middlewares/authenticate.js";
 import { authorizeRole } from "../shared/middlewares/authorize-role.js";

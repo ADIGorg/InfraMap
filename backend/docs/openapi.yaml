@@ -78,12 +78,11 @@ paths:
         Endpoint provisório que valida os dados recebidos
         utilizando Zod.
 
-        IMPORTANTE: ainda não realiza a criação do usuário
-        no Supabase Auth. A resposta atual devolve os dados
-        validados em data, incluindo a senha. Esse
-        comportamento deve ser removido antes de disponibilizar
-        a operação para uso real.
-        
+        IMPORTANTE: esta operação não cria usuários no
+        Supabase Auth nem persiste informações no banco.
+        A resposta confirma somente a validação, sem devolver
+        os dados enviados ou a senha.
+
         Requer autenticação e perfil ADMIN.
       operationId: validateUserCreation
 
@@ -104,18 +103,13 @@ paths:
 
       responses:
         "201":
-          description: Dados validados. Usuário ainda não criado.
+          description: Dados validados. Nenhum usuário foi criado.
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/UserValidationResponse"
               example:
-                message: Usuário validado e pronto para criação.
-                data:
-                  name: Maria Silva
-                  email: maria@example.com
-                  password: senha123
-                  role: CITIZEN
+                message: Dados validados. Nenhum usuário foi criado.
 
         "400":
           $ref: "#/components/responses/BadRequest"
@@ -500,15 +494,12 @@ components:
 
     UserValidationResponse:
       type: object
+      required:
+        - message
       properties:
         message:
           type: string
-        data:
-          type: object
-          description: |
-            Objeto validado pelo Zod. A implementação atual
-            também inclui a senha na resposta. Não utilizar
-            esse comportamento em produção.
+          example: Dados validados. Nenhum usuário foi criado.
 
     UsersQueryResponse:
       type: object
