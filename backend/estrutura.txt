@@ -52,7 +52,23 @@
 │   ├── migrations
 │   │   ├── 20261101202618_create_profiles_and_user_roles.sql
 │   │   ├── 20261106231752_enable_postgis.sql
-│   │   └── 20261106231820_create_domain_enums.sql
+│   │   ├── 20261106231820_create_domain_enums.sql
+│   │   ├── 20261106234833_create_categories.sql
+│   │   ├── 20261107000646_create_ai_analyses.sql
+│   │   ├── 20261107002116_noop.sql
+│   │   ├── 20261107003456_create_occurrences.sql
+│   │   ├── 20261107003942_fix_prevent_location_original_change.sql
+│   │   ├── 20261107004244_enable_always_location_trigger.sql
+│   │   ├── 20261107133748_create_occurrence_photos.sql
+│   │   ├── 20261107134350_fix_bucket_allowed_mime_types.sql
+│   │   ├── 20261107135644_create_history_and_observations.sql
+│   │   ├── 20261107140519_create_votes_and_notifications.sql
+│   │   ├── 20261107141923_add_constraints_and_indexes.sql
+│   │   ├── 20261107143327_configure_rls_and_storage.sql
+│   │   ├── 20261107145244_fix_occurrences_select_allow_public.sql
+│   │   ├── 20261107150607_create_views_and_functions.sql
+│   │   ├── 20261107151203_fix_register_vote_ambiguous_columns.sql
+│   │   └── 20261107152851_create_agencies_and_forwardings.sql
 │   └── .temp
 │       ├── cli-latest
 │       ├── gotrue-version
@@ -81,4 +97,4 @@
 ├── tsconfig.scripts.json
 └── vitest.config.ts
 
-22 directories, 60 files
+22 directories, 76 files
