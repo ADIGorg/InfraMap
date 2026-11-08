@@ -1,7 +1,7 @@
+
 import { Router } from "express";
 
 import healthRoutes from "../modules/health/health.routes.js";
-
 
 import {
   createIdentityRoutes,
@@ -12,22 +12,60 @@ import {
   createProfileReader,
 } from "../modules/identity/infrastructure/repositories/supabase-identity.repository.js";
 
+import {
+  createCategoriesRoutes,
+} from "../modules/categories/categories.routes.js";
+
+import {
+  createCategoriesRepository,
+} from "../modules/categories/categories.repository.js";
 
 import { authenticate } from "../shared/middlewares/authenticate.js";
 import { authorizeRole } from "../shared/middlewares/authorize-role.js";
 
-import { createUserSupabaseClient } from "../infrastructure/supabase/user-client.factory.js";
+import {
+  createUserSupabaseClient,
+} from "../infrastructure/supabase/user-client.factory.js";
 
-import { UnauthorizedError } from "../shared/errors/app-error.js";
+import {
+  supabasePublic,
+} from "../infrastructure/supabase/public-client.js";
+
+import {
+  UnauthorizedError,
+} from "../shared/errors/app-error.js";
 
 const routes = Router();
 
+// ==========================================
+// HEALTH CHECK
+// ==========================================
+
 routes.use("/health", healthRoutes);
 
-// Preserva as rotas anteriores.
+// ==========================================
+// CAT-01 - CONSULTA PÚBLICA DE CATEGORIAS
+// ==========================================
+
+const categoriesRepository = createCategoriesRepository(
+  supabasePublic
+);
+
+routes.use(
+  "/categories",
+  createCategoriesRoutes(categoriesRepository)
+);
+
+// ==========================================
+// ROTAS DE IDENTIDADE EXISTENTES
+// ==========================================
+
 routes.use("/identity", identityRouter);
 
-// Registra os novos endpoints do API-13.
+// ==========================================
+// API1-13 - IDENTIDADE DO USUÁRIO
+// ==========================================
+
 const identityMeRoutes = createIdentityRoutes({
   authenticate,
 
@@ -38,7 +76,9 @@ const identityMeRoutes = createIdentityRoutes({
       throw new UnauthorizedError();
     }
 
-    const userClient = createUserSupabaseClient(request.token);
+    const userClient = createUserSupabaseClient(
+      request.token
+    );
 
     return {
       userId: request.user.id,

@@ -30,7 +30,42 @@ tags:
   - name: Admin
     description: Endpoints destinados ao painel administrativo.
 
+  - name: Categories
+    description: Consulta pública às categorias de infraestrutura.
+
 paths:
+
+  # ==========================================
+  # CATEGORIES - CONSULTA PÚBLICA
+  # ==========================================
+
+  /categories:
+    get:
+      tags:
+        - Categories
+      summary: Listar categorias ativas
+      description: |
+        Retorna as categorias ativas de infraestrutura urbana,
+        ordenadas pelo código.
+        Endpoint público: não exige autenticação.
+      operationId: listActiveCategories
+
+      security: []
+
+      responses:
+        "200":
+          description: Categorias ativas retornadas com sucesso.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CategoriesListResponse"
+
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
 
   # ==========================================
   # HEALTH CHECK
@@ -140,7 +175,7 @@ paths:
         Endpoint provisório: não realiza consulta de usuários
         no banco de dados. Apenas retorna os parâmetros
         validados.
-        
+
         Requer autenticação.
       operationId: validateUsersQuery
 
@@ -438,6 +473,41 @@ components:
   # ----------------------------------------
 
   schemas:
+
+    Category:
+      type: object
+      required:
+        - id
+        - code
+        - name
+        - description
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Identificador da categoria.
+        code:
+          type: string
+          example: CAT01
+          description: Código único da categoria.
+        name:
+          type: string
+          example: Saneamento e Drenagem
+        description:
+          type:
+            - string
+            - "null"
+          description: Descrição opcional da categoria.
+
+    CategoriesListResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Category"
 
     HealthResponse:
       type: object
