@@ -434,6 +434,74 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
+    # ========================================
+    # API1-44 - ID-02 - DESATIVAÇÃO DA CONTA
+    # ========================================
+    delete:
+      tags:
+        - Identity
+      summary: Desativar e anonimizar a própria conta
+      description: |
+        Permite que um cidadão autenticado, com conta ativa,
+        solicite a desativação da própria conta.
+
+        A operação tenta revogar as sessões no Supabase Auth,
+        desativa o acesso (user_roles.is_active = false),
+        substitui o nome por "Usuário excluído", remove o
+        telefone cadastrado e anonimiza os dados pessoais
+        de autenticação no Supabase Auth.
+
+        As ocorrências, fotos e o histórico são preservados.
+
+        Se a anonimização do Auth falhar após a desativação
+        no banco, a conta permanece desativada e a limpeza
+        pendente poderá ser retomada administrativamente.
+
+        Não recebe identificador de usuário no corpo:
+        a operação utiliza a identidade do próprio JWT.
+      operationId: deactivateMyAccount
+
+      security:
+        - bearerAuth: []
+
+      responses:
+        "204":
+          description: Conta desativada e anonimizada com sucesso. Resposta sem corpo.
+
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+        "503":
+          description: |
+            Não foi possível revogar as sessões ou a conta
+            foi desativada e a anonimização do Auth está pendente.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                sessionRevocationFailed:
+                  summary: Falha ao encerrar sessões
+                  value:
+                    error:
+                      code: SESSION_REVOCATION_FAILED
+                      message: Não foi possível encerrar as sessões. A conta não foi desativada.
+                authCleanupPending:
+                  summary: Conta desativada com limpeza pendente
+                  value:
+                    error:
+                      code: ACCOUNT_DEACTIVATED_AUTH_PENDING
+                      message: Conta desativada. A limpeza dos dados de autenticação está pendente.
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
   # ========================================
   # IDENTITY - VERIFICAÇÃO ADMINISTRATIVA
   # ========================================
