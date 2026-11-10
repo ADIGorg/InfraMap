@@ -38,6 +38,56 @@ tags:
 # ==========================================
 
 paths:
+  /admin/agencies:
+    get:
+      tags: [Admin]
+      summary: Lista órgãos ativos e inativos para administradores ativos
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Catálogo no campo data }
+        '401': { description: Autenticação necessária }
+        '403': { description: Exige administrador ativo }
+    post:
+      tags: [Admin]
+      summary: Cadastra um órgão como Master ativo
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/AgencyChanges'
+                - required: [name, email]
+      responses:
+        '201': { description: Órgão cadastrado no campo data }
+        '400': { description: Dados inválidos }
+        '401': { description: Autenticação necessária }
+        '403': { description: Exige Master ativo }
+
+  /admin/agencies/{id}:
+    patch:
+      tags: [Admin]
+      summary: Edita ou desativa um órgão como Master ativo
+      description: A desativação bloqueia novos encaminhamentos e preserva os anteriores.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgencyChanges'
+      responses:
+        '200': { description: Órgão atualizado no campo data }
+        '400': { description: Dados ou identificador inválidos }
+        '401': { description: Autenticação necessária }
+        '403': { description: Exige Master ativo }
+        '404': { description: Órgão não encontrado }
   /admin/admins:
     get:
       tags: [Admin]
@@ -1003,6 +1053,16 @@ components:
   # ========================================
 
   schemas:
+    AgencyChanges:
+      type: object
+      minProperties: 1
+      additionalProperties: false
+      properties:
+        name: { type: string, minLength: 1, maxLength: 150 }
+        email: { type: string, format: email, maxLength: 150 }
+        phone: { type: [string, 'null'], minLength: 1, maxLength: 20 }
+        description: { type: [string, 'null'] }
+        is_active: { type: boolean }
 
     # ======================================
     # API1-48 - DETALHES DA ANÁLISE DE IA
