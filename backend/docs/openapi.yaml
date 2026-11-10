@@ -6,8 +6,8 @@ info:
   version: 1.0.0
   description: |
     API REST do InfraMap, responsável pela autenticação,
-    identificação de usuários, autorização por perfil e
-    integração com os serviços do Supabase.
+    identificação de usuários, gerenciamento de perfis,
+    consulta de categorias e integração com o Supabase.
 
     A API utiliza Supabase Auth para validar tokens JWT
     e PostgreSQL com Row Level Security (RLS) para
@@ -22,7 +22,7 @@ tags:
     description: Verificação de disponibilidade da API.
 
   - name: Identity
-    description: Identificação e validação de usuários.
+    description: Identificação e gerenciamento de perfis de usuários.
 
   - name: App
     description: Endpoints destinados ao aplicativo cidadão.
@@ -30,11 +30,50 @@ tags:
   - name: Admin
     description: Endpoints destinados ao painel administrativo.
 
+  - name: Categories
+    description: Consulta pública às categorias de infraestrutura.
+
+# ==========================================
+# ENDPOINTS
+# ==========================================
+
 paths:
 
-  # ==========================================
+  # ========================================
+  # CAT-01 - CONSULTA PÚBLICA DE CATEGORIAS
+  # ========================================
+
+  /categories:
+    get:
+      tags:
+        - Categories
+      summary: Listar categorias ativas
+      description: |
+        Retorna as categorias ativas de infraestrutura urbana,
+        ordenadas pelo código.
+
+        Endpoint público: não exige autenticação.
+      operationId: listActiveCategories
+
+      security: []
+
+      responses:
+        "200":
+          description: Categorias ativas retornadas com sucesso.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CategoriesListResponse"
+
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  # ========================================
   # HEALTH CHECK
-  # ==========================================
+  # ========================================
 
   /health:
     get:
@@ -64,10 +103,9 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
-
-  # ==========================================
-  # IDENTITY
-  # ==========================================
+  # ========================================
+  # IDENTITY - ROTAS PROVISÓRIAS
+  # ========================================
 
   /identity/users:
     post:
@@ -78,12 +116,12 @@ paths:
         Endpoint provisório que valida os dados recebidos
         utilizando Zod.
 
-        IMPORTANTE: ainda não realiza a criação do usuário
-        no Supabase Auth. A resposta atual devolve os dados
-        validados em data, incluindo a senha. Esse
-        comportamento deve ser removido antes de disponibilizar
-        a operação para uso real.
-        
+        IMPORTANTE: esta operação não cria usuários no
+        Supabase Auth nem persiste informações no banco.
+
+        A resposta confirma somente a validação, sem devolver
+        os dados enviados ou a senha.
+
         Requer autenticação e perfil ADMIN.
       operationId: validateUserCreation
 
@@ -104,18 +142,13 @@ paths:
 
       responses:
         "201":
-          description: Dados validados. Usuário ainda não criado.
+          description: Dados validados. Nenhum usuário foi criado.
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/UserValidationResponse"
               example:
-                message: Usuário validado e pronto para criação.
-                data:
-                  name: Maria Silva
-                  email: maria@example.com
-                  password: senha123
-                  role: CITIZEN
+                message: Dados validados. Nenhum usuário foi criado.
 
         "400":
           $ref: "#/components/responses/BadRequest"
@@ -135,7 +168,6 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
-
     get:
       tags:
         - Identity
@@ -144,9 +176,10 @@ paths:
         Valida os parâmetros de paginação utilizando Zod.
 
         Endpoint provisório: não realiza consulta de usuários
-        no banco de dados. Apenas retorna os parâmetros
-        validados.
-        
+        no banco de dados.
+
+        Apenas retorna os parâmetros validados.
+
         Requer autenticação.
       operationId: validateUsersQuery
 
@@ -200,6 +233,9 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
+  # ========================================
+  # IDENTITY - VALIDAÇÃO DE IDENTIFICADOR
+  # ========================================
 
   /identity/users/{id}:
     get:
@@ -250,35 +286,60 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
+  # ========================================
+  # ID-01 - GERENCIAMENTO DO PRÓPRIO PERFIL
+  # ========================================
 
   /identity/me:
     get:
       tags:
         - Identity
-      summary: Identificar usuário autenticado
+      summary: Consultar o próprio perfil
       description: |
-        Retorna os dados básicos do usuário autenticado
-        a partir do token validado pelo Supabase Auth.
-      operationId: getAuthenticatedUser
+        Retorna os dados cadastrais do usuário autenticado.
+
+        Requer token JWT válido e conta ativa.
+
+        O usuário pode consultar somente o próprio perfil.
+
+        Os dados cadastrais são consultados na tabela
+        public.profiles, utilizando o JWT do usuário e
+        respeitando as políticas RLS do Supabase.
+
+        O e-mail é obtido do Supabase Auth.
+
+        Contas inativas ou sem perfil de autorização
+        válido não podem executar esta operação.
+      operationId: getMyProfile
 
       security:
         - bearerAuth: []
 
       responses:
         "200":
-          description: Usuário identificado.
+          description: Perfil consultado com sucesso.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/AuthenticatedUserResponse"
+                $ref: "#/components/schemas/MyProfileResponse"
               example:
                 message: Usuário autenticado.
                 data:
                   id: 181227d2-89d7-4ceb-8dff-85b623aeee5b
+                  name: Maria Silva
+                  phone: "(75) 99999-9999"
+                  created_at: "2026-11-01T10:00:00.000Z"
+                  updated_at: "2026-11-01T10:00:00.000Z"
                   email: maria@example.com
 
         "401":
           $ref: "#/components/responses/Unauthorized"
+
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+        "404":
+          $ref: "#/components/responses/NotFound"
 
         "429":
           $ref: "#/components/responses/TooManyRequests"
@@ -286,6 +347,164 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
+    patch:
+      tags:
+        - Identity
+      summary: Atualizar o próprio perfil
+      description: |
+        Permite atualizar os dados cadastrais do
+        usuário autenticado.
+
+        Requer token JWT válido e conta ativa.
+
+        Somente os campos name e phone são permitidos.
+
+        A operação não permite modificar:
+        - id
+        - email
+        - role
+        - admin_level
+        - is_active
+
+        A atualização ocorre exclusivamente no registro
+        associado ao identificador do usuário autenticado.
+
+        A API utiliza o JWT do usuário para acessar o
+        Supabase e respeita as políticas RLS.
+
+        O campo name deve conter entre 3 e 150 caracteres.
+
+        O campo phone é opcional e deve conter entre
+        8 e 15 dígitos numéricos, considerando sua
+        formatação.
+
+        Para remover um telefone cadastrado, envie null.
+
+        Deve ser informado pelo menos um campo válido.
+      operationId: updateMyProfile
+
+      security:
+        - bearerAuth: []
+
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateMyProfileRequest"
+            example:
+              name: Maria Souza
+              phone: "(75) 98888-8888"
+
+      responses:
+        "200":
+          description: Perfil atualizado com sucesso.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MyProfileResponse"
+              example:
+                message: Perfil atualizado com sucesso.
+                data:
+                  id: 181227d2-89d7-4ceb-8dff-85b623aeee5b
+                  name: Maria Souza
+                  phone: "(75) 98888-8888"
+                  created_at: "2026-11-01T10:00:00.000Z"
+                  updated_at: "2026-11-08T18:00:00.000Z"
+                  email: maria@example.com
+
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
+
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    # ========================================
+    # API1-44 - ID-02 - DESATIVAÇÃO DA CONTA
+    # ========================================
+    delete:
+      tags:
+        - Identity
+      summary: Desativar e anonimizar a própria conta
+      description: |
+        Permite que um cidadão autenticado, com conta ativa,
+        solicite a desativação da própria conta.
+
+        A operação tenta revogar as sessões no Supabase Auth,
+        desativa o acesso (user_roles.is_active = false),
+        substitui o nome por "Usuário excluído", remove o
+        telefone cadastrado e anonimiza os dados pessoais
+        de autenticação no Supabase Auth.
+
+        As ocorrências, fotos e o histórico são preservados.
+
+        Se a anonimização do Auth falhar após a desativação
+        no banco, a conta permanece desativada e a limpeza
+        pendente poderá ser retomada administrativamente.
+
+        Não recebe identificador de usuário no corpo:
+        a operação utiliza a identidade do próprio JWT.
+      operationId: deactivateMyAccount
+
+      security:
+        - bearerAuth: []
+
+      responses:
+        "204":
+          description: Conta desativada e anonimizada com sucesso. Resposta sem corpo.
+
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+        "503":
+          description: |
+            Não foi possível revogar as sessões ou a conta
+            foi desativada e a anonimização do Auth está pendente.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                sessionRevocationFailed:
+                  summary: Falha ao encerrar sessões
+                  value:
+                    error:
+                      code: SESSION_REVOCATION_FAILED
+                      message: Não foi possível encerrar as sessões. A conta não foi desativada.
+                authCleanupPending:
+                  summary: Conta desativada com limpeza pendente
+                  value:
+                    error:
+                      code: ACCOUNT_DEACTIVATED_AUTH_PENDING
+                      message: Conta desativada. A limpeza dos dados de autenticação está pendente.
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  # ========================================
+  # IDENTITY - VERIFICAÇÃO ADMINISTRATIVA
+  # ========================================
 
   /identity/admin-check:
     get:
@@ -293,8 +512,8 @@ paths:
         - Identity
       summary: Verificar acesso administrativo
       description: |
-        Verifica se o usuário autenticado possui perfil ADMIN
-        e conta ativa.
+        Verifica se o usuário autenticado possui
+        perfil ADMIN e conta ativa.
 
         Requer autenticação.
       operationId: checkAdminAccess
@@ -324,10 +543,9 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
-
-  # ==========================================
-  # APP - IDENTIDADE DO CIDADÃO
-  # ==========================================
+  # ========================================
+  # API1-13 - IDENTIDADE DO CIDADÃO
+  # ========================================
 
   /app/me:
     get:
@@ -369,10 +587,9 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
-
-  # ==========================================
-  # ADMIN - IDENTIDADE DO ADMINISTRADOR
-  # ==========================================
+  # ========================================
+  # API1-13 - IDENTIDADE DO ADMINISTRADOR
+  # ========================================
 
   /admin/me:
     get:
@@ -414,16 +631,15 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
-
 # ==========================================
 # COMPONENTES REUTILIZÁVEIS
 # ==========================================
 
 components:
 
-  # ----------------------------------------
+  # ========================================
   # AUTENTICAÇÃO
-  # ----------------------------------------
+  # ========================================
 
   securitySchemes:
     bearerAuth:
@@ -439,11 +655,58 @@ components:
         O token é validado pela API utilizando
         supabase.auth.getUser(token).
 
-  # ----------------------------------------
+  # ========================================
   # SCHEMAS
-  # ----------------------------------------
+  # ========================================
 
   schemas:
+
+    # ======================================
+    # CAT-01 - CATEGORIAS
+    # ======================================
+
+    Category:
+      type: object
+      required:
+        - id
+        - code
+        - name
+        - description
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Identificador único da categoria.
+
+        code:
+          type: string
+          description: Código único da categoria.
+          example: CAT01
+
+        name:
+          type: string
+          description: Nome da categoria.
+          example: Saneamento e Drenagem
+
+        description:
+          type:
+            - string
+            - "null"
+          description: Descrição opcional da categoria.
+
+    CategoriesListResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Category"
+
+    # ======================================
+    # HEALTH
+    # ======================================
 
     HealthResponse:
       type: object
@@ -455,12 +718,140 @@ components:
         status:
           type: string
           example: ok
+
         message:
           type: string
           example: InfraMap API funcionando!
+
         timestamp:
           type: string
           format: date-time
+
+    # ======================================
+    # ID-01 - PERFIL CADASTRAL
+    # ======================================
+
+    AccountProfile:
+      type: object
+      description: |
+        Dados cadastrais do usuário autenticado.
+
+        As propriedades de autorização são mantidas
+        separadamente na tabela user_roles.
+
+        O e-mail é obtido do Supabase Auth.
+      required:
+        - id
+        - name
+        - phone
+        - created_at
+        - updated_at
+        - email
+
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+          description: Identificador único do usuário.
+
+        name:
+          type: string
+          readOnly: true
+          description: Nome cadastrado do usuário.
+          example: Maria Silva
+
+        phone:
+          type:
+            - string
+            - "null"
+          readOnly: true
+          description: Telefone cadastrado do usuário.
+          example: "(75) 99999-9999"
+
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+          description: Data de criação do perfil.
+
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+          description: Data da última atualização do perfil.
+
+        email:
+          type:
+            - string
+            - "null"
+          format: email
+          readOnly: true
+          description: |
+            E-mail autenticado pelo Supabase Auth.
+            Não pode ser alterado por este endpoint.
+          example: maria@example.com
+
+    MyProfileResponse:
+      type: object
+      description: Resposta de consulta ou atualização do perfil.
+      required:
+        - message
+        - data
+
+      properties:
+        message:
+          type: string
+          description: Mensagem do resultado da operação.
+          example: Usuário autenticado.
+
+        data:
+          $ref: "#/components/schemas/AccountProfile"
+
+    UpdateMyProfileRequest:
+      type: object
+      description: |
+        Dados permitidos para atualização do próprio perfil.
+
+        Pelo menos um campo deve ser informado.
+
+        Campos administrativos e informações de
+        autenticação não são permitidos.
+      additionalProperties: false
+      minProperties: 1
+
+      properties:
+        name:
+          type: string
+          minLength: 3
+          maxLength: 150
+          description: |
+            Nome do usuário.
+            Deve conter entre 3 e 150 caracteres.
+          example: Maria Souza
+
+        phone:
+          type:
+            - string
+            - "null"
+          minLength: 8
+          maxLength: 20
+          pattern: '^\+?[0-9 ()-]+$'
+          description: |
+            Telefone do usuário.
+
+            Pode conter números, espaços,
+            parênteses, hífens e sinal de +.
+
+            Deve possuir entre 8 e 15 dígitos
+            numéricos, desconsiderando a formatação.
+
+            Envie null para remover o telefone.
+          example: "(75) 98888-8888"
+
+    # ======================================
+    # IDENTITY - VALIDAÇÃO DE CADASTRO
+    # ======================================
 
     CreateUserRequest:
       type: object
@@ -468,6 +859,7 @@ components:
         - name
         - email
         - password
+
       properties:
         name:
           type: string
@@ -500,50 +892,61 @@ components:
 
     UserValidationResponse:
       type: object
+      required:
+        - message
+
       properties:
         message:
           type: string
-        data:
-          type: object
-          description: |
-            Objeto validado pelo Zod. A implementação atual
-            também inclui a senha na resposta. Não utilizar
-            esse comportamento em produção.
+          example: Dados validados. Nenhum usuário foi criado.
 
     UsersQueryResponse:
       type: object
+
       properties:
         message:
           type: string
+
         data:
           type: object
+
           properties:
             page:
               type: integer
               example: 1
+
             limit:
               type: integer
               example: 20
 
     UserLookupResponse:
       type: object
+
       properties:
         message:
           type: string
           example: Buscando usuário.
 
+    # ======================================
+    # IDENTIDADE AUTENTICADA
+    # ======================================
+
     AuthenticatedUserResponse:
       type: object
+
       properties:
         message:
           type: string
           example: Usuário autenticado.
+
         data:
           type: object
+
           properties:
             id:
               type: string
               format: uuid
+
             email:
               type:
                 - string
@@ -556,23 +959,31 @@ components:
         - id
         - role
         - is_active
+
       properties:
         id:
           type: string
           format: uuid
           description: Identificador do usuário.
+
         role:
           type: string
           enum:
             - CITIZEN
             - ADMIN
           description: Perfil cadastrado para o usuário.
+
         is_active:
           type: boolean
           description: Situação da conta.
 
+    # ======================================
+    # RESPOSTAS GENÉRICAS
+    # ======================================
+
     MessageResponse:
       type: object
+
       properties:
         message:
           type: string
@@ -581,26 +992,31 @@ components:
       type: object
       required:
         - error
+
       properties:
         error:
           type: object
           required:
             - code
             - message
+
           properties:
             code:
               type: string
+
             message:
               type: string
 
-  # ----------------------------------------
+  # ========================================
   # RESPOSTAS DE ERRO
-  # ----------------------------------------
+  # ========================================
 
   responses:
 
     BadRequest:
-      description: Requisição inválida ou dados não passaram na validação.
+      description: |
+        Requisição inválida ou dados não passaram
+        pela validação.
       content:
         application/json:
           schema:
@@ -608,10 +1024,11 @@ components:
           example:
             error:
               code: BAD_REQUEST
-              message: "Erro de validação: email inválido."
+              message: "Erro de validação: dados inválidos."
 
     Unauthorized:
-      description: Token ausente, inválido ou expirado.
+      description: |
+        Token JWT ausente, inválido ou expirado.
       content:
         application/json:
           schema:
@@ -622,7 +1039,9 @@ components:
               message: Token inválido ou expirado.
 
     Forbidden:
-      description: Usuário não possui permissão ou está inativo.
+      description: |
+        Usuário sem permissão, com perfil de autorização
+        inexistente ou com conta inativa.
       content:
         application/json:
           schema:
@@ -633,7 +1052,11 @@ components:
               message: Você não possui permissão para esta operação.
 
     NotFound:
-      description: Rota ou recurso não encontrado.
+      description: |
+        Rota ou recurso não encontrado.
+
+        No gerenciamento de perfil, também pode indicar
+        ausência do perfil cadastral do usuário.
       content:
         application/json:
           schema:
@@ -641,7 +1064,7 @@ components:
           example:
             error:
               code: NOT_FOUND
-              message: Rota não encontrada.
+              message: Perfil cadastral não encontrado.
 
     PayloadTooLarge:
       description: Corpo da requisição excede 100 KB.

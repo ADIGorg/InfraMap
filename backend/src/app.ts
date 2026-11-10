@@ -1,8 +1,13 @@
+
 import express from "express";
+
 import routes from "./routes/index.routes.js";
 import docsRoutes from "./routes/docs.routes.js";
+
 import { NotFoundError } from "./shared/errors/app-error.js";
 import { errorHandler } from "./shared/middlewares/error-handler.js";
+
+import { deactivateMyAccountRouter } from "./modules/identity/presentation/deactivate-my-account.routes.js";
 
 import {
   securityHeaders,
@@ -50,10 +55,22 @@ app.use(express.json({ limit: "100kb" }));
 // ROTAS DA APLICAÇÃO
 // ==========================================
 
-// Todas as rotas utilizam o prefixo /api/v1.
+// Documentação da API.
 app.use("/api/docs", docsRoutes);
 
+// Rotas principais.
+// Todas utilizam o prefixo /api/v1.
 app.use("/api/v1", routes);
+
+// ==========================================
+// API1-44 - ID-02
+// DESATIVAÇÃO E ANONIMIZAÇÃO DA CONTA
+// ==========================================
+
+// Endpoint: DELETE /api/v1/identity/me
+// Permite que um cidadão autenticado solicite
+// a desativação da própria conta.
+app.use("/api/v1", deactivateMyAccountRouter);
 
 // ==========================================
 // API1-10 - TRATAMENTO DE ROTAS INEXISTENTES

@@ -6,11 +6,21 @@ import {
   vi,
 } from "vitest";
 
+
+
 import {
-  IdentityService,
-  type ProfileReader,
-  type UserProfile,
-} from "../../src/modules/identity/identity.service.js";
+  GetCurrentUserUseCase,
+} from "../../../../src/modules/identity/application/use-cases/get-current-user.use-case.js";
+
+import type {
+  UserProfile,
+} from "../../../../src/modules/identity/domain/entities/user-profile.entity.js";
+
+import type {
+  ProfileReader,
+} from "../../../../src/modules/identity/domain/repositories/identity.repository.js";
+
+
 
 function createRepository(
   profile: UserProfile | null
@@ -29,9 +39,9 @@ describe("API1-13 - Identificação do usuário", () => {
       is_active: true,
     });
 
-    const service = new IdentityService(repository);
+    const service = new GetCurrentUserUseCase(repository);
 
-    const identity = await service.getMe(
+    const identity = await service.execute(
       "user-123",
       "CITIZEN"
     );
@@ -50,9 +60,9 @@ describe("API1-13 - Identificação do usuário", () => {
       is_active: true,
     });
 
-    const service = new IdentityService(repository);
+    const service = new GetCurrentUserUseCase(repository);
 
-    const identity = await service.getMe(
+    const identity = await service.execute(
       "admin-123",
       "ADMIN"
     );
@@ -68,10 +78,10 @@ describe("API1-13 - Identificação do usuário", () => {
       is_active: true,
     });
 
-    const service = new IdentityService(repository);
+    const service = new GetCurrentUserUseCase(repository);
 
     await expect(
-      service.getMe("user-123", "ADMIN")
+      service.execute("user-123", "ADMIN")
     ).rejects.toMatchObject({
       statusCode: 403,
       code: "FORBIDDEN",
@@ -85,10 +95,10 @@ describe("API1-13 - Identificação do usuário", () => {
       is_active: false,
     });
 
-    const service = new IdentityService(repository);
+    const service = new GetCurrentUserUseCase(repository);
 
     await expect(
-      service.getMe("user-123", "CITIZEN")
+      service.execute("user-123", "CITIZEN")
     ).rejects.toMatchObject({
       statusCode: 403,
     });
@@ -96,10 +106,10 @@ describe("API1-13 - Identificação do usuário", () => {
 
   it("deve rejeitar identidade ausente", async () => {
     const repository = createRepository(null);
-    const service = new IdentityService(repository);
+    const service = new GetCurrentUserUseCase(repository);
 
     await expect(
-      service.getMe(undefined, "CITIZEN")
+      service.execute(undefined, "CITIZEN")
     ).rejects.toMatchObject({
       statusCode: 401,
     });
@@ -115,12 +125,45 @@ describe("API1-13 - Identificação do usuário", () => {
       is_active: true,
     });
 
-    const service = new IdentityService(repository);
+    const service = new GetCurrentUserUseCase(repository);
 
     await expect(
-      service.getMe("user-123", "CITIZEN")
+      service.execute("user-123", "CITIZEN")
     ).rejects.toMatchObject({
       statusCode: 403,
     });
   });
+
+  it("deve rejeitar usuário sem perfil cadastrado", async () => {
+    const repository = createRepository(null);
+
+    const useCase = new GetCurrentUserUseCase(repository);
+
+    await expect(
+      useCase.execute("user-123", "CITIZEN")
+    ).rejects.toMatchObject({
+      statusCode: 403,
+      code: "FORBIDDEN",
+    });
+
+    expect(repository.findByUserId).toHaveBeenCalledWith(
+      "user-123"
+    );
+  });
+
+  it("deve propagar falha do repositório", async () => {
+    const repository: ProfileReader = {
+      findByUserId: vi.fn().mockRejectedValue(
+        new Error("Falha simulada no repositório")
+      ),
+    };
+
+    const useCase = new GetCurrentUserUseCase(repository);
+
+    await expect(
+      useCase.execute("user-123", "CITIZEN")
+    ).rejects.toThrow("Falha simulada no repositório");
+  });
+
+
 });

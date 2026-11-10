@@ -1,3 +1,4 @@
+
 import {
   Router,
   type RequestHandler,
@@ -10,11 +11,11 @@ import {
 
 import type {
   IdentityRole,
-} from "./identity.service.js";
+} from "../domain/entities/user-profile.entity.js";
 
-import { authenticate } from "../../shared/middlewares/authenticate.js";
-import { authorizeRole } from "../../shared/middlewares/authorize-role.js";
-import { validateRequest } from "../../shared/middlewares/validate-request.js";
+import { authenticate } from "../../../shared/middlewares/authenticate.js";
+import { authorizeRole } from "../../../shared/middlewares/authorize-role.js";
+import { validateRequest } from "../../../shared/middlewares/validate-request.js";
 
 import {
   createUserBodySchema,
@@ -31,17 +32,16 @@ import {
 
 export const identityRouter = Router();
 
-// Apenas administradores podem criar usuários.
-// A implementação da criação será tratada em outro ticket.
+// Apenas administradores podem acessar a validação de cadastro.
+// A criação real de usuários será tratada em outro ticket.
 identityRouter.post(
   "/users",
   authenticate,
   authorizeRole(["ADMIN"]),
   validateRequest({ body: createUserBodySchema }),
-  (req, res) => {
+  (_req, res) => {
     return res.status(201).json({
-      message: "Usuário validado e pronto para criação.",
-      data: req.body,
+      message: "Dados validados. Nenhum usuário foi criado.",
     });
   }
 );
@@ -101,7 +101,7 @@ identityRouter.get(
 );
 
 // ==========================================
-// API-13 - ROTAS DE IDENTIDADE DO USUÁRIO
+// API1-13 - ROTAS DE IDENTIDADE DO USUÁRIO
 // ==========================================
 
 interface IdentityRoutesDependencies {
