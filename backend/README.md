@@ -191,7 +191,7 @@ As rotas deste grupo são montadas sob `/identity`.
 
 O schema de `POST /identity/users` está em `src/modules/identity/identity.schema.ts`. O schema de listagem aceita os parâmetros de consulta definidos em `getUsersQuerySchema`; consulte esse arquivo para os limites e valores padrão vigentes. O parâmetro `id` é validado como UUID.
 
-> **Atenção antes de produção:** a implementação provisória de `POST /identity/users` responde com `data: req.body`. Como o body de cadastro contém senha, remova o eco do body da resposta antes de disponibilizar essa rota a clientes reais. A documentação não deve ser interpretada como confirmação de que o cadastro já foi implementado.
+Endpoint provisório: POST /identity/users valida os dados recebidos, mas ainda não cria usuários no Supabase. A resposta não inclui senha nem outros dados cadastrais enviados. O endpoint permanece reservado ao perfil ADMIN.
 
 ### Identidade — contexto do aplicativo e do painel administrativo
 
