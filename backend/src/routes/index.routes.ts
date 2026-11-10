@@ -35,7 +35,14 @@ import {
   UnauthorizedError,
 } from "../shared/errors/app-error.js";
 
+
+import {
+  aiAnalysisRoutes,
+} from "../modules/ai-analysis/presentation/ai-analysis.routes.js";
+
+
 const routes = Router();
+
 
 // ==========================================
 // HEALTH CHECK
@@ -88,5 +95,14 @@ const identityMeRoutes = createIdentityRoutes({
 });
 
 routes.use(identityMeRoutes);
+
+
+// ==========================================
+// API1-47 - AI-02
+// CRIAÇÃO DE ANÁLISE E UPLOAD DE FOTOS
+// ==========================================
+
+routes.use("/ai-analyses", aiAnalysisRoutes);
+
 
 export default routes;

@@ -40,6 +40,94 @@ tags:
 paths:
 
   # ========================================
+  # API1-47 - AI-02
+  # CRIAÇÃO DE ANÁLISE E UPLOAD DE FOTOGRAFIAS
+  # ========================================
+
+  /ai-analyses:
+    post:
+      tags:
+        - App
+      summary: Criar análise com fotografias
+      description: |
+        Permite que um cidadão autenticado e ativo crie uma análise
+        enviando de 1 a 3 fotografias JPEG ou PNG, com até 5 MB cada.
+
+        Os arquivos são armazenados no bucket privado occurrence-photos.
+        A análise é criada com status PENDING; o processamento por IA
+        ocorre posteriormente, em outra operação.
+      operationId: createAiAnalysis
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - photos
+              properties:
+                photos:
+                  type: array
+                  description: Fotografias da mesma ocorrência.
+                  minItems: 1
+                  maxItems: 3
+                  items:
+                    type: string
+                    format: binary
+      responses:
+        "201":
+          description: Análise criada com sucesso.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    type: object
+                    required:
+                      - id
+                      - status
+                      - photo_count
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      status:
+                        type: string
+                        enum: [PENDING]
+                      photo_count:
+                        type: integer
+                        minimum: 1
+                        maximum: 3
+              example:
+                data:
+                  id: 181227d2-89d7-4ceb-8dff-85b623aeee5b
+                  status: PENDING
+                  photo_count: 1
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          description: Falha no upload ou na criação da análise.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  # ========================================
   # CAT-01 - CONSULTA PÚBLICA DE CATEGORIAS
   # ========================================
 
@@ -437,6 +525,7 @@ paths:
     # ========================================
     # API1-44 - ID-02 - DESATIVAÇÃO DA CONTA
     # ========================================
+
     delete:
       tags:
         - Identity
