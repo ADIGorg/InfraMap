@@ -1,48 +1,116 @@
-import { Router } from 'express';
-import { createClient } from '@supabase/supabase-js';
-import { authenticate } from '../../shared/middlewares/authenticate.js';
-import { authorizeRole } from '../../shared/middlewares/authorize-role.js';
+import { Router, type RequestHandler } from 'express';
+import type { SupabaseClient } from '@supabase/supabase-js';
+
 import { OccurrenceModerationController } from '../controllers/occurrence-moderation.controller.js';
 import { StartAnalysisUseCase } from '../../application/use-cases/start-analysis.use-case.js';
 import { ConfirmOccurrenceUseCase } from '../../application/use-cases/confirm-occurrence.use-case.js';
 import { RejectOccurrenceUseCase } from '../../application/use-cases/reject-occurrence.use-case.js';
+import { SetPriorityUseCase } from '../../application/use-cases/set-priority.use-case.js';
+import { StartServiceUseCase } from '../../application/use-cases/start-service.use-case.js';
+import { ResolveOccurrenceUseCase } from '../../application/use-cases/resolve-occurrence.use-case.js';
 import { SupabaseOccurrenceModerationRepository } from '../../infrastructure/supabase/occurrence-moderation.repository.js';
+export interface OccurrenceModerationRoutesDeps {
+  authenticate: RequestHandler;
+  authorizeRole: (roles: string[]) => RequestHandler;
+  adminClient: SupabaseClient;
+  validateRequest: (schema: unknown) => RequestHandler;
+}
 
-const occurrenceModerationRoutes = Router();
+export function createOccurrenceModerationRoutes({
+  authenticate,
+  authorizeRole,
+  adminClient,
+  validateRequest,
+}: OccurrenceModerationRoutesDeps): Router {
+  const repository = new SupabaseOccurrenceModerationRepository(adminClient);
 
-// Injeção de Dependências
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
-const repository = new SupabaseOccurrenceModerationRepository(supabase);
-const moderationRepository = new Proxy(repository, {
-  get(target, property, receiver) {
-    if (property === 'transitionStatus') {
-      return async (...args: Parameters<typeof target.transitionStatus>): Promise<void> => {
-        await target.transitionStatus(...args);
-      };
-    }
+  const controller = new OccurrenceModerationController(
+    new StartAnalysisUseCase(repository),
+    new ConfirmOccurrenceUseCase(
+      new Proxy(repository, {
+        get(target, property, receiver) {
+          if (property === 'transitionStatus') {
+            return async (...args: Parameters<typeof target.transitionStatus>) => {
+              await target.transitionStatus(...args);
+            };
+          }
 
-    return Reflect.get(target, property, receiver);
-  }
-}) as unknown as ConstructorParameters<typeof StartAnalysisUseCase>[0];
-const controller = new OccurrenceModerationController(
-  new StartAnalysisUseCase(moderationRepository),
-  new ConfirmOccurrenceUseCase(
-    moderationRepository as unknown as ConstructorParameters<typeof ConfirmOccurrenceUseCase>[0]
-  ),
-  new RejectOccurrenceUseCase(
-    moderationRepository as unknown as ConstructorParameters<typeof RejectOccurrenceUseCase>[0]
-  )
-);
+          const value = Reflect.get(target, property, receiver);
+          return typeof value === 'function' ? value.bind(target) : value;
+        },
+      }) as unknown as ConstructorParameters<typeof ConfirmOccurrenceUseCase>[0]
+    ),
+    new RejectOccurrenceUseCase(
+      new Proxy(repository, {
+        get(target, property, receiver) {
+          if (property === 'transitionStatus') {
+            return async (...args: Parameters<typeof target.transitionStatus>) => {
+              await target.transitionStatus(...args);
+            };
+          }
 
-// Todas as rotas exigem autenticação e perfil ADMIN ativo
-occurrenceModerationRoutes.use(authenticate);
-occurrenceModerationRoutes.use(authorizeRole(['ADMIN']));
+          const value = Reflect.get(target, property, receiver);
+          return typeof value === 'function' ? value.bind(target) : value;
+        },
+      }) as unknown as ConstructorParameters<typeof RejectOccurrenceUseCase>[0]
+    ),
+    new SetPriorityUseCase(
+      new Proxy(repository, {
+        get(target, property, receiver) {
+          if (property === 'setPriority') {
+            return async (...args: Parameters<typeof target.setPriority>) => {
+              await target.setPriority(...args);
+            };
+          }
 
-occurrenceModerationRoutes.patch('/:id/start-analysis', (req, res) => controller.startAnalysis(req, res));
-occurrenceModerationRoutes.post('/:id/confirm', (req, res) => controller.confirm(req, res));
-occurrenceModerationRoutes.post('/:id/reject', (req, res) => controller.reject(req, res));
+          const value = Reflect.get(target, property, receiver);
+          return typeof value === 'function' ? value.bind(target) : value;
+        },
+      }) as unknown as ConstructorParameters<typeof SetPriorityUseCase>[0]
+    ),
+    new StartServiceUseCase(
+      new Proxy(repository, {
+        get(target, property, receiver) {
+          if (property === 'startService') {
+            return async (...args: Parameters<typeof target.startService>) => {
+              await target.startService(...args);
+            };
+          }
 
-export { occurrenceModerationRoutes };
+          const value = Reflect.get(target, property, receiver);
+          return typeof value === 'function' ? value.bind(target) : value;
+        },
+      }) as unknown as ConstructorParameters<typeof StartServiceUseCase>[0]
+    ),
+    new ResolveOccurrenceUseCase(
+      new Proxy(repository, {
+        get(target, property, receiver) {
+          if (property === 'resolve') {
+            return async (...args: Parameters<typeof target.resolve>) => {
+              await target.resolve(...args);
+            };
+          }
+
+          const value = Reflect.get(target, property, receiver);
+          return typeof value === 'function' ? value.bind(target) : value;
+        },
+      }) as unknown as ConstructorParameters<typeof ResolveOccurrenceUseCase>[0]
+    )
+  );
+
+  const router = Router();
+  router.use(authenticate);
+  router.use(authorizeRole(['ADMIN']));
+
+  // MOD-01
+  router.patch('/:id/start-analysis', (req, res) => controller.startAnalysis(req, res));
+  router.post('/:id/confirm', (req, res) => controller.confirm(req, res));
+  router.post('/:id/reject', (req, res) => controller.reject(req, res));
+
+  // MOD-02
+  router.patch('/:id/priority', (req, res) => controller.setPriority(req, res));
+  router.post('/:id/start-service', (req, res) => controller.startService(req, res));
+  router.post('/:id/resolve', (req, res) => controller.resolve(req, res));
+
+  return router;
+}

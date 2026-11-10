@@ -11,3 +11,35 @@ export const rejectOccurrenceSchema = z.object({
     id: z.string().uuid('ID da ocorrência inválido.'),
   }),
 });
+export const setPrioritySchema = z.object({
+  body: z.object({
+    priority: z.enum(['LOW', 'MEDIUM', 'HIGH'], {
+      message: 'Prioridade deve ser LOW, MEDIUM ou HIGH (RN034).',
+    }),
+  }),
+  params: z.object({
+    id: z.string().uuid('ID da ocorrência inválido.'),
+  }),
+});
+
+export const startServiceSchema = z.object({
+  body: z.object({
+    actionNotes: z
+      .string({ message: 'É obrigatório registrar a ação concreta do atendimento (RN061).' })
+      .trim()
+      .min(10, 'A ação concreta deve ter pelo menos 10 caracteres.')
+      .max(2000, 'A ação concreta deve ter no máximo 2000 caracteres.'),
+  }),
+  params: z.object({
+    id: z.string().uuid('ID da ocorrência inválido.'),
+  }),
+});
+
+export const resolveOccurrenceSchema = z.object({
+  body: z.object({
+    resolutionNotes: z.string().trim().max(2000).optional(),
+  }),
+  params: z.object({
+    id: z.string().uuid('ID da ocorrência inválido.'),
+  }),
+});
