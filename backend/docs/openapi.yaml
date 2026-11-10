@@ -38,6 +38,68 @@ tags:
 # ==========================================
 
 paths:
+  /admin/admins:
+    get:
+      tags: [Admin]
+      summary: Lista administradores ativos e inativos
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Lista de administradores no campo data }
+        '401': { description: Autenticação necessária }
+        '403': { description: Exige Master ativo }
+    post:
+      tags: [Admin]
+      summary: Provisiona um administrador com e-mail confirmado
+      description: Exige Master ativo. O provisionamento é direto e não envia convite.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [name, email, password, admin_level]
+              properties:
+                name: { type: string, minLength: 1, maxLength: 150 }
+                email: { type: string, format: email, maxLength: 254 }
+                password: { type: string, format: password, minLength: 8, maxLength: 72, writeOnly: true }
+                admin_level: { type: string, enum: [MASTER, OPERATIONAL] }
+      responses:
+        '201': { description: Administrador criado, sem senha na resposta }
+        '400': { description: Dados inválidos }
+        '401': { description: Autenticação necessária }
+        '403': { description: Exige Master ativo }
+        '409': { description: E-mail já cadastrado }
+
+  /admin/admins/{id}:
+    patch:
+      tags: [Admin]
+      summary: Atualiza nível ou situação de um administrador
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              minProperties: 1
+              properties:
+                admin_level: { type: string, enum: [MASTER, OPERATIONAL] }
+                is_active: { type: boolean }
+      responses:
+        '200': { description: Administrador atualizado }
+        '400': { description: Dados inválidos }
+        '401': { description: Autenticação necessária }
+        '403': { description: Exige Master ativo }
+        '404': { description: Administrador não encontrado }
+        '409': { description: Último Master ativo deve ser preservado }
   /admin/dashboard:
     get:
       tags: [Admin]
