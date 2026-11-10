@@ -5,6 +5,7 @@ import { PublicOccurrenceController } from '../controllers/public-occurrence.con
 import { ListPublicOccurrencesUseCase } from '../../application/use-cases/list-public-occurrences.use-case.js';
 import { GetPublicOccurrenceUseCase } from '../../application/use-cases/get-public-occurrence.use-case.js';
 import { SupabaseOccurrenceQueryRepository } from '../../infrastructure/supabase/occurrence-query.repository.js';
+import { SupabasePhotoUrlService } from '../../infrastructure/storage/supabase-photo-url.service.js';
 import {
   listPublicOccurrencesSchema,
   occurrenceIdParamSchema,
@@ -19,10 +20,13 @@ export function createPublicOccurrenceRoutes({
   adminClient,
   validateRequest,
 }: PublicOccurrenceRoutesDeps): Router {
+  // Dependências do módulo (OCC-02 + OCC-03)
   const repository = new SupabaseOccurrenceQueryRepository(adminClient);
+  const photoUrlService = new SupabasePhotoUrlService(adminClient);
+
   const controller = new PublicOccurrenceController(
     new ListPublicOccurrencesUseCase(repository),
-    new GetPublicOccurrenceUseCase(repository)
+    new GetPublicOccurrenceUseCase(repository, photoUrlService)
   );
 
   const router = Router();
@@ -33,6 +37,7 @@ export function createPublicOccurrenceRoutes({
     validateRequest({ query: listPublicOccurrencesSchema.shape.query }),
     (req, res) => controller.list(req, res)
   );
+
   router.get(
     '/:id',
     validateRequest({ params: occurrenceIdParamSchema.shape.params }),

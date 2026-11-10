@@ -49,6 +49,8 @@ export interface ListFilters {
 
 // PUBLIC
 export interface PublicOccurrenceItem {
+  photos: any;
+  photos: any;
   id: string;
   category: CategorySummary;
   description: string;

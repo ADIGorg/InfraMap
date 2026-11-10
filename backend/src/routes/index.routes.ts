@@ -40,7 +40,7 @@ import {
 } from "../shared/errors/app-error.js";
 
 // ==========================================================
-// Roteadores de ocorrências (MOD-01/02/03/04 + OCC-01 + OCC-02)
+// Roteadores de ocorrências (MOD-01/02/03/04 + OCC-01/02/03)
 // ==========================================================
 
 import {
@@ -68,6 +68,11 @@ import {
 import {
   createAdminOccurrenceQueryRoutes,
 } from "../presentation/routes/admin-occurrence-query.routes.js";
+
+// OCC-03
+import {
+  createPhotoAccessRoutes,
+} from "../presentation/routes/photo-access.routes.js";
 
 const routes = Router();
 const adminClient = createSupabaseAdminClient();
@@ -125,17 +130,6 @@ routes.use(identityMeRoutes);
 // ==========================================
 // MOD-01 / MOD-02 / MOD-03 / MOD-04
 // Moderação de ocorrências (somente ADMIN ativo)
-//
-// Endpoints:
-//   PATCH  /admin/occurrences/:id/start-analysis   (MOD-01)
-//   POST   /admin/occurrences/:id/confirm          (MOD-01)
-//   POST   /admin/occurrences/:id/reject           (MOD-01)
-//   PATCH  /admin/occurrences/:id/priority         (MOD-02)
-//   POST   /admin/occurrences/:id/start-service    (MOD-02)
-//   POST   /admin/occurrences/:id/resolve          (MOD-02)
-//   POST   /admin/occurrences/:id/observations     (MOD-03)
-//   PATCH  /admin/occurrences/:id/location         (MOD-04)
-//   PATCH  /admin/occurrences/:id/classification   (MOD-04)
 // ==========================================
 
 const occurrenceModerationRoutes = createOccurrenceModerationRoutes({
@@ -148,13 +142,6 @@ routes.use("/admin/occurrences", occurrenceModerationRoutes);
 
 // ==========================================
 // OCC-02 — Consultas públicas (anônimo)
-//
-// Endpoints:
-//   GET /occurrences/public
-//   GET /occurrences/public/:id
-//
-// Só CONFIRMED e IN_SERVICE aparecem.
-// Coordenadas aproximadas; sem dados do autor.
 // ==========================================
 
 const publicOccurrenceRoutes = createPublicOccurrenceRoutes({
@@ -166,12 +153,6 @@ routes.use("/occurrences/public", publicOccurrenceRoutes);
 
 // ==========================================
 // OCC-02 — Consultas do cidadão (CITIZEN ou ADMIN)
-//
-// Endpoints:
-//   GET /occurrences/mine
-//   GET /occurrences/mine/:id
-//
-// Cidadão vê apenas as próprias ocorrências (todos os status).
 // ==========================================
 
 const myOccurrenceRoutes = createMyOccurrenceRoutes({
@@ -184,13 +165,6 @@ routes.use("/occurrences/mine", myOccurrenceRoutes);
 
 // ==========================================
 // OCC-02 — Consultas administrativas (ADMIN ativo)
-//
-// Endpoints:
-//   GET /admin/occurrences
-//   GET /admin/occurrences/:id
-//
-// Admin vê tudo, inclusive RESOLVED e REJECTED.
-// No mapa (com bbox), RESOLVED não aparece como ponto ativo.
 // ==========================================
 
 const adminOccurrenceQueryRoutes = createAdminOccurrenceQueryRoutes({
@@ -203,14 +177,32 @@ const adminOccurrenceQueryRoutes = createAdminOccurrenceQueryRoutes({
 routes.use("/admin/occurrences", adminOccurrenceQueryRoutes);
 
 // ==========================================
+// OCC-03 — Acesso autorizado às fotografias
+//
+// Serviço de URLs assinadas com expiração curta.
+// Bucket privado (storage_path em occurrence_photos).
+//
+//   GET /occurrences/public/:id/photos/:photoId          (anônimo — só CONFIRMED/IN_SERVICE)
+//   GET /occurrences/mine/:id/photos/:photoId            (CITIZEN autor)
+//   GET /admin/occurrences/:id/photos/:photoId           (ADMIN ativo)
+// ==========================================
+
+const photoAccessRouters = createPhotoAccessRoutes({
+  authenticate,
+  authorizeRole,
+  adminClient,
+  validateRequest: validateRouteRequest,
+});
+
+routes.use("/occurrences/public", photoAccessRouters.publicRouter);
+routes.use("/occurrences/mine", photoAccessRouters.myRouter);
+routes.use("/admin/occurrences", photoAccessRouters.adminRouter);
+
+// ==========================================
 // OCC-01 - Finalizar e registrar ocorrência (CITIZEN ativo)
 //
 // Endpoints:
 //   POST /occurrences/finalize
-//
-// O cidadão autenticado envia os dados confirmados da análise
-// (AI-03) + categoria + descrição + localização + 1..3 fotos.
-// A RPC `finalize_occurrence` persiste tudo atomicamente.
 // ==========================================
 
 const occurrenceCitizenRoutes = createOccurrenceRoutes({
@@ -228,7 +220,6 @@ routes.use("/occurrences", occurrenceCitizenRoutes);
 //
 // ⚠️ Registrado por último, DEPOIS das rotas específicas
 // (/public, /mine, /finalize) para evitar ambiguidade do Express.
-// O controle de acesso é feito DENTRO do use case.
 // ==========================================
 
 const occurrenceHistoryRoutes = createOccurrenceHistoryRoutes({

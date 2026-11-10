@@ -5,10 +5,11 @@ import { MyOccurrenceController } from '../controllers/my-occurrence.controller.
 import { ListMyOccurrencesUseCase } from '../../application/use-cases/list-my-occurrences.use-case.js';
 import { GetMyOccurrenceUseCase } from '../../application/use-cases/get-my-occurrence.use-case.js';
 import { SupabaseOccurrenceQueryRepository } from '../../infrastructure/supabase/occurrence-query.repository.js';
+import { SupabasePhotoUrlService } from '../../infrastructure/storage/supabase-photo-url.service.js';
 import {
   listMyOccurrencesSchema,
   occurrenceIdParamSchema,
-} from '../schema/occurrence-query.schema.js'
+} from '../schema/occurrence-query.schema.js';
 
 export interface MyOccurrenceRoutesDeps {
   authenticate: RequestHandler;
@@ -21,10 +22,13 @@ export function createMyOccurrenceRoutes({
   adminClient,
   validateRequest,
 }: MyOccurrenceRoutesDeps): Router {
+  // Dependências do módulo (OCC-02 + OCC-03)
   const repository = new SupabaseOccurrenceQueryRepository(adminClient);
+  const photoUrlService = new SupabasePhotoUrlService(adminClient);
+
   const controller = new MyOccurrenceController(
     new ListMyOccurrencesUseCase(repository),
-    new GetMyOccurrenceUseCase(repository)
+    new GetMyOccurrenceUseCase(repository, photoUrlService)
   );
 
   const router = Router();
@@ -35,6 +39,7 @@ export function createMyOccurrenceRoutes({
     validateRequest({ query: listMyOccurrencesSchema.shape.query }),
     (req, res) => controller.list(req, res)
   );
+
   router.get(
     '/:id',
     validateRequest({ params: occurrenceIdParamSchema.shape.params }),
