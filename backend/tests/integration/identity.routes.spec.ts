@@ -3,13 +3,20 @@ import express, { type RequestHandler } from "express";
 import request from "supertest";
 import { describe, expect, it } from "vitest";
 
-import { createIdentityRoutes } from "../../src/modules/identity/identity.routes.js";
+
+import {
+  createIdentityRoutes,
+} from "../../src/modules/identity/presentation/identity.routes.js";
 
 import type {
   IdentityRole,
-  ProfileReader,
   UserProfile,
-} from "../../src/modules/identity/identity.service.js";
+} from "../../src/modules/identity/domain/entities/user-profile.entity.js";
+
+import type {
+  ProfileReader,
+} from "../../src/modules/identity/domain/repositories/identity.repository.js";
+
 
 import {
   ForbiddenError,
