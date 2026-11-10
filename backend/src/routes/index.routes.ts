@@ -74,10 +74,22 @@ import {
   createPhotoAccessRoutes,
 } from "../presentation/routes/photo-access.routes.js";
 
+import {
+  aiAnalysisRoutes,
+} from "../modules/ai-analysis/presentation/ai-analysis.routes.js";
+
+
+import {
+  aiProcessingRoutes,
+} from "../modules/ai-analysis/presentation/ai-processing.routes.js";
+
+
+
 const routes = Router();
 const adminClient = createSupabaseAdminClient();
 const validateRouteRequest = (schema: unknown) =>
   validateRequest(schema as Parameters<typeof validateRequest>[0]);
+
 
 // ==========================================
 // HEALTH CHECK
@@ -229,5 +241,18 @@ const occurrenceHistoryRoutes = createOccurrenceHistoryRoutes({
 });
 
 routes.use("/occurrences", occurrenceHistoryRoutes);
+
+export default routes;
+
+// ==========================================
+// API1-47 - AI-02
+// CRIAÇÃO DE ANÁLISE E UPLOAD DE FOTOS
+// ==========================================
+
+routes.use("/ai-analyses", aiAnalysisRoutes);
+
+// API1-48 - AI-03
+routes.use("/ai-analyses", aiProcessingRoutes);
+
 
 export default routes;

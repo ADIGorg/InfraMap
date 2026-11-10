@@ -1,4 +1,4 @@
-# SaniMap
+# InfraMap
 
 Plataforma colaborativa para identificação, registro e acompanhamento de problemas relacionados ao saneamento urbano.
 
