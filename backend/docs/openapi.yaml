@@ -38,6 +38,45 @@ tags:
 # ==========================================
 
 paths:
+  /admin/dashboard:
+    get:
+      tags: [Admin]
+      summary: Consulta indicadores administrativos
+      description: |
+        Exige ADMIN ativo (MASTER ou OPERATIONAL). Considera todas as ocorrências.
+        A prioridade HIGH é contada em todos os status. A média usa apenas
+        RESOLVED com resolved_at e representa dias decorridos de 24 horas,
+        incluindo frações. Sem resoluções elegíveis, a média é null.
+        As contagens sempre incluem os seis status, mesmo quando são zero.
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Indicadores calculados em uma consulta no banco
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    required: [counts_by_status, high_priority_total, average_resolution_days]
+                    properties:
+                      counts_by_status:
+                        type: object
+                        required: [RECEIVED, UNDER_ANALYSIS, CONFIRMED, IN_SERVICE, RESOLVED, REJECTED]
+                        properties:
+                          RECEIVED: { type: integer, minimum: 0 }
+                          UNDER_ANALYSIS: { type: integer, minimum: 0 }
+                          CONFIRMED: { type: integer, minimum: 0 }
+                          IN_SERVICE: { type: integer, minimum: 0 }
+                          RESOLVED: { type: integer, minimum: 0 }
+                          REJECTED: { type: integer, minimum: 0 }
+                      high_priority_total: { type: integer, minimum: 0 }
+                      average_resolution_days: { type: [number, 'null'] }
+        '401': { description: Token ausente ou inválido }
+        '403': { description: Conta inativa ou usuário sem papel ADMIN }
+        '500': { description: Falha ao consultar indicadores }
 
   # ========================================
   # API1-47 - AI-02
