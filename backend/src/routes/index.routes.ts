@@ -40,12 +40,12 @@ import {
 } from "../shared/errors/app-error.js";
 
 // ==========================================================
-// Roteadores de ocorrências (MOD-01/02/03/04 + OCC-01)
+// Roteadores de ocorrências (MOD-01/02/03/04 + OCC-01 + OCC-02)
 // ==========================================================
 
 import {
   createOccurrenceHistoryRoutes,
-} from "../presentation/routes/occurrence-history.routes.js"
+} from "../presentation/routes/occurrence-history.routes.js";
 
 import {
   createOccurrenceModerationRoutes,
@@ -56,8 +56,23 @@ import {
   createOccurrenceRoutes,
 } from "../presentation/routes/occurrence.routes.js";
 
+// OCC-02
+import {
+  createPublicOccurrenceRoutes,
+} from "../presentation/routes/public-occurrence.routes.js";
+
+import {
+  createMyOccurrenceRoutes,
+} from "../presentation/routes/my-occurrence.routes.js";
+
+import {
+  createAdminOccurrenceQueryRoutes,
+} from "../presentation/routes/admin-occurrence-query.routes.js";
+
 const routes = Router();
 const adminClient = createSupabaseAdminClient();
+const validateRouteRequest = (schema: unknown) =>
+  validateRequest(schema as Parameters<typeof validateRequest>[0]);
 
 // ==========================================
 // HEALTH CHECK
@@ -132,23 +147,60 @@ const occurrenceModerationRoutes = createOccurrenceModerationRoutes({
 routes.use("/admin/occurrences", occurrenceModerationRoutes);
 
 // ==========================================
-// MOD-03 - Consulta de histórico (autor OU admin)
+// OCC-02 — Consultas públicas (anônimo)
 //
 // Endpoints:
-//   GET /occurrences/:id/history
+//   GET /occurrences/public
+//   GET /occurrences/public/:id
 //
-// O controle de acesso é feito DENTRO do use case,
-// pois aceita cidadão autor E administrador ativo.
+// Só CONFIRMED e IN_SERVICE aparecem.
+// Coordenadas aproximadas; sem dados do autor.
 // ==========================================
 
-const occurrenceHistoryRoutes = createOccurrenceHistoryRoutes({
-  authenticate,
+const publicOccurrenceRoutes = createPublicOccurrenceRoutes({
   adminClient,
-  validateRequest: (schema) =>
-    validateRequest(schema as Parameters<typeof validateRequest>[0]),
+  validateRequest: validateRouteRequest,
 });
 
-routes.use("/occurrences", occurrenceHistoryRoutes);
+routes.use("/occurrences/public", publicOccurrenceRoutes);
+
+// ==========================================
+// OCC-02 — Consultas do cidadão (CITIZEN ou ADMIN)
+//
+// Endpoints:
+//   GET /occurrences/mine
+//   GET /occurrences/mine/:id
+//
+// Cidadão vê apenas as próprias ocorrências (todos os status).
+// ==========================================
+
+const myOccurrenceRoutes = createMyOccurrenceRoutes({
+  authenticate,
+  adminClient,
+  validateRequest: validateRouteRequest,
+});
+
+routes.use("/occurrences/mine", myOccurrenceRoutes);
+
+// ==========================================
+// OCC-02 — Consultas administrativas (ADMIN ativo)
+//
+// Endpoints:
+//   GET /admin/occurrences
+//   GET /admin/occurrences/:id
+//
+// Admin vê tudo, inclusive RESOLVED e REJECTED.
+// No mapa (com bbox), RESOLVED não aparece como ponto ativo.
+// ==========================================
+
+const adminOccurrenceQueryRoutes = createAdminOccurrenceQueryRoutes({
+  authenticate,
+  authorizeRole,
+  adminClient,
+  validateRequest: validateRouteRequest,
+});
+
+routes.use("/admin/occurrences", adminOccurrenceQueryRoutes);
 
 // ==========================================
 // OCC-01 - Finalizar e registrar ocorrência (CITIZEN ativo)
@@ -158,8 +210,7 @@ routes.use("/occurrences", occurrenceHistoryRoutes);
 //
 // O cidadão autenticado envia os dados confirmados da análise
 // (AI-03) + categoria + descrição + localização + 1..3 fotos.
-// A RPC `finalize_occurrence` persiste tudo atomicamente:
-//   occurrence + photos + consumo da análise + histórico
+// A RPC `finalize_occurrence` persiste tudo atomicamente.
 // ==========================================
 
 const occurrenceCitizenRoutes = createOccurrenceRoutes({
@@ -168,5 +219,24 @@ const occurrenceCitizenRoutes = createOccurrenceRoutes({
 });
 
 routes.use("/occurrences", occurrenceCitizenRoutes);
+
+// ==========================================
+// MOD-03 - Consulta de histórico (autor OU admin)
+//
+// Endpoints:
+//   GET /occurrences/:id/history
+//
+// ⚠️ Registrado por último, DEPOIS das rotas específicas
+// (/public, /mine, /finalize) para evitar ambiguidade do Express.
+// O controle de acesso é feito DENTRO do use case.
+// ==========================================
+
+const occurrenceHistoryRoutes = createOccurrenceHistoryRoutes({
+  authenticate,
+  adminClient,
+  validateRequest: validateRouteRequest,
+});
+
+routes.use("/occurrences", occurrenceHistoryRoutes);
 
 export default routes;
