@@ -128,6 +128,160 @@ paths:
           $ref: "#/components/responses/InternalServerError"
 
   # ========================================
+  # API1-48 - AI-03
+  # PROCESSAMENTO E CONSULTA DAS ANÁLISES
+  # ========================================
+
+  /ai-analyses/{id}/analyze:
+    post:
+      tags:
+        - App
+      summary: Solicitar processamento de uma análise por IA
+      description: |
+        Inicia o processamento das fotografias de uma análise pertencente
+        ao cidadão autenticado e ativo.
+
+        Aceita análises PENDING e FAILED, permitindo uma nova tentativa
+        quando o processamento anterior falhou. Retorna 202 Accepted;
+        o resultado deve ser consultado pelo GET /ai-analyses/{id}.
+
+        O resultado sugere categoria, descrição e confiança entre 0 e 1.
+        Se a confiança for inferior a 0,70, aplica-se a categoria CAT07.
+
+        Não cria ocorrência automaticamente. O cidadão deve revisar e
+        confirmar as sugestões antes de cadastrar a ocorrência.
+
+        No MVP, o processamento ocorre no próprio processo Node.js,
+        sem fila persistente. Uma interrupção do servidor pode deixar
+        a análise em PROCESSING até uma recuperação administrativa.
+      operationId: processAiAnalysis
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: UUID da análise a processar.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "202":
+          description: Solicitação de processamento aceita.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    type: object
+                    required:
+                      - id
+                      - message
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      message:
+                        type: string
+              example:
+                data:
+                  id: 181227d2-89d7-4ceb-8dff-85b623aeee5b
+                  message: Análise recebida para processamento.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: A análise não está elegível para processamento.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          description: Serviço de IA ou banco temporariamente indisponível.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /ai-analyses/{id}:
+    get:
+      tags:
+        - App
+      summary: Consultar a própria análise de fotografias
+      description: |
+        Retorna o estado e o resultado persistido da análise do cidadão
+        autenticado e ativo. Análises de outros usuários não são expostas.
+
+        A categoria e a descrição retornadas são sugestões da IA:
+        o cidadão deve revisá-las antes de criar uma ocorrência.
+      operationId: getAiAnalysis
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: UUID da análise a consultar.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Análise encontrada.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/AiAnalysisDetails"
+              example:
+                data:
+                  id: 181227d2-89d7-4ceb-8dff-85b623aeee5b
+                  status: COMPLETED
+                  category_code: CAT03
+                  suggested_description: Buraco identificado na via pública.
+                  confidence: 0.92
+                  model_name: mock-ai
+                  prompt_version: v1
+                  error_code: null
+                  photo_count: 1
+                  created_at: "2026-11-09T15:00:00.000Z"
+                  completed_at: "2026-11-09T15:00:05.000Z"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          description: Banco temporariamente indisponível.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  # ========================================
   # CAT-01 - CONSULTA PÚBLICA DE CATEGORIAS
   # ========================================
 
@@ -525,7 +679,6 @@ paths:
     # ========================================
     # API1-44 - ID-02 - DESATIVAÇÃO DA CONTA
     # ========================================
-
     delete:
       tags:
         - Identity
@@ -749,6 +902,58 @@ components:
   # ========================================
 
   schemas:
+
+    # ======================================
+    # API1-48 - DETALHES DA ANÁLISE DE IA
+    # ======================================
+
+    AiAnalysisDetails:
+      type: object
+      required:
+        - id
+        - status
+        - category_code
+        - suggested_description
+        - confidence
+        - model_name
+        - prompt_version
+        - error_code
+        - photo_count
+        - created_at
+        - completed_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [UPLOADING, PENDING, PROCESSING, COMPLETED, FAILED, CANCELLED, CONSUMED]
+        category_code:
+          type: [string, "null"]
+          enum: [CAT01, CAT02, CAT03, CAT04, CAT05, CAT06, CAT07, null]
+        suggested_description:
+          type: [string, "null"]
+          maxLength: 500
+        confidence:
+          type: [number, "null"]
+          minimum: 0
+          maximum: 1
+        model_name:
+          type: [string, "null"]
+        prompt_version:
+          type: [string, "null"]
+        error_code:
+          type: [string, "null"]
+        photo_count:
+          type: integer
+          minimum: 1
+          maximum: 3
+        created_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: [string, "null"]
+          format: date-time
 
     # ======================================
     # CAT-01 - CATEGORIAS
@@ -1156,7 +1361,7 @@ components:
               message: Perfil cadastral não encontrado.
 
     PayloadTooLarge:
-      description: Corpo da requisição excede 100 KB.
+      description: Corpo JSON excede 100 KB ou uma fotografia excede 5 MB.
       content:
         application/json:
           schema:

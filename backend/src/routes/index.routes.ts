@@ -41,6 +41,12 @@ import {
 } from "../modules/ai-analysis/presentation/ai-analysis.routes.js";
 
 
+import {
+  aiProcessingRoutes,
+} from "../modules/ai-analysis/presentation/ai-processing.routes.js";
+
+
+
 const routes = Router();
 
 
@@ -103,6 +109,9 @@ routes.use(identityMeRoutes);
 // ==========================================
 
 routes.use("/ai-analyses", aiAnalysisRoutes);
+
+// API1-48 - AI-03
+routes.use("/ai-analyses", aiProcessingRoutes);
 
 
 export default routes;
