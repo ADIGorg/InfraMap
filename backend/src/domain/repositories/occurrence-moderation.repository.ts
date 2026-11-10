@@ -44,3 +44,40 @@ export interface IOccurrenceModerationRepository {
     resolutionNotes?: string
   ): Promise<string>;
 }
+export type ObservationVisibility = 'INTERNAL' | 'CITIZEN_RESPONSE';
+
+export interface HistoryEvent {
+  id: string;
+  type: 'history' | 'observation';
+  action: string;
+  actorId: string | null;
+  createdAt: string;
+  details: Record<string, unknown> | null;
+  previousData?: Record<string, unknown> | null;
+  newData?: Record<string, unknown> | null;
+  // Para observations
+  content?: string | null;
+  visibility?: ObservationVisibility;
+}
+
+// Estenda a interface IOccurrenceModerationRepository:
+export interface IOccurrenceModerationRepository {
+  // ... métodos do MOD-01 e MOD-02 ...
+
+  createObservation(
+    occurrenceId: string,
+    adminId: string,
+    content: string,
+    visibility: ObservationVisibility
+  ): Promise<string>;
+
+  /**
+   * Retorna todos os eventos da linha do tempo.
+   * A filtragem de visibilidade (INTERNAL só para admin) é feita aqui
+   * — o use case decide quem é o solicitante e passa o flag.
+   */
+  getHistory(
+    occurrenceId: string,
+    includeInternalObservations: boolean
+  ): Promise<HistoryEvent[]>;
+}

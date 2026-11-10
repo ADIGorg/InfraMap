@@ -1,4 +1,3 @@
-
 import { Router } from "express";
 
 import healthRoutes from "../modules/health/health.routes.js";
@@ -22,6 +21,7 @@ import {
 
 import { authenticate } from "../shared/middlewares/authenticate.js";
 import { authorizeRole } from "../shared/middlewares/authorize-role.js";
+import { validateRequest } from "../shared/middlewares/validate-request.js";
 
 import {
   createUserSupabaseClient,
@@ -32,10 +32,21 @@ import {
 } from "../infrastructure/supabase/public-client.js";
 
 import {
+  createSupabaseAdminClient,
+} from "../infrastructure/supabase/admin-client.js";
+
+import {
   UnauthorizedError,
 } from "../shared/errors/app-error.js";
 
+//import do history router (MOD-03)
+import {
+  createOccurrenceHistoryRoutes,
+} from "../presentation/routes/occurrence-history.routes.js";
+import { createOccurrenceModerationRoutes } from "../presentation/routes/occurrence-moderation.routes.js";
+
 const routes = Router();
+const adminClient = createSupabaseAdminClient();
 
 // ==========================================
 // HEALTH CHECK
@@ -47,9 +58,7 @@ routes.use("/health", healthRoutes);
 // CAT-01 - CONSULTA PÚBLICA DE CATEGORIAS
 // ==========================================
 
-const categoriesRepository = createCategoriesRepository(
-  supabasePublic
-);
+const categoriesRepository = createCategoriesRepository(supabasePublic);
 
 routes.use(
   "/categories",
@@ -76,9 +85,7 @@ const identityMeRoutes = createIdentityRoutes({
       throw new UnauthorizedError();
     }
 
-    const userClient = createUserSupabaseClient(
-      request.token
-    );
+    const userClient = createUserSupabaseClient(request.token);
 
     return {
       userId: request.user.id,
@@ -88,5 +95,46 @@ const identityMeRoutes = createIdentityRoutes({
 });
 
 routes.use(identityMeRoutes);
+
+// ==========================================
+// MOD-01 / MOD-02 / MOD-03
+// Moderação de ocorrências (somente ADMIN ativo)
+//
+// Endpoints:
+//   PATCH  /admin/occurrences/:id/start-analysis   (MOD-01)
+//   POST   /admin/occurrences/:id/confirm          (MOD-01)
+//   POST   /admin/occurrences/:id/reject           (MOD-01)
+//   PATCH  /admin/occurrences/:id/priority         (MOD-02)
+//   POST   /admin/occurrences/:id/start-service    (MOD-02)
+//   POST   /admin/occurrences/:id/resolve          (MOD-02)
+//   POST   /admin/occurrences/:id/observations     (MOD-03)
+// ==========================================
+
+const occurrenceModerationRoutes = createOccurrenceModerationRoutes({
+  authenticate,
+  authorizeRole,
+  adminClient,
+});
+
+routes.use("/admin/occurrences", occurrenceModerationRoutes);
+
+// ==========================================
+// MOD-03 - Consulta de histórico (autor OU admin)
+//
+// Endpoints:
+//   GET /occurrences/:id/history
+//
+// O controle de acesso é feito DENTRO do use case,
+// pois aceita cidadão autor E administrador ativo.
+// ==========================================
+
+const occurrenceHistoryRoutes = createOccurrenceHistoryRoutes({
+  authenticate,
+  adminClient,
+  validateRequest: (schema) =>
+    validateRequest(schema as Parameters<typeof validateRequest>[0]),
+});
+
+routes.use("/occurrences", occurrenceHistoryRoutes);
 
 export default routes;

@@ -8,19 +8,20 @@ import { RejectOccurrenceUseCase } from '../../application/use-cases/reject-occu
 import { SetPriorityUseCase } from '../../application/use-cases/set-priority.use-case.js';
 import { StartServiceUseCase } from '../../application/use-cases/start-service.use-case.js';
 import { ResolveOccurrenceUseCase } from '../../application/use-cases/resolve-occurrence.use-case.js';
+import { CreateObservationUseCase } from '../../application/use-cases/create-observation.use-case.js';
 import { SupabaseOccurrenceModerationRepository } from '../../infrastructure/supabase/occurrence-moderation.repository.js';
+import { validateRequest } from '../../shared/middlewares/validate-request.js';
+import { createObservationSchema } from '../schema/occurrence-moderation.schema.js';
 export interface OccurrenceModerationRoutesDeps {
   authenticate: RequestHandler;
   authorizeRole: (roles: string[]) => RequestHandler;
   adminClient: SupabaseClient;
-  validateRequest: (schema: unknown) => RequestHandler;
 }
 
 export function createOccurrenceModerationRoutes({
   authenticate,
   authorizeRole,
   adminClient,
-  validateRequest,
 }: OccurrenceModerationRoutesDeps): Router {
   const repository = new SupabaseOccurrenceModerationRepository(adminClient);
 
@@ -95,7 +96,8 @@ export function createOccurrenceModerationRoutes({
           return typeof value === 'function' ? value.bind(target) : value;
         },
       }) as unknown as ConstructorParameters<typeof ResolveOccurrenceUseCase>[0]
-    )
+    ),
+    new CreateObservationUseCase(repository)
   );
 
   const router = Router();
@@ -112,5 +114,14 @@ export function createOccurrenceModerationRoutes({
   router.post('/:id/start-service', (req, res) => controller.startService(req, res));
   router.post('/:id/resolve', (req, res) => controller.resolve(req, res));
 
+  // MOD-03
+  router.post(
+  '/:id/observations',
+  validateRequest({
+    params: createObservationSchema.shape.params,
+    body: createObservationSchema.shape.body,
+  }),
+  (req, res) => controller.createObservation(req, res)
+);
   return router;
 }

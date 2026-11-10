@@ -43,3 +43,19 @@ export const resolveOccurrenceSchema = z.object({
     id: z.string().uuid('ID da ocorrência inválido.'),
   }),
 });
+
+export const createObservationSchema = z.object({
+  params: z.object({
+    id: z.string().uuid('ID da ocorrência inválido.'),
+  }),
+  body: z.object({
+    content: z
+      .string({ message: 'O conteúdo da observação é obrigatório.' })
+      .trim()
+      .min(5, 'O conteúdo deve ter pelo menos 5 caracteres.')
+      .max(2000, 'O conteúdo deve ter no máximo 2000 caracteres.'),
+    visibility: z.enum(['INTERNAL', 'CITIZEN_RESPONSE'], {
+      message: 'Visibilidade deve ser INTERNAL ou CITIZEN_RESPONSE (RN044).',
+    }),
+  }),
+});

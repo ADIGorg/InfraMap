@@ -1,4 +1,4 @@
-import type { Request, Response } from 'express';
+import { type Request, type Response } from 'express';
 type StartAnalysisUseCase = {
   execute(userId: string, occurrenceId: string): Promise<unknown>;
 };
@@ -18,6 +18,15 @@ type ResolveOccurrenceUseCase = {
   execute(userId: string, occurrenceId: string, resolutionNotes: string): Promise<unknown>;
 };
 
+type CreateObservationUseCase = {
+  execute(
+    userId: string,
+    occurrenceId: string,
+    content: string,
+    visibility: unknown
+  ): Promise<unknown>;
+};
+
 export class OccurrenceModerationController {
   constructor(
     private startAnalysisUseCase: StartAnalysisUseCase,
@@ -25,8 +34,27 @@ export class OccurrenceModerationController {
     private rejectOccurrenceUseCase: RejectOccurrenceUseCase,
     private setPriorityUseCase: SetPriorityUseCase,
     private startServiceUseCase: StartServiceUseCase,
-    private resolveOccurrenceUseCase: ResolveOccurrenceUseCase
+    private resolveOccurrenceUseCase: ResolveOccurrenceUseCase,
+    private createObservationUseCase: CreateObservationUseCase
   ) {}
+
+  async createObservation(req: Request, res: Response) {
+    const occurrenceId = req.params.id;
+    if (typeof occurrenceId !== 'string') {
+      return res.status(400).json({ message: 'ID da ocorrência inválido.' });
+    }
+
+    const result = await this.createObservationUseCase.execute(
+      req.user!.id,
+      occurrenceId,
+      req.body.content,
+      req.body.visibility
+    );
+    return res.status(201).json({
+      message: 'Observação registrada com sucesso.',
+      data: result,
+    });
+  }
 
   async startAnalysis(req: Request, res: Response) {
     const occurrenceId = req.params.id;

@@ -1,6 +1,8 @@
 import { SupabaseClient } from '@supabase/supabase-js';
 import type {
+  HistoryEvent,
   IOccurrenceModerationRepository,
+  ObservationVisibility,
   OccurrenceBasicInfo,
   OccurrencePriority,
   OccurrenceStatus,
@@ -19,6 +21,76 @@ export class SupabaseOccurrenceModerationRepository
   implements IOccurrenceModerationRepository
 {
   constructor(private readonly supabase: SupabaseClient) {}
+  async createObservation(
+    occurrenceId: string,
+    adminId: string,
+    content: string,
+    visibility: ObservationVisibility
+  ): Promise<string> {
+    const { data, error } = await this.supabase.rpc('create_occurrence_observation', {
+      p_occurrence_id: occurrenceId,
+      p_admin_id: adminId,
+      p_content: content,
+      p_visibility: visibility,
+    });
+    if (error) throw mapPgError(error.message);
+    return data as string;
+  }
+
+  async getHistory(
+    occurrenceId: string,
+    includeInternalObservations: boolean
+  ): Promise<HistoryEvent[]> {
+    const { data: historyRows, error: historyErr } = await this.supabase
+      .from('occurrence_history')
+      .select('id, actor_id, action, previous_data, new_data, details, created_at')
+      .eq('occurrence_id', occurrenceId)
+      .order('created_at', { ascending: true });
+
+    if (historyErr) {
+      throw new Error(`Erro ao buscar histórico: ${historyErr.message}`);
+    }
+
+    let obsQuery = this.supabase
+      .from('observations')
+      .select('id, admin_id, content, visibility, created_at')
+      .eq('occurrence_id', occurrenceId);
+
+    if (!includeInternalObservations) {
+      obsQuery = obsQuery.eq('visibility', 'CITIZEN_RESPONSE');
+    }
+
+    const { data: obsRows, error: obsErr } = await obsQuery;
+    if (obsErr) {
+      throw new Error(`Erro ao buscar observações: ${obsErr.message}`);
+    }
+
+    const historyEvents: HistoryEvent[] = (historyRows ?? []).map((r) => ({
+      id: r.id,
+      type: 'history',
+      action: r.action,
+      actorId: r.actor_id,
+      createdAt: r.created_at,
+      details: r.details,
+      previousData: r.previous_data,
+      newData: r.new_data,
+    }));
+
+    const observationEvents: HistoryEvent[] = (obsRows ?? []).map((r) => ({
+      id: r.id,
+      type: 'observation',
+      action: 'OBSERVATION',
+      actorId: r.admin_id,
+      createdAt: r.created_at,
+      details: null,
+      content: r.content,
+      visibility: r.visibility as ObservationVisibility,
+    }));
+
+    return [...historyEvents, ...observationEvents].sort(
+      (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+    );
+  }
 
   async getOccurrenceById(occurrenceId: string): Promise<OccurrenceBasicInfo | null> {
     const { data, error } = await this.supabase
