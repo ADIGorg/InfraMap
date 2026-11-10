@@ -39,11 +39,22 @@ import {
   UnauthorizedError,
 } from "../shared/errors/app-error.js";
 
-//import do history router (MOD-03)
+// ==========================================================
+// Roteadores de ocorrências (MOD-01/02/03/04 + OCC-01)
+// ==========================================================
+
 import {
   createOccurrenceHistoryRoutes,
-} from "../presentation/routes/occurrence-history.routes.js";
-import { createOccurrenceModerationRoutes } from "../presentation/routes/occurrence-moderation.routes.js";
+} from "../presentation/routes/occurrence-history.routes.js"
+
+import {
+  createOccurrenceModerationRoutes,
+} from "../presentation/routes/occurrence-moderation.routes.js";
+
+// OCC-01
+import {
+  createOccurrenceRoutes,
+} from "../presentation/routes/occurrence.routes.js";
 
 const routes = Router();
 const adminClient = createSupabaseAdminClient();
@@ -97,7 +108,7 @@ const identityMeRoutes = createIdentityRoutes({
 routes.use(identityMeRoutes);
 
 // ==========================================
-// MOD-01 / MOD-02 / MOD-03
+// MOD-01 / MOD-02 / MOD-03 / MOD-04
 // Moderação de ocorrências (somente ADMIN ativo)
 //
 // Endpoints:
@@ -108,6 +119,8 @@ routes.use(identityMeRoutes);
 //   POST   /admin/occurrences/:id/start-service    (MOD-02)
 //   POST   /admin/occurrences/:id/resolve          (MOD-02)
 //   POST   /admin/occurrences/:id/observations     (MOD-03)
+//   PATCH  /admin/occurrences/:id/location         (MOD-04)
+//   PATCH  /admin/occurrences/:id/classification   (MOD-04)
 // ==========================================
 
 const occurrenceModerationRoutes = createOccurrenceModerationRoutes({
@@ -136,5 +149,24 @@ const occurrenceHistoryRoutes = createOccurrenceHistoryRoutes({
 });
 
 routes.use("/occurrences", occurrenceHistoryRoutes);
+
+// ==========================================
+// OCC-01 - Finalizar e registrar ocorrência (CITIZEN ativo)
+//
+// Endpoints:
+//   POST /occurrences/finalize
+//
+// O cidadão autenticado envia os dados confirmados da análise
+// (AI-03) + categoria + descrição + localização + 1..3 fotos.
+// A RPC `finalize_occurrence` persiste tudo atomicamente:
+//   occurrence + photos + consumo da análise + histórico
+// ==========================================
+
+const occurrenceCitizenRoutes = createOccurrenceRoutes({
+  authenticate,
+  adminClient,
+});
+
+routes.use("/occurrences", occurrenceCitizenRoutes);
 
 export default routes;
