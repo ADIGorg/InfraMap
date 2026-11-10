@@ -49,8 +49,7 @@ export interface ListFilters {
 
 // PUBLIC
 export interface PublicOccurrenceItem {
-  photos: any;
-  photos: any;
+  photos: OccurrencePhoto[]; 
   id: string;
   category: CategorySummary;
   description: string;
@@ -75,6 +74,7 @@ export interface MyOccurrenceItem {
   createdAt: string;
   updatedAt: string;
   resolvedAt: string | null;
+  photos: OccurrencePhoto[];
 }
 
 export interface MyOccurrenceDetail extends MyOccurrenceItem {

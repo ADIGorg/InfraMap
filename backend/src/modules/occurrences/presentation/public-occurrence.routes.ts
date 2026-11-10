@@ -1,15 +1,15 @@
 import { Router, type RequestHandler } from 'express';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
-import { PublicOccurrenceController } from '../controllers/public-occurrence.controller.js';
-import { ListPublicOccurrencesUseCase } from '../../application/use-cases/list-public-occurrences.use-case.js';
-import { GetPublicOccurrenceUseCase } from '../../application/use-cases/get-public-occurrence.use-case.js';
-import { SupabaseOccurrenceQueryRepository } from '../../infrastructure/supabase/occurrence-query.repository.js';
-import { SupabasePhotoUrlService } from '../../infrastructure/storage/supabase-photo-url.service.js';
+import { PublicOccurrenceController } from "./public-occurrence.controller.js";
+import { ListPublicOccurrencesUseCase } from "../application/use-cases/list-public-occurrences.use-case.js";
+import { GetPublicOccurrenceUseCase } from "../application/use-cases/get-public-occurrence.use-case.js";
+import { SupabaseOccurrenceQueryRepository } from "../infrastructure/repositories/supabase-occurrence-query.repository.js";
+import { SupabasePhotoUrlService } from "../../../infrastructure/storage/supabase-photo-url.service.js";
 import {
   listPublicOccurrencesSchema,
   occurrenceIdParamSchema,
-} from '../schema/occurrence-query.schema.js';
+} from './occurrence-query.schema.js';
 
 export interface PublicOccurrenceRoutesDeps {
   adminClient: SupabaseClient;

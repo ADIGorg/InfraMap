@@ -116,6 +116,7 @@ export class SupabaseOccurrenceQueryRepository implements IOccurrenceQueryReposi
       location: approximate({ lat: r.location_lat, lng: r.location_lng }),
       votesCount: toInt(r.votes_count),
       createdAt: r.created_at,
+      photos: [] as PublicOccurrenceItem['photos']
     }));
 
     return { data, pagination: buildPagination(filters, total) };
@@ -137,6 +138,7 @@ export class SupabaseOccurrenceQueryRepository implements IOccurrenceQueryReposi
       location: approximate(loc),
       votesCount: toInt(raw.votesCount as string | number),
       createdAt: raw.createdAt as string,
+      photos: (raw.photos ?? []) as PublicOccurrenceDetail['photos'],
     };
   }
 
@@ -158,6 +160,7 @@ export class SupabaseOccurrenceQueryRepository implements IOccurrenceQueryReposi
       createdAt: r.created_at,
       updatedAt: r.updated_at,
       resolvedAt: r.resolved_at,
+      photos: [] as MyOccurrenceItem['photos'],
     }));
 
     return { data, pagination: buildPagination(filters, total) };
@@ -204,6 +207,7 @@ export class SupabaseOccurrenceQueryRepository implements IOccurrenceQueryReposi
       createdAt: r.created_at,
       updatedAt: r.updated_at,
       resolvedAt: r.resolved_at,
+      photos: [] as MyOccurrenceItem['photos'],
       author: {
         id: r.author_id as string,
         name: r.author_name ?? 'Usuário',

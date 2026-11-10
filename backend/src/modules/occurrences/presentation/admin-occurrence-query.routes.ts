@@ -1,15 +1,15 @@
 import { Router, type RequestHandler } from 'express';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
-import { AdminOccurrenceQueryController } from '../controllers/admin-occurrence-query.controller.js';
-import { ListAdminOccurrencesUseCase } from '../../application/use-cases/list-admin-occurrences.use-case.js';
-import { GetAdminOccurrenceUseCase } from '../../application/use-cases/get-admin-occurrence.use-case.js';
-import { SupabaseOccurrenceQueryRepository } from '../../infrastructure/supabase/occurrence-query.repository.js';
-import { SupabasePhotoUrlService } from '../../infrastructure/storage/supabase-photo-url.service.js';
+import { AdminOccurrenceQueryController } from "./admin-occurrence-query.controller.js";
+import { ListAdminOccurrencesUseCase } from "../application/use-cases/list-admin-occurrences.use-case.js";
+import { GetAdminOccurrenceUseCase } from "../application/use-cases/get-admin-occurrence.use-case.js";
+import { SupabaseOccurrenceQueryRepository } from "../infrastructure/repositories/supabase-occurrence-query.repository.js";
+import { SupabasePhotoUrlService } from "../../../infrastructure/storage/supabase-photo-url.service.js";
 import {
   listAdminOccurrencesSchema,
   occurrenceIdParamSchema,
-} from '../schema/occurrence-query.schema.js';
+} from './occurrence-query.schema.js';
 
 export interface AdminOccurrenceQueryRoutesDeps {
   authenticate: RequestHandler;

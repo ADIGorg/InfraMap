@@ -1,7 +1,8 @@
 import type {
     IOccurrenceModerationRepository,
     HistoryEvent,
-} from '../../domain/repositories/occurrence-moderation.repository.js';
+  } from '../../../moderation/domain/repositories/occurrence-moderation.repository.js';
+
 
 export interface RequesterContext {
   userId: string;

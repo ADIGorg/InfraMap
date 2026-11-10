@@ -8,7 +8,8 @@ import type {
   FinalizeOccurrenceInput,
   IOccurrenceRepository,
   UserRoleData,
-} from '../domain/repositories/occurrence.repository.js';
+} from '../../domain/repositories/occurrence.repository.js';
+
 function mapPgError(message: string): Error {
   for (const prefix of ['FORBIDDEN', 'NOT_FOUND', 'CONFLICT', 'BAD_REQUEST']) {
     if (message.includes(`${prefix}:`)) {
@@ -93,7 +94,7 @@ export class SupabaseOccurrenceRepository implements IOccurrenceRepository {
       p_lng: input.location.lng,
       p_category_source: input.categorySource,
       p_description_source: input.descriptionSource,
-      p_photos: input.photos.map((p: { storagePath: any; mimeType: any; sizeBytes: any; }) => ({
+      p_photos: input.photos.map((p) => ({
         storagePath: p.storagePath,
         mimeType: p.mimeType,
         sizeBytes: p.sizeBytes,

@@ -2,7 +2,7 @@ import type {
   DataSource,
   IOccurrenceRepository,
 } from '../../domain/repositories/occurrence.repository.js';
-import { finalizeOccurrenceSchema } from '../../presentation/schema/occurrence.schema.js';
+import { finalizeOccurrenceSchema } from '../../presentation/occurrence.schema.js';
 
 export interface FinalizeOccurrenceResult {
   id: string;
