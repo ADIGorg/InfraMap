@@ -38,6 +38,57 @@ tags:
 # ==========================================
 
 paths:
+  /occurrences/{id}/votes:
+    get:
+      summary: Consulta a contagem de votos de uma ocorrência pública
+      security: []
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: Contagem pública de votos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VoteCountResponse'
+        '400': { description: Identificador inválido }
+        '404': { description: Ocorrência pública não encontrada }
+    post:
+      summary: Registra um voto do cidadão ativo
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '201':
+          description: Voto registrado e contagem atualizada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VoteCountResponse'
+        '400': { description: Identificador inválido }
+        '401': { description: Autenticação necessária }
+        '403': { description: Acesso negado ou voto na própria ocorrência }
+        '404': { description: Ocorrência não encontrada }
+        '409': { description: Voto duplicado ou ocorrência inelegível }
+
+  /occurrences/{id}/votes/me:
+    delete:
+      summary: Retira o voto do próprio cidadão
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: Voto retirado e contagem atualizada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VoteCountResponse'
+        '400': { description: Identificador inválido }
+        '401': { description: Autenticação necessária }
+        '403': { description: Acesso negado }
+        '404': { description: Ocorrência ou voto não encontrado }
+        '409': { description: Ocorrência inelegível }
 
   # ========================================
   # CAT-01 - CONSULTA PÚBLICA DE CATEGORIAS
@@ -660,6 +711,16 @@ components:
   # ========================================
 
   schemas:
+    VoteCountResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          required: [occurrence_id, vote_count]
+          properties:
+            occurrence_id: { type: string, format: uuid }
+            vote_count: { type: integer, minimum: 0 }
 
     # ======================================
     # CAT-01 - CATEGORIAS

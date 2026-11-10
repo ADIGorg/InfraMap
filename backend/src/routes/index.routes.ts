@@ -2,6 +2,7 @@
 import { Router } from "express";
 
 import healthRoutes from "../modules/health/health.routes.js";
+import { votesRoutes } from "../modules/votes/presentation/votes.routes.js";
 
 import {
   createIdentityRoutes,
@@ -42,6 +43,7 @@ const routes = Router();
 // ==========================================
 
 routes.use("/health", healthRoutes);
+routes.use("/occurrences", votesRoutes);
 
 // ==========================================
 // CAT-01 - CONSULTA PÚBLICA DE CATEGORIAS
