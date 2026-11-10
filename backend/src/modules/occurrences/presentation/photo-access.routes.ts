@@ -1,12 +1,11 @@
 import { Router, type RequestHandler } from 'express';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
-import { PhotoAccessController } from '../controllers/photo-access.controller.js';
-import { GetPhotoSignedUrlUseCase } from '../../application/use-cases/get-photo-signed-url.use-case.js';
-import { SupabasePhotoAccessRepository } from '../../infrastructure/supabase/supabase-photo-access.repository.js';
-import { SupabasePhotoUrlService } from '../../infrastructure/storage/supabase-photo-url.service.js';
-import { photoAccessParamsSchema } from '../schema/photo-access.schema.js';
-
+import { PhotoAccessController } from "./photo-access.controller.js";
+import { GetPhotoSignedUrlUseCase } from "../application/use-cases/get-photo-signed-url.use-case.js";
+import { SupabasePhotoAccessRepository } from "../infrastructure/repositories/supabase-photo-access.repository.js";
+import { SupabasePhotoUrlService } from "../../../infrastructure/storage/supabase-photo-url.service.js";
+import { photoAccessParamsSchema } from "./photo-access.schema.js";
 export interface PhotoAccessRoutesDeps {
   authenticate: RequestHandler;
   authorizeRole: (roles: string[]) => RequestHandler;

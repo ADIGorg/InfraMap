@@ -1,24 +1,26 @@
 import { Router, type RequestHandler } from 'express';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
-import { OccurrenceModerationController } from '../controllers/occurrence-moderation.controller.js';
-import { StartAnalysisUseCase } from '../../application/use-cases/start-analysis.use-case.js';
-import { ConfirmOccurrenceUseCase } from '../../application/use-cases/confirm-occurrence.use-case.js';
-import { RejectOccurrenceUseCase } from '../../application/use-cases/reject-occurrence.use-case.js';
-import { SetPriorityUseCase } from '../../application/use-cases/set-priority.use-case.js';
-import { StartServiceUseCase } from '../../application/use-cases/start-service.use-case.js';
-import { ResolveOccurrenceUseCase } from '../../application/use-cases/resolve-occurrence.use-case.js';
-import { CreateObservationUseCase } from '../../application/use-cases/create-observation.use-case.js';
+import { OccurrenceModerationController } from "./occurrence-moderation.controller.js";
+import { StartAnalysisUseCase } from "../application/use-cases/start-analysis.use-case.js";
+import { ConfirmOccurrenceUseCase } from "../application/use-cases/confirm-occurrence.use-case.js";
+import { RejectOccurrenceUseCase } from "../application/use-cases/reject-occurrence.use-case.js";
+import { SetPriorityUseCase } from "../application/use-cases/set-priority.use-case.js";
+import { StartServiceUseCase } from "../application/use-cases/start-service.use-case.js";
+import { ResolveOccurrenceUseCase } from "../application/use-cases/resolve-occurrence.use-case.js";
+import { CreateObservationUseCase } from "../application/use-cases/create-observation.use-case.js";
 
 // ============================================================
 // MOD-04
 // ============================================================
-import { AdjustLocationUseCase } from '../../application/use-cases/adjust-location.use-case.js';
-import { CorrectClassificationUseCase } from '../../application/use-cases/correct-classification.use-case.js';
+import { AdjustLocationUseCase } from "../application/use-cases/adjust-location.use-case.js";
+import { CorrectClassificationUseCase } from "../application/use-cases/correct-classification.use-case.js";
+import { SupabaseOccurrenceModerationRepository } from "../infrastructure/repositories/supabase-moderation.repository.js";
+import { validateRequest } from "../../../shared/middlewares/validate-request.js";
 
-import { SupabaseOccurrenceModerationRepository } from '../../infrastructure/supabase/occurrence-moderation.repository.js';
-import { validateRequest } from '../../shared/middlewares/validate-request.js';
-import { createObservationSchema } from '../schema/occurrence-moderation.schema.js';
+import {
+  createObservationSchema,
+} from "./occurrence-moderation.schema.js";
 
 // ============================================================
 // MOD-04 — schemas
@@ -26,7 +28,7 @@ import { createObservationSchema } from '../schema/occurrence-moderation.schema.
 import {
   adjustLocationSchema,
   correctClassificationSchema,
-} from '../schema/occurrence-moderation.schema.js';
+} from './occurrence-moderation.schema.js';
 
 export interface OccurrenceModerationRoutesDeps {
   authenticate: RequestHandler;

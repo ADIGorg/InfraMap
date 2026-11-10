@@ -1,3 +1,5 @@
+// src/modules/occurrences/application/use-cases/get-public-occurrence.use-case.ts
+
 import type {
   IOccurrenceQueryRepository,
   PublicOccurrenceDetail,
@@ -42,8 +44,8 @@ export class GetPublicOccurrenceUseCase {
     const eligibleForPublicPhotos =
       item.status === 'CONFIRMED' || item.status === 'IN_SERVICE';
 
-    const paths = eligibleForPublicPhotos
-      ? item.photos.map((p: { storagePath: any; }) => p.storagePath)
+    const paths: string[] = eligibleForPublicPhotos
+      ? item.photos.map((p) => p.storagePath)
       : [];
 
     const urlsMap: Record<string, SignedPhotoUrl> = paths.length
@@ -51,8 +53,8 @@ export class GetPublicOccurrenceUseCase {
       : {};
 
     const photoUrls = item.photos
-      .filter((p: { storagePath: string | number; }) => urlsMap[p.storagePath])
-      .map((p: { storagePath: string | number; mimeType: any; sizeBytes: any; position: any; }) => {
+      .filter((p) => Boolean(urlsMap[p.storagePath]))
+      .map((p) => {
         const signed = urlsMap[p.storagePath]!;
         return {
           mimeType: p.mimeType,
@@ -66,6 +68,7 @@ export class GetPublicOccurrenceUseCase {
 
     // Não vazar `storagePath` no payload final
     const { photos: _photos, ...publicDetail } = item;
+    void _photos; // consome a variável para o linter
 
     return { ...publicDetail, photoUrls };
   }

@@ -45,34 +45,34 @@ import {
 
 import {
   createOccurrenceHistoryRoutes,
-} from "../presentation/routes/occurrence-history.routes.js";
+} from "../modules/occurrences/presentation/occurrence-history.routes.js";
 
 import {
   createOccurrenceModerationRoutes,
-} from "../presentation/routes/occurrence-moderation.routes.js";
+} from "../modules/moderation/presentation/occurrence-moderation.routes.js";
 
 // OCC-01
 import {
   createOccurrenceRoutes,
-} from "../presentation/routes/occurrence.routes.js";
+} from "../modules/occurrences/presentation/occurrence.routes.js";
 
 // OCC-02
 import {
   createPublicOccurrenceRoutes,
-} from "../presentation/routes/public-occurrence.routes.js";
+} from "../modules/occurrences/presentation/public-occurrence.routes.js";
 
 import {
   createMyOccurrenceRoutes,
-} from "../presentation/routes/my-occurrence.routes.js";
+} from "../modules/occurrences/presentation/my-occurrence.routes.js";
 
 import {
   createAdminOccurrenceQueryRoutes,
-} from "../presentation/routes/admin-occurrence-query.routes.js";
+} from "../modules/occurrences/presentation/admin-occurrence-query.routes.js";
 
 // OCC-03
 import {
   createPhotoAccessRoutes,
-} from "../presentation/routes/photo-access.routes.js";
+} from "../modules/occurrences/presentation/photo-access.routes.js";
 
 import {
   aiAnalysisRoutes,
@@ -241,8 +241,6 @@ const occurrenceHistoryRoutes = createOccurrenceHistoryRoutes({
 });
 
 routes.use("/occurrences", occurrenceHistoryRoutes);
-
-export default routes;
 
 // ==========================================
 // API1-47 - AI-02

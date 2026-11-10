@@ -3,7 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type {
   IPhotoUrlService,
   SignedPhotoUrl,
-} from '../../domain/services/photo-url.service.js';
+} from '../../modules/occurrences/domain/services/photo-url.service.js';
 
 // Bucket privado — configurado nas migrations de AI-02 / DB-09.
 // Se o nome real for outro, ajuste aqui (e mantenha consistência com AI-02).

@@ -2,9 +2,9 @@ import { Router, type RequestHandler } from 'express';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { z } from 'zod';
 
-import { OccurrenceHistoryController } from '../controllers/occurrence-history.controller.js';
-import { GetOccurrenceHistoryUseCase } from '../../application/use-cases/get-occurrence-history.use-case.js';
-import { SupabaseOccurrenceModerationRepository } from '../../infrastructure/supabase/occurrence-moderation.repository.js';
+import { OccurrenceHistoryController } from "./occurrence-history.controller.js";
+import { GetOccurrenceHistoryUseCase } from "../application/use-cases/get-occurrence-history.use-case.js";
+import { SupabaseOccurrenceModerationRepository } from "../../moderation/infrastructure/repositories/supabase-moderation.repository.js";
 const getHistorySchema = z.object({
   params: z.object({ id: z.string().min(1) }),
 });
