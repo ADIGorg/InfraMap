@@ -1,4 +1,3 @@
-
 import { Router } from "express";
 
 import healthRoutes from "../modules/health/health.routes.js";
@@ -22,6 +21,7 @@ import {
 
 import { authenticate } from "../shared/middlewares/authenticate.js";
 import { authorizeRole } from "../shared/middlewares/authorize-role.js";
+import { validateRequest } from "../shared/middlewares/validate-request.js";
 
 import {
   createUserSupabaseClient,
@@ -32,9 +32,47 @@ import {
 } from "../infrastructure/supabase/public-client.js";
 
 import {
+  createSupabaseAdminClient,
+} from "../infrastructure/supabase/admin-client.js";
+
+import {
   UnauthorizedError,
 } from "../shared/errors/app-error.js";
 
+// ==========================================================
+// Roteadores de ocorrências (MOD-01/02/03/04 + OCC-01/02/03)
+// ==========================================================
+
+import {
+  createOccurrenceHistoryRoutes,
+} from "../presentation/routes/occurrence-history.routes.js";
+
+import {
+  createOccurrenceModerationRoutes,
+} from "../presentation/routes/occurrence-moderation.routes.js";
+
+// OCC-01
+import {
+  createOccurrenceRoutes,
+} from "../presentation/routes/occurrence.routes.js";
+
+// OCC-02
+import {
+  createPublicOccurrenceRoutes,
+} from "../presentation/routes/public-occurrence.routes.js";
+
+import {
+  createMyOccurrenceRoutes,
+} from "../presentation/routes/my-occurrence.routes.js";
+
+import {
+  createAdminOccurrenceQueryRoutes,
+} from "../presentation/routes/admin-occurrence-query.routes.js";
+
+// OCC-03
+import {
+  createPhotoAccessRoutes,
+} from "../presentation/routes/photo-access.routes.js";
 
 import {
   aiAnalysisRoutes,
@@ -48,6 +86,9 @@ import {
 
 
 const routes = Router();
+const adminClient = createSupabaseAdminClient();
+const validateRouteRequest = (schema: unknown) =>
+  validateRequest(schema as Parameters<typeof validateRequest>[0]);
 
 
 // ==========================================
@@ -60,9 +101,7 @@ routes.use("/health", healthRoutes);
 // CAT-01 - CONSULTA PÚBLICA DE CATEGORIAS
 // ==========================================
 
-const categoriesRepository = createCategoriesRepository(
-  supabasePublic
-);
+const categoriesRepository = createCategoriesRepository(supabasePublic);
 
 routes.use(
   "/categories",
@@ -89,9 +128,7 @@ const identityMeRoutes = createIdentityRoutes({
       throw new UnauthorizedError();
     }
 
-    const userClient = createUserSupabaseClient(
-      request.token
-    );
+    const userClient = createUserSupabaseClient(request.token);
 
     return {
       userId: request.user.id,
@@ -102,6 +139,110 @@ const identityMeRoutes = createIdentityRoutes({
 
 routes.use(identityMeRoutes);
 
+// ==========================================
+// MOD-01 / MOD-02 / MOD-03 / MOD-04
+// Moderação de ocorrências (somente ADMIN ativo)
+// ==========================================
+
+const occurrenceModerationRoutes = createOccurrenceModerationRoutes({
+  authenticate,
+  authorizeRole,
+  adminClient,
+});
+
+routes.use("/admin/occurrences", occurrenceModerationRoutes);
+
+// ==========================================
+// OCC-02 — Consultas públicas (anônimo)
+// ==========================================
+
+const publicOccurrenceRoutes = createPublicOccurrenceRoutes({
+  adminClient,
+  validateRequest: validateRouteRequest,
+});
+
+routes.use("/occurrences/public", publicOccurrenceRoutes);
+
+// ==========================================
+// OCC-02 — Consultas do cidadão (CITIZEN ou ADMIN)
+// ==========================================
+
+const myOccurrenceRoutes = createMyOccurrenceRoutes({
+  authenticate,
+  adminClient,
+  validateRequest: validateRouteRequest,
+});
+
+routes.use("/occurrences/mine", myOccurrenceRoutes);
+
+// ==========================================
+// OCC-02 — Consultas administrativas (ADMIN ativo)
+// ==========================================
+
+const adminOccurrenceQueryRoutes = createAdminOccurrenceQueryRoutes({
+  authenticate,
+  authorizeRole,
+  adminClient,
+  validateRequest: validateRouteRequest,
+});
+
+routes.use("/admin/occurrences", adminOccurrenceQueryRoutes);
+
+// ==========================================
+// OCC-03 — Acesso autorizado às fotografias
+//
+// Serviço de URLs assinadas com expiração curta.
+// Bucket privado (storage_path em occurrence_photos).
+//
+//   GET /occurrences/public/:id/photos/:photoId          (anônimo — só CONFIRMED/IN_SERVICE)
+//   GET /occurrences/mine/:id/photos/:photoId            (CITIZEN autor)
+//   GET /admin/occurrences/:id/photos/:photoId           (ADMIN ativo)
+// ==========================================
+
+const photoAccessRouters = createPhotoAccessRoutes({
+  authenticate,
+  authorizeRole,
+  adminClient,
+  validateRequest: validateRouteRequest,
+});
+
+routes.use("/occurrences/public", photoAccessRouters.publicRouter);
+routes.use("/occurrences/mine", photoAccessRouters.myRouter);
+routes.use("/admin/occurrences", photoAccessRouters.adminRouter);
+
+// ==========================================
+// OCC-01 - Finalizar e registrar ocorrência (CITIZEN ativo)
+//
+// Endpoints:
+//   POST /occurrences/finalize
+// ==========================================
+
+const occurrenceCitizenRoutes = createOccurrenceRoutes({
+  authenticate,
+  adminClient,
+});
+
+routes.use("/occurrences", occurrenceCitizenRoutes);
+
+// ==========================================
+// MOD-03 - Consulta de histórico (autor OU admin)
+//
+// Endpoints:
+//   GET /occurrences/:id/history
+//
+// ⚠️ Registrado por último, DEPOIS das rotas específicas
+// (/public, /mine, /finalize) para evitar ambiguidade do Express.
+// ==========================================
+
+const occurrenceHistoryRoutes = createOccurrenceHistoryRoutes({
+  authenticate,
+  adminClient,
+  validateRequest: validateRouteRequest,
+});
+
+routes.use("/occurrences", occurrenceHistoryRoutes);
+
+export default routes;
 
 // ==========================================
 // API1-47 - AI-02
