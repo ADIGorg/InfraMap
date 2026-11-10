@@ -5,12 +5,17 @@ import type {
   RequestHandler,
 } from "express";
 
-import { IdentityService } from "./identity.service.js";
+import {
+  GetCurrentUserUseCase,
+} from "../application/use-cases/get-current-user.use-case.js";
 
 import type {
   IdentityRole,
+} from "../domain/entities/user-profile.entity.js";
+
+import type {
   ProfileReader,
-} from "./identity.service.js";
+} from "../domain/repositories/identity.repository.js";
 
 // Contexto fornecido pela autenticação validada.
 export interface IdentityContext {
@@ -23,14 +28,13 @@ export type ResolveIdentityContext = (
   response: Response
 ) => IdentityContext;
 
-// Cria os controllers com as dependências necessárias.
+// Controller responsável pela camada HTTP.
 export function createIdentityController(
   resolveContext: ResolveIdentityContext
 ) {
   const getMe = (
     requiredRole: IdentityRole
   ): RequestHandler => {
-
     return async (request, response, next) => {
       try {
         const context = resolveContext(
@@ -38,11 +42,11 @@ export function createIdentityController(
           response
         );
 
-        const service = new IdentityService(
+        const useCase = new GetCurrentUserUseCase(
           context.profiles
         );
 
-        const identity = await service.getMe(
+        const identity = await useCase.execute(
           context.userId,
           requiredRole
         );
