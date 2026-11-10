@@ -59,3 +59,36 @@ export const createObservationSchema = z.object({
     }),
   }),
 });
+
+export const adjustLocationSchema = z.object({
+  params: z.object({
+    id: z.string().uuid('ID da ocorrência inválido.'),
+  }),
+  body: z.object({
+    lat: z.number({ message: 'Latitude é obrigatória.' }).min(-90).max(90),
+    lng: z.number({ message: 'Longitude é obrigatória.' }).min(-180).max(180),
+  }),
+});
+
+export const correctClassificationSchema = z
+  .object({
+    params: z.object({
+      id: z.string().uuid('ID da ocorrência inválido.'),
+    }),
+    body: z.object({
+      categoryId: z.string().uuid('ID da categoria inválido.').optional(),
+      description: z
+        .string()
+        .trim()
+        .min(1, 'A descrição não pode ser vazia.')
+        .max(500, 'A descrição deve ter no máximo 500 caracteres (RN009).')
+        .optional(),
+    }),
+  })
+  .refine(
+    (data) => Boolean(data.body.categoryId) || Boolean(data.body.description),
+    {
+      message: 'Informe ao menos uma correção (categoryId ou description).',
+      path: ['body'],
+    }
+  );

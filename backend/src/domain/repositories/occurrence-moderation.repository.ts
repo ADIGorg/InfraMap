@@ -81,3 +81,27 @@ export interface IOccurrenceModerationRepository {
     includeInternalObservations: boolean
   ): Promise<HistoryEvent[]>;
 }
+
+export interface GeoCoordinate {
+  lat: number;
+  lng: number;
+}
+
+// Estenda a interface IOccurrenceModerationRepository:
+export interface IOccurrenceModerationRepository {
+  // ... métodos existentes (MOD-01 a MOD-03) ...
+
+  // MOD-04
+  adjustLocation(
+    occurrenceId: string,
+    adminId: string,
+    newLocation: GeoCoordinate
+  ): Promise<string>;
+
+  correctClassification(
+    occurrenceId: string,
+    adminId: string,
+    newCategoryId?: string | null,
+    newDescription?: string | null
+  ): Promise<string>;
+}

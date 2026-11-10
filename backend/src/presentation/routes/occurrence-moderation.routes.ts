@@ -9,9 +9,25 @@ import { SetPriorityUseCase } from '../../application/use-cases/set-priority.use
 import { StartServiceUseCase } from '../../application/use-cases/start-service.use-case.js';
 import { ResolveOccurrenceUseCase } from '../../application/use-cases/resolve-occurrence.use-case.js';
 import { CreateObservationUseCase } from '../../application/use-cases/create-observation.use-case.js';
+
+// ============================================================
+// MOD-04
+// ============================================================
+import { AdjustLocationUseCase } from '../../application/use-cases/adjust-location.use-case.js';
+import { CorrectClassificationUseCase } from '../../application/use-cases/correct-classification.use-case.js';
+
 import { SupabaseOccurrenceModerationRepository } from '../../infrastructure/supabase/occurrence-moderation.repository.js';
 import { validateRequest } from '../../shared/middlewares/validate-request.js';
 import { createObservationSchema } from '../schema/occurrence-moderation.schema.js';
+
+// ============================================================
+// MOD-04 — schemas
+// ============================================================
+import {
+  adjustLocationSchema,
+  correctClassificationSchema,
+} from '../schema/occurrence-moderation.schema.js';
+
 export interface OccurrenceModerationRoutesDeps {
   authenticate: RequestHandler;
   authorizeRole: (roles: string[]) => RequestHandler;
@@ -97,7 +113,39 @@ export function createOccurrenceModerationRoutes({
         },
       }) as unknown as ConstructorParameters<typeof ResolveOccurrenceUseCase>[0]
     ),
-    new CreateObservationUseCase(repository)
+    new CreateObservationUseCase(repository),
+
+    // ============================================================
+    // MOD-04 — antes eram `undefined as unknown as ...`
+    // ============================================================
+    new AdjustLocationUseCase(
+      new Proxy(repository, {
+        get(target, property, receiver) {
+          if (property === 'adjustLocation') {
+            return async (...args: Parameters<typeof target.adjustLocation>) => {
+              await target.adjustLocation(...args);
+            };
+          }
+
+          const value = Reflect.get(target, property, receiver);
+          return typeof value === 'function' ? value.bind(target) : value;
+        },
+      }) as unknown as ConstructorParameters<typeof AdjustLocationUseCase>[0]
+    ),
+    new CorrectClassificationUseCase(
+      new Proxy(repository, {
+        get(target, property, receiver) {
+          if (property === 'correctClassification') {
+            return async (...args: Parameters<typeof target.correctClassification>) => {
+              await target.correctClassification(...args);
+            };
+          }
+
+          const value = Reflect.get(target, property, receiver);
+          return typeof value === 'function' ? value.bind(target) : value;
+        },
+      }) as unknown as ConstructorParameters<typeof CorrectClassificationUseCase>[0]
+    )
   );
 
   const router = Router();
@@ -116,12 +164,34 @@ export function createOccurrenceModerationRoutes({
 
   // MOD-03
   router.post(
-  '/:id/observations',
-  validateRequest({
-    params: createObservationSchema.shape.params,
-    body: createObservationSchema.shape.body,
-  }),
-  (req, res) => controller.createObservation(req, res)
-);
+    '/:id/observations',
+    validateRequest({
+      params: createObservationSchema.shape.params,
+      body: createObservationSchema.shape.body,
+    }),
+    (req, res) => controller.createObservation(req, res)
+  );
+
+  // ============================================================
+  // MOD-04
+  // ============================================================
+  router.patch(
+    '/:id/location',
+    validateRequest({
+      params: adjustLocationSchema.shape.params,
+      body: adjustLocationSchema.shape.body,
+    }),
+    (req, res) => controller.adjustLocation(req, res)
+  );
+
+  router.patch(
+    '/:id/classification',
+    validateRequest({
+      params: correctClassificationSchema.shape.params,
+      body: correctClassificationSchema.shape.body,
+    }),
+    (req, res) => controller.correctClassification(req, res)
+  );
+
   return router;
 }

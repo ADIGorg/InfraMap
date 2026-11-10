@@ -1,5 +1,6 @@
 import { SupabaseClient } from '@supabase/supabase-js';
 import type {
+  GeoCoordinate,
   HistoryEvent,
   IOccurrenceModerationRepository,
   ObservationVisibility,
@@ -21,6 +22,53 @@ export class SupabaseOccurrenceModerationRepository
   implements IOccurrenceModerationRepository
 {
   constructor(private readonly supabase: SupabaseClient) {}
+
+  // ==========================================================
+  // MOD-04 — ajustar localização
+  // ==========================================================
+  async adjustLocation(
+    occurrenceId: string,
+    adminId: string,
+    newLocation: GeoCoordinate
+  ): Promise<string> {
+    const { data, error } = await this.supabase.rpc(
+      'adjust_occurrence_location',
+      {
+        p_occurrence_id: occurrenceId,
+        p_admin_id: adminId,
+        p_new_lat: newLocation.lat,
+        p_new_lng: newLocation.lng,
+      }
+    );
+    if (error) throw mapPgError(error.message);
+    return data as string;
+  }
+
+  // ==========================================================
+  // MOD-04 — corrigir categoria e/ou descrição
+  // ==========================================================
+  async correctClassification(
+    occurrenceId: string,
+    adminId: string,
+    newCategoryId?: string | null,
+    newDescription?: string | null
+  ): Promise<string> {
+    const { data, error } = await this.supabase.rpc(
+      'correct_occurrence_classification',
+      {
+        p_occurrence_id: occurrenceId,
+        p_admin_id: adminId,
+        p_new_category_id: newCategoryId ?? null,
+        p_new_description: newDescription ?? null,
+      }
+    );
+    if (error) throw mapPgError(error.message);
+    return data as string;
+  }
+
+  // ==========================================================
+  // MOD-03 — criar observação administrativa
+  // ==========================================================
   async createObservation(
     occurrenceId: string,
     adminId: string,
@@ -37,6 +85,9 @@ export class SupabaseOccurrenceModerationRepository
     return data as string;
   }
 
+  // ==========================================================
+  // MOD-03 — consultar histórico
+  // ==========================================================
   async getHistory(
     occurrenceId: string,
     includeInternalObservations: boolean
@@ -92,6 +143,9 @@ export class SupabaseOccurrenceModerationRepository
     );
   }
 
+  // ==========================================================
+  // MOD-01 / MOD-02 — leitura básica
+  // ==========================================================
   async getOccurrenceById(occurrenceId: string): Promise<OccurrenceBasicInfo | null> {
     const { data, error } = await this.supabase
       .from('occurrences')
@@ -110,6 +164,9 @@ export class SupabaseOccurrenceModerationRepository
     };
   }
 
+  // ==========================================================
+  // MOD-01 — transição genérica de status
+  // ==========================================================
   async transitionStatus(
     occurrenceId: string,
     adminId: string,
@@ -126,6 +183,9 @@ export class SupabaseOccurrenceModerationRepository
     return data as string;
   }
 
+  // ==========================================================
+  // MOD-02 — prioridade
+  // ==========================================================
   async setPriority(
     occurrenceId: string,
     adminId: string,
@@ -140,6 +200,9 @@ export class SupabaseOccurrenceModerationRepository
     return data as string;
   }
 
+  // ==========================================================
+  // MOD-02 — iniciar atendimento
+  // ==========================================================
   async startService(
     occurrenceId: string,
     adminId: string,
@@ -154,6 +217,9 @@ export class SupabaseOccurrenceModerationRepository
     return data as string;
   }
 
+  // ==========================================================
+  // MOD-02 — resolver
+  // ==========================================================
   async resolve(
     occurrenceId: string,
     adminId: string,
