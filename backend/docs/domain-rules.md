@@ -147,6 +147,7 @@ Listagens aceitam page (>=1), pageSize (1..100, padrão 20), sort (recent, oldes
 - O identificador da foto deve pertencer à ocorrência solicitada.
 - A API emite URL assinada com validade curta, não torna o bucket público.
 - Dados internos (storage_path, coordenada original exata e observações INTERNAL) não devem ser expostos ao público.
+- **Problema constatado:** a RPC get_occurrence inclui storagePath em photos e o mapper público getPublic repassa essa lista. O detalhe público pode expor caminhos privados do bucket até que o DTO seja corrigido. A URL ainda exige autorização/assinatura, mas isso não elimina o vazamento de metadados.
 - A checagem de autorização deve existir mesmo quando a leitura utiliza cliente administrativo Supabase.
 
 ## 7. Histórico, observações e notificações
