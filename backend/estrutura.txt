@@ -30,6 +30,21 @@
 │   │       ├── public-client.ts
 │   │       └── user-client.factory.ts
 │   ├── modules
+│   │   ├── administration
+│   │   │   ├── application
+│   │   │   │   └── use-cases
+│   │   │   │       └── get-dashboard.use-case.ts
+│   │   │   ├── infrastructure
+│   │   │   │   └── repositories
+│   │   │   │       ├── supabase-administration.repository.ts
+│   │   │   │       └── supabase-agency.repository.ts
+│   │   │   └── presentation
+│   │   │       ├── administration.controller.ts
+│   │   │       ├── administration.routes.ts
+│   │   │       ├── admin-management.controller.ts
+│   │   │       ├── admin-management.schema.ts
+│   │   │       ├── agencies.controller.ts
+│   │   │       └── agencies.schema.ts
 │   │   ├── ai-analysis
 │   │   │   ├── application
 │   │   │   │   └── use-cases
@@ -231,6 +246,10 @@
 │   │   ├── 20261109140000_occ01_finalize_occurrence.sql
 │   │   ├── 20261109150000_occ02_read_queries.sql
 │   │   ├── 20261109235900_notify_citizen_response.sql
+│   │   ├── 20261110040000_get_admin_dashboard.sql
+│   │   ├── 20261110050000_manage_administrators.sql
+│   │   ├── 20261110051000_provision_administrator_auth_metadata_update.sql
+│   │   ├── 20261110052000_manage_agencies.sql
 │   │   └── 20261110054000_enforce_transactional_voting.sql
 │   └── .temp
 │       ├── cli-latest
@@ -248,6 +267,7 @@
 │   │   ├── authenticate.spec.ts
 │   │   ├── authorize-role.spec.ts
 │   │   ├── categories.routes.spec.ts
+│   │   ├── dashboard.routes.spec.ts
 │   │   ├── deactivate-my-account.routes.spec.ts
 │   │   ├── error-handler.spec.ts
 │   │   ├── http-security.spec.ts
@@ -255,6 +275,8 @@
 │   │   ├── identity.security.spec.ts
 │   │   ├── my-profile.routes.spec.ts
 │   │   ├── request-logger.spec.ts
+│   │   ├── supabase
+│   │   │   └── dashboard.rollback.sql
 │   │   ├── supabase.test.ts
 │   │   └── validate-request.spec.ts
 │   ├── setup.ts
@@ -282,4 +304,4 @@
 ├── tsconfig.scripts.json
 └── vitest.config.ts
 
-82 directories, 201 files
+89 directories, 216 files

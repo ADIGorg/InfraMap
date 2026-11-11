@@ -1,9 +1,11 @@
-
 openapi: 3.1.0
 
 info:
   title: InfraMap API
   version: 1.0.0
+  license:                               
+    name: UNLICENSED
+    identifier: UNLICENSED
   description: |
     API REST do InfraMap, responsável pela autenticação,
     identificação de usuários, gerenciamento de perfis,
@@ -20,301 +22,612 @@ servers:
 tags:
   - name: Health
     description: Verificação de disponibilidade da API.
-
   - name: Identity
     description: Identificação e gerenciamento de perfis de usuários.
-
   - name: App
     description: Endpoints destinados ao aplicativo cidadão.
-
   - name: Admin
     description: Endpoints destinados ao painel administrativo.
-
   - name: Categories
     description: Consulta pública às categorias de infraestrutura.
-
-# ==========================================
-# ENDPOINTS
-# ==========================================
+  - name: Notifications
+    description: Notificações do cidadão autenticado.
 
 paths:
-  /admin/agencies:
+  # ========================================
+  # HEALTH
+  # ========================================
+
+  /health:
     get:
-      tags: [Admin]
-      summary: Lista órgãos ativos e inativos para administradores ativos
-      security: [{ bearerAuth: [] }]
+      tags: [Health]
+      summary: Verificar disponibilidade da API
+      description: |
+        Verifica se a API está funcionando.
+        Não exige autenticação.
+      operationId: getHealth
+      security: []
       responses:
-        '200': { description: Catálogo no campo data }
-        '401': { description: Autenticação necessária }
-        '403': { description: Exige administrador ativo }
+        "200":
+          description: API funcionando.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+              example:
+                status: ok
+                message: InfraMap API funcionando!
+                timestamp: "2026-11-04T14:00:00.000Z"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  # ========================================
+  # CATEGORIES
+  # ========================================
+
+  /categories:
+    get:
+      tags: [Categories]
+      summary: Listar categorias ativas
+      description: |
+        Retorna as categorias ativas de infraestrutura urbana,
+        ordenadas pelo código.
+
+        Endpoint público: não exige autenticação.
+      operationId: listActiveCategories
+      security: []
+      responses:
+        "200":
+          description: Categorias ativas retornadas com sucesso.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CategoriesListResponse"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  # ========================================
+  # IDENTITY — ROTAS PROVISÓRIAS
+  # ========================================
+
+  /identity/users:
     post:
-      tags: [Admin]
-      summary: Cadastra um órgão como Master ativo
-      security: [{ bearerAuth: [] }]
+      tags: [Identity]
+      summary: Validar dados para criação de usuário
+      description: |
+        Endpoint provisório que valida os dados recebidos
+        utilizando Zod.
+
+        IMPORTANTE: esta operação não cria usuários no
+        Supabase Auth nem persiste informações no banco.
+
+        A resposta confirma somente a validação, sem devolver
+        os dados enviados ou a senha.
+
+        Requer autenticação e perfil ADMIN.
+      operationId: validateUserCreation
+      security:
+        - bearerAuth: []
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              allOf:
-                - $ref: '#/components/schemas/AgencyChanges'
-                - required: [name, email]
+              $ref: "#/components/schemas/CreateUserRequest"
+            example:
+              name: Maria Silva
+              email: maria@example.com
+              password: senha123
+              role: CITIZEN
       responses:
-        '201': { description: Órgão cadastrado no campo data }
-        '400': { description: Dados inválidos }
-        '401': { description: Autenticação necessária }
-        '403': { description: Exige Master ativo }
-
-  /admin/agencies/{id}:
-    patch:
-      tags: [Admin]
-      summary: Edita ou desativa um órgão como Master ativo
-      description: A desativação bloqueia novos encaminhamentos e preserva os anteriores.
-  /notifications:
+        "201":
+          description: Dados validados. Nenhum usuário foi criado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserValidationResponse"
+              example:
+                message: Dados validados. Nenhum usuário foi criado.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
     get:
-      tags: [Notifications]
-      summary: Lista as notificações do cidadão autenticado
+      tags: [Identity]
+      summary: Validar parâmetros de consulta de usuários
       description: |
-        Ordena da mais recente para a mais antiga. Use esta rota também após
-        reconectar o aplicativo para recuperar notificações persistidas.
+        Valida os parâmetros de paginação utilizando Zod.
 
-        Para receber novas notificações, assine eventos INSERT de Postgres Changes
-        na tabela public.notifications com JWT e filtro user_id=eq.<id do usuário>.
-        A política RLS limita a entrega ao destinatário. Os eventos são publicados
-        após o commit e o REST permanece como fonte de verdade.
-      security: [{ bearerAuth: [] }]
+        Endpoint provisório: não realiza consulta de usuários
+        no banco de dados.
+
+        Apenas retorna os parâmetros validados.
+
+        Requer autenticação.
+      operationId: validateUsersQuery
+      security:
+        - bearerAuth: []
       parameters:
         - name: page
           in: query
-          schema: { type: integer, minimum: 1, maximum: 21474836, default: 1 }
+          required: false
+          description: Número da página.
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+          example: 1
         - name: limit
           in: query
-          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+          required: false
+          description: Quantidade máxima de registros por página.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          example: 20
       responses:
-        '200':
-          description: Notificações paginadas
+        "200":
+          description: Parâmetros validados.
           content:
             application/json:
               schema:
-                type: object
-                required: [data, pagination]
-                properties:
-                  data:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/Notification'
-                  pagination:
-                    type: object
-                    required: [page, limit, total, total_pages]
-                    properties:
-                      page: { type: integer }
-                      limit: { type: integer }
-                      total: { type: integer }
-                      total_pages: { type: integer }
-        '400': { description: Paginação inválida }
-        '401': { description: Token ausente ou inválido }
-        '403': { description: Conta inativa ou papel incompatível }
+                $ref: "#/components/schemas/UsersQueryResponse"
+              example:
+                message: Parâmetros validados com sucesso.
+                data:
+                  page: 1
+                  limit: 20
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
 
-  /notifications/{id}/read:
-    patch:
-      tags: [Notifications]
-      summary: Marca uma notificação como lida
-      security: [{ bearerAuth: [] }]
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema: { type: string, format: uuid }
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/AgencyChanges'
-      responses:
-        '200': { description: Órgão atualizado no campo data }
-        '400': { description: Dados ou identificador inválidos }
-        '401': { description: Autenticação necessária }
-        '403': { description: Exige Master ativo }
-        '404': { description: Órgão não encontrado }
-  /admin/admins:
+  /identity/users/{id}:
     get:
-      tags: [Admin]
-      summary: Lista administradores ativos e inativos
-      security: [{ bearerAuth: [] }]
-      responses:
-        '200': { description: Lista de administradores no campo data }
-        '401': { description: Autenticação necessária }
-        '403': { description: Exige Master ativo }
-    post:
-      tags: [Admin]
-      summary: Provisiona um administrador com e-mail confirmado
-      description: Exige Master ativo. O provisionamento é direto e não envia convite.
-      security: [{ bearerAuth: [] }]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              additionalProperties: false
-              required: [name, email, password, admin_level]
-              properties:
-                name: { type: string, minLength: 1, maxLength: 150 }
-                email: { type: string, format: email, maxLength: 254 }
-                password: { type: string, format: password, minLength: 8, maxLength: 72, writeOnly: true }
-                admin_level: { type: string, enum: [MASTER, OPERATIONAL] }
-      responses:
-        '201': { description: Administrador criado, sem senha na resposta }
-        '400': { description: Dados inválidos }
-        '401': { description: Autenticação necessária }
-        '403': { description: Exige Master ativo }
-        '409': { description: E-mail já cadastrado }
-
-  /admin/admins/{id}:
-    patch:
-      tags: [Admin]
-      summary: Atualiza nível ou situação de um administrador
-      security: [{ bearerAuth: [] }]
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema: { type: string, format: uuid }
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              additionalProperties: false
-              minProperties: 1
-              properties:
-                admin_level: { type: string, enum: [MASTER, OPERATIONAL] }
-                is_active: { type: boolean }
-      responses:
-        '200': { description: Administrador atualizado }
-        '400': { description: Dados inválidos }
-        '401': { description: Autenticação necessária }
-        '403': { description: Exige Master ativo }
-        '404': { description: Administrador não encontrado }
-        '409': { description: Último Master ativo deve ser preservado }
-  /admin/dashboard:
-    get:
-      tags: [Admin]
-      summary: Consulta indicadores administrativos
+      tags: [Identity]
+      summary: Validar identificador de usuário
       description: |
-        Exige ADMIN ativo (MASTER ou OPERATIONAL). Considera todas as ocorrências.
-        A prioridade HIGH é contada em todos os status. A média usa apenas
-        RESOLVED com resolved_at e representa dias decorridos de 24 horas,
-        incluindo frações. Sem resoluções elegíveis, a média é null.
-        As contagens sempre incluem os seis status, mesmo quando são zero.
-      security: [{ bearerAuth: [] }]
+        Valida se o identificador informado é um UUID válido.
+
+        Endpoint provisório: ainda não consulta os dados
+        do usuário no banco de dados.
+
+        Requer autenticação.
+      operationId: validateUserId
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: UUID do usuário.
+          schema:
+            type: string
+            format: uuid
+          example: 181227d2-89d7-4ceb-8dff-85b623aeee5b
       responses:
-        '200':
-          description: Indicadores calculados em uma consulta no banco
+        "200":
+          description: Identificador válido.
           content:
             application/json:
               schema:
-                type: object
-                required: [data]
-                properties:
-                  data:
-                    type: object
-                    required: [counts_by_status, high_priority_total, average_resolution_days]
-                    properties:
-                      counts_by_status:
-                        type: object
-                        required: [RECEIVED, UNDER_ANALYSIS, CONFIRMED, IN_SERVICE, RESOLVED, REJECTED]
-                        properties:
-                          RECEIVED: { type: integer, minimum: 0 }
-                          UNDER_ANALYSIS: { type: integer, minimum: 0 }
-                          CONFIRMED: { type: integer, minimum: 0 }
-                          IN_SERVICE: { type: integer, minimum: 0 }
-                          RESOLVED: { type: integer, minimum: 0 }
-                          REJECTED: { type: integer, minimum: 0 }
-                      high_priority_total: { type: integer, minimum: 0 }
-                      average_resolution_days: { type: [number, 'null'] }
-        '401': { description: Token ausente ou inválido }
-        '403': { description: Conta inativa ou usuário sem papel ADMIN }
-        '500': { description: Falha ao consultar indicadores }
-      responses:
-        '204': { description: Notificação lida, inclusive se já estava lida }
-        '400': { description: Identificador inválido }
-        '401': { description: Token ausente ou inválido }
-        '403': { description: Conta inativa ou papel incompatível }
-        '404': { description: Notificação não encontrada para este cidadão }
+                $ref: "#/components/schemas/UserLookupResponse"
+              example:
+                message: "Buscando usuário 181227d2-89d7-4ceb-8dff-85b623aeee5b"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
 
-  /notifications/read-all:
-    patch:
-      tags: [Notifications]
-      summary: Marca todas as notificações do cidadão como lidas
-      security: [{ bearerAuth: [] }]
+  # ========================================
+  # ID-01 — PERFIL DO PRÓPRIO USUÁRIO
+  # ========================================
+
+  /identity/me:
+    get:
+      tags: [Identity]
+      summary: Consultar o próprio perfil
+      description: |
+        Retorna os dados cadastrais do usuário autenticado.
+
+        Requer token JWT válido e conta ativa.
+
+        O usuário pode consultar somente o próprio perfil.
+
+        Os dados cadastrais são consultados na tabela
+        public.profiles, utilizando o JWT do usuário e
+        respeitando as políticas RLS do Supabase.
+
+        O e-mail é obtido do Supabase Auth.
+
+        Contas inativas ou sem perfil de autorização
+        válido não podem executar esta operação.
+      operationId: getMyProfile
+      security:
+        - bearerAuth: []
       responses:
-        '204': { description: Operação concluída }
-        '401': { description: Token ausente ou inválido }
-        '403': { description: Conta inativa ou papel incompatível }
+        "200":
+          description: Perfil consultado com sucesso.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MyProfileResponse"
+              example:
+                message: Usuário autenticado.
+                data:
+                  id: 181227d2-89d7-4ceb-8dff-85b623aeee5b
+                  name: Maria Silva
+                  phone: "(75) 99999-9999"
+                  created_at: "2026-11-01T10:00:00.000Z"
+                  updated_at: "2026-11-01T10:00:00.000Z"
+                  email: maria@example.com
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+    patch:
+      tags: [Identity]
+      summary: Atualizar o próprio perfil
+      description: |
+        Permite atualizar os dados cadastrais do
+        usuário autenticado.
+
+        Requer token JWT válido e conta ativa.
+
+        Somente os campos name e phone são permitidos.
+
+        A operação não permite modificar:
+        - id
+        - email
+        - role
+        - admin_level
+        - is_active
+
+        A atualização ocorre exclusivamente no registro
+        associado ao identificador do usuário autenticado.
+
+        A API utiliza o JWT do usuário para acessar o
+        Supabase e respeita as políticas RLS.
+
+        O campo name deve conter entre 3 e 150 caracteres.
+
+        O campo phone é opcional e deve conter entre
+        8 e 15 dígitos numéricos, considerando sua
+        formatação.
+
+        Para remover um telefone cadastrado, envie null.
+
+        Deve ser informado pelo menos um campo válido.
+      operationId: updateMyProfile
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateMyProfileRequest"
+            example:
+              name: Maria Souza
+              phone: "(75) 98888-8888"
+      responses:
+        "200":
+          description: Perfil atualizado com sucesso.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MyProfileResponse"
+              example:
+                message: Perfil atualizado com sucesso.
+                data:
+                  id: 181227d2-89d7-4ceb-8dff-85b623aeee5b
+                  name: Maria Souza
+                  phone: "(75) 98888-8888"
+                  created_at: "2026-11-01T10:00:00.000Z"
+                  updated_at: "2026-11-08T18:00:00.000Z"
+                  email: maria@example.com
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+    delete:
+      tags: [Identity]
+      summary: Desativar e anonimizar a própria conta
+      description: |
+        Permite que um cidadão autenticado, com conta ativa,
+        solicite a desativação da própria conta.
+
+        A operação tenta revogar as sessões no Supabase Auth,
+        desativa o acesso (user_roles.is_active = false),
+        substitui o nome por "Usuário excluído", remove o
+        telefone cadastrado e anonimiza os dados pessoais
+        de autenticação no Supabase Auth.
+
+        As ocorrências, fotos e o histórico são preservados.
+
+        Se a anonimização do Auth falhar após a desativação
+        no banco, a conta permanece desativada e a limpeza
+        pendente poderá ser retomada administrativamente.
+
+        Não recebe identificador de usuário no corpo:
+        a operação utiliza a identidade do próprio JWT.
+      operationId: deactivateMyAccount
+      security:
+        - bearerAuth: []
+      responses:
+        "204":
+          description: Conta desativada e anonimizada com sucesso. Resposta sem corpo.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          description: |
+            Não foi possível revogar as sessões ou a conta
+            foi desativada e a anonimização do Auth está pendente.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                sessionRevocationFailed:
+                  summary: Falha ao encerrar sessões
+                  value:
+                    error:
+                      code: SESSION_REVOCATION_FAILED
+                      message: Não foi possível encerrar as sessões. A conta não foi desativada.
+                authCleanupPending:
+                  summary: Conta desativada com limpeza pendente
+                  value:
+                    error:
+                      code: ACCOUNT_DEACTIVATED_AUTH_PENDING
+                      message: Conta desativada. A limpeza dos dados de autenticação está pendente.
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  # ========================================
+  # IDENTITY — VERIFICAÇÃO ADMINISTRATIVA
+  # ========================================
+
+  /identity/admin-check:
+    get:
+      tags: [Identity]
+      summary: Verificar acesso administrativo
+      description: |
+        Verifica se o usuário autenticado possui
+        perfil ADMIN e conta ativa.
+
+        Requer autenticação.
+      operationId: checkAdminAccess
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Acesso administrativo autorizado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              example:
+                message: Acesso administrativo autorizado.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  # ========================================
+  # APP — IDENTIDADE DO CIDADÃO
+  # ========================================
+
+  /app/me:
+    get:
+      tags: [App]
+      summary: Identificar cidadão autenticado
+      description: |
+        Retorna o identificador, o perfil e a situação
+        da conta do cidadão autenticado.
+
+        Requer token JWT válido, perfil CITIZEN
+        e conta ativa.
+      operationId: getCitizenIdentity
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Identidade do cidadão retornada.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IdentityResponse"
+              example:
+                id: 181227d2-89d7-4ceb-8dff-85b623aeee5b
+                role: CITIZEN
+                is_active: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  # ========================================
+  # ADMIN — IDENTIDADE DO ADMINISTRADOR
+  # ========================================
+
+  /admin/me:
+    get:
+      tags: [Admin]
+      summary: Identificar administrador autenticado
+      description: |
+        Retorna o identificador, o perfil e a situação
+        da conta do administrador autenticado.
+
+        Requer token JWT válido, perfil ADMIN
+        e conta ativa.
+      operationId: getAdminIdentity
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Identidade do administrador retornada.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IdentityResponse"
+              example:
+                id: 181227d2-89d7-4ceb-8dff-85b623aeee5b
+                role: ADMIN
+                is_active: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  # ========================================
+  # VOTES — IMPACTO COMUNITÁRIO
+  # ========================================
+
   /occurrences/{id}/votes:
     get:
+      tags: [App]
       summary: Consulta a contagem de votos de uma ocorrência pública
       security: []
       parameters:
-        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
       responses:
-        '200':
+        "200":
           description: Contagem pública de votos
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/VoteCountResponse'
-        '400': { description: Identificador inválido }
-        '404': { description: Ocorrência pública não encontrada }
+                $ref: "#/components/schemas/VoteCountResponse"
+        "400":
+          description: Identificador inválido
+        "404":
+          description: Ocorrência pública não encontrada
     post:
+      tags: [App]
       summary: Registra um voto do cidadão ativo
-      security: [{ bearerAuth: [] }]
+      security:
+        - bearerAuth: []
       parameters:
-        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
       responses:
-        '201':
+        "201":
           description: Voto registrado e contagem atualizada
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/VoteCountResponse'
-        '400': { description: Identificador inválido }
-        '401': { description: Autenticação necessária }
-        '403': { description: Acesso negado ou voto na própria ocorrência }
-        '404': { description: Ocorrência não encontrada }
-        '409': { description: Voto duplicado ou ocorrência inelegível }
+                $ref: "#/components/schemas/VoteCountResponse"
+        "400":
+          description: Identificador inválido
+        "401":
+          description: Autenticação necessária
+        "403":
+          description: Acesso negado ou voto na própria ocorrência
+        "404":
+          description: Ocorrência não encontrada
+        "409":
+          description: Voto duplicado ou ocorrência inelegível
 
   /occurrences/{id}/votes/me:
     delete:
+      tags: [App]
       summary: Retira o voto do próprio cidadão
-      security: [{ bearerAuth: [] }]
+      security:
+        - bearerAuth: []
       parameters:
-        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
       responses:
-        '200':
+        "200":
           description: Voto retirado e contagem atualizada
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/VoteCountResponse'
-        '400': { description: Identificador inválido }
-        '401': { description: Autenticação necessária }
-        '403': { description: Acesso negado }
-        '404': { description: Ocorrência ou voto não encontrado }
-        '409': { description: Ocorrência inelegível }
+                $ref: "#/components/schemas/VoteCountResponse"
+        "400":
+          description: Identificador inválido
+        "401":
+          description: Autenticação necessária
+        "403":
+          description: Acesso negado
+        "404":
+          description: Ocorrência ou voto não encontrado
+        "409":
+          description: Ocorrência inelegível
 
   # ========================================
-  # API1-47 - AI-02
-  # CRIAÇÃO DE ANÁLISE E UPLOAD DE FOTOGRAFIAS
+  # AI-02 / AI-03 — ANÁLISE DE FOTOGRAFIAS
   # ========================================
 
   /ai-analyses:
     post:
-      tags:
-        - App
+      tags: [App]
       summary: Criar análise com fotografias
       description: |
         Permite que um cidadão autenticado e ativo crie uma análise
@@ -394,15 +707,9 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
-  # ========================================
-  # API1-48 - AI-03
-  # PROCESSAMENTO E CONSULTA DAS ANÁLISES
-  # ========================================
-
   /ai-analyses/{id}/analyze:
     post:
-      tags:
-        - App
+      tags: [App]
       summary: Solicitar processamento de uma análise por IA
       description: |
         Inicia o processamento das fotografias de uma análise pertencente
@@ -484,8 +791,7 @@ paths:
 
   /ai-analyses/{id}:
     get:
-      tags:
-        - App
+      tags: [App]
       summary: Consultar a própria análise de fotografias
       description: |
         Retorna o estado e o resultado persistido da análise do cidadão
@@ -549,607 +855,351 @@ paths:
           $ref: "#/components/responses/InternalServerError"
 
   # ========================================
-  # CAT-01 - CONSULTA PÚBLICA DE CATEGORIAS
+  # NOTIFICAÇÕES — CIDADÃO AUTENTICADO
   # ========================================
 
-  /categories:
+  /notifications:
     get:
-      tags:
-        - Categories
-      summary: Listar categorias ativas
+      tags: [Notifications]
+      summary: Lista as notificações do cidadão autenticado
       description: |
-        Retorna as categorias ativas de infraestrutura urbana,
-        ordenadas pelo código.
+        Ordena da mais recente para a mais antiga. Use esta rota também após
+        reconectar o aplicativo para recuperar notificações persistidas.
 
-        Endpoint público: não exige autenticação.
-      operationId: listActiveCategories
-
-      security: []
-
-      responses:
-        "200":
-          description: Categorias ativas retornadas com sucesso.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/CategoriesListResponse"
-
-        "429":
-          $ref: "#/components/responses/TooManyRequests"
-
-        "500":
-          $ref: "#/components/responses/InternalServerError"
-
-  # ========================================
-  # HEALTH CHECK
-  # ========================================
-
-  /health:
-    get:
-      tags:
-        - Health
-      summary: Verificar disponibilidade da API
-      description: |
-        Verifica se a API está funcionando.
-        Não exige autenticação.
-      operationId: getHealth
-
-      responses:
-        "200":
-          description: API funcionando.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/HealthResponse"
-              example:
-                status: ok
-                message: InfraMap API funcionando!
-                timestamp: "2026-11-04T14:00:00.000Z"
-
-        "429":
-          $ref: "#/components/responses/TooManyRequests"
-
-        "500":
-          $ref: "#/components/responses/InternalServerError"
-
-  # ========================================
-  # IDENTITY - ROTAS PROVISÓRIAS
-  # ========================================
-
-  /identity/users:
-    post:
-      tags:
-        - Identity
-      summary: Validar dados para criação de usuário
-      description: |
-        Endpoint provisório que valida os dados recebidos
-        utilizando Zod.
-
-        IMPORTANTE: esta operação não cria usuários no
-        Supabase Auth nem persiste informações no banco.
-
-        A resposta confirma somente a validação, sem devolver
-        os dados enviados ou a senha.
-
-        Requer autenticação e perfil ADMIN.
-      operationId: validateUserCreation
-
+        Para receber novas notificações, assine eventos INSERT de Postgres Changes
+        na tabela public.notifications com JWT e filtro user_id=eq.<id do usuário>.
+        A política RLS limita a entrega ao destinatário. Os eventos são publicados
+        após o commit e o REST permanece como fonte de verdade.
       security:
         - bearerAuth: []
-
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/CreateUserRequest"
-            example:
-              name: Maria Silva
-              email: maria@example.com
-              password: senha123
-              role: CITIZEN
-
-      responses:
-        "201":
-          description: Dados validados. Nenhum usuário foi criado.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/UserValidationResponse"
-              example:
-                message: Dados validados. Nenhum usuário foi criado.
-
-        "400":
-          $ref: "#/components/responses/BadRequest"
-
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-
-        "403":
-          $ref: "#/components/responses/Forbidden"
-
-        "413":
-          $ref: "#/components/responses/PayloadTooLarge"
-
-        "429":
-          $ref: "#/components/responses/TooManyRequests"
-
-        "500":
-          $ref: "#/components/responses/InternalServerError"
-
-    get:
-      tags:
-        - Identity
-      summary: Validar parâmetros de consulta de usuários
-      description: |
-        Valida os parâmetros de paginação utilizando Zod.
-
-        Endpoint provisório: não realiza consulta de usuários
-        no banco de dados.
-
-        Apenas retorna os parâmetros validados.
-
-        Requer autenticação.
-      operationId: validateUsersQuery
-
-      security:
-        - bearerAuth: []
-
       parameters:
         - name: page
           in: query
-          required: false
-          description: Número da página.
           schema:
             type: integer
             minimum: 1
+            maximum: 21474836
             default: 1
-          example: 1
-
         - name: limit
           in: query
-          required: false
-          description: Quantidade máxima de registros por página.
           schema:
             type: integer
             minimum: 1
             maximum: 100
             default: 20
-          example: 20
-
       responses:
         "200":
-          description: Parâmetros validados.
+          description: Notificações paginadas
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/UsersQueryResponse"
-              example:
-                message: Parâmetros validados com sucesso.
-                data:
-                  page: 1
-                  limit: 20
-
+                type: object
+                required: [data, pagination]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Notification"
+                  pagination:
+                    type: object
+                    required: [page, limit, total, total_pages]
+                    properties:
+                      page:
+                        type: integer
+                      limit:
+                        type: integer
+                      total:
+                        type: integer
+                      total_pages:
+                        type: integer
         "400":
-          $ref: "#/components/responses/BadRequest"
-
+          description: Paginação inválida
         "401":
-          $ref: "#/components/responses/Unauthorized"
+          description: Token ausente ou inválido
+        "403":
+          description: Conta inativa ou papel incompatível
 
-        "429":
-          $ref: "#/components/responses/TooManyRequests"
-
-        "500":
-          $ref: "#/components/responses/InternalServerError"
-
-  # ========================================
-  # IDENTITY - VALIDAÇÃO DE IDENTIFICADOR
-  # ========================================
-
-  /identity/users/{id}:
-    get:
-      tags:
-        - Identity
-      summary: Validar identificador de usuário
-      description: |
-        Valida se o identificador informado é um UUID válido.
-
-        Endpoint provisório: ainda não consulta os dados
-        do usuário no banco de dados.
-
-        Requer autenticação.
-      operationId: validateUserId
-
+  /notifications/{id}/read:
+    patch:
+      tags: [Notifications]
+      summary: Marca uma notificação como lida
       security:
         - bearerAuth: []
-
       parameters:
         - name: id
           in: path
           required: true
-          description: UUID do usuário.
           schema:
             type: string
             format: uuid
-          example: 181227d2-89d7-4ceb-8dff-85b623aeee5b
-
       responses:
-        "200":
-          description: Identificador válido.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/UserLookupResponse"
-              example:
-                message: "Buscando usuário 181227d2-89d7-4ceb-8dff-85b623aeee5b"
-
+        "204":
+          description: Notificação lida, inclusive se já estava lida
         "400":
-          $ref: "#/components/responses/BadRequest"
-
+          description: Identificador inválido
         "401":
-          $ref: "#/components/responses/Unauthorized"
+          description: Token ausente ou inválido
+        "403":
+          description: Conta inativa ou papel incompatível
+        "404":
+          description: Notificação não encontrada para este cidadão
 
-        "429":
-          $ref: "#/components/responses/TooManyRequests"
-
-        "500":
-          $ref: "#/components/responses/InternalServerError"
-
-  # ========================================
-  # ID-01 - GERENCIAMENTO DO PRÓPRIO PERFIL
-  # ========================================
-
-  /identity/me:
-    get:
-      tags:
-        - Identity
-      summary: Consultar o próprio perfil
-      description: |
-        Retorna os dados cadastrais do usuário autenticado.
-
-        Requer token JWT válido e conta ativa.
-
-        O usuário pode consultar somente o próprio perfil.
-
-        Os dados cadastrais são consultados na tabela
-        public.profiles, utilizando o JWT do usuário e
-        respeitando as políticas RLS do Supabase.
-
-        O e-mail é obtido do Supabase Auth.
-
-        Contas inativas ou sem perfil de autorização
-        válido não podem executar esta operação.
-      operationId: getMyProfile
-
+  /notifications/read-all:
+    patch:
+      tags: [Notifications]
+      summary: Marca todas as notificações do cidadão como lidas
       security:
         - bearerAuth: []
+      responses:
+        "204":
+          description: Operação concluída
+        "401":
+          description: Token ausente ou inválido
+        "403":
+          description: Conta inativa ou papel incompatível
 
+  # ========================================
+  # ADMIN — DASHBOARD
+  # ========================================
+
+  /admin/dashboard:
+    get:
+      tags: [Admin]
+      summary: Consulta indicadores administrativos
+      description: |
+        Exige ADMIN ativo (MASTER ou OPERATIONAL). Considera todas as ocorrências.
+        A prioridade HIGH é contada em todos os status. A média usa apenas
+        RESOLVED com resolved_at e representa dias decorridos de 24 horas,
+        incluindo frações. Sem resoluções elegíveis, a média é null.
+        As contagens sempre incluem os seis status, mesmo quando são zero.
+      security:
+        - bearerAuth: []
       responses:
         "200":
-          description: Perfil consultado com sucesso.
+          description: Indicadores calculados em uma consulta no banco
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/MyProfileResponse"
-              example:
-                message: Usuário autenticado.
-                data:
-                  id: 181227d2-89d7-4ceb-8dff-85b623aeee5b
-                  name: Maria Silva
-                  phone: "(75) 99999-9999"
-                  created_at: "2026-11-01T10:00:00.000Z"
-                  updated_at: "2026-11-01T10:00:00.000Z"
-                  email: maria@example.com
-
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    required: [counts_by_status, high_priority_total, average_resolution_days]
+                    properties:
+                      counts_by_status:
+                        type: object
+                        required: [RECEIVED, UNDER_ANALYSIS, CONFIRMED, IN_SERVICE, RESOLVED, REJECTED]
+                        properties:
+                          RECEIVED:
+                            type: integer
+                            minimum: 0
+                          UNDER_ANALYSIS:
+                            type: integer
+                            minimum: 0
+                          CONFIRMED:
+                            type: integer
+                            minimum: 0
+                          IN_SERVICE:
+                            type: integer
+                            minimum: 0
+                          RESOLVED:
+                            type: integer
+                            minimum: 0
+                          REJECTED:
+                            type: integer
+                            minimum: 0
+                      high_priority_total:
+                        type: integer
+                        minimum: 0
+                      average_resolution_days:
+                        type: [number, "null"]
         "401":
-          $ref: "#/components/responses/Unauthorized"
-
+          description: Token ausente ou inválido
         "403":
-          $ref: "#/components/responses/Forbidden"
-
-        "404":
-          $ref: "#/components/responses/NotFound"
-
-        "429":
-          $ref: "#/components/responses/TooManyRequests"
-
+          description: Conta inativa ou usuário sem papel ADMIN
         "500":
-          $ref: "#/components/responses/InternalServerError"
+          description: Falha ao consultar indicadores
 
-    patch:
-      tags:
-        - Identity
-      summary: Atualizar o próprio perfil
-      description: |
-        Permite atualizar os dados cadastrais do
-        usuário autenticado.
+  # ========================================
+  # ADMIN — ADMINISTRADORES (MASTER)
+  # ========================================
 
-        Requer token JWT válido e conta ativa.
-
-        Somente os campos name e phone são permitidos.
-
-        A operação não permite modificar:
-        - id
-        - email
-        - role
-        - admin_level
-        - is_active
-
-        A atualização ocorre exclusivamente no registro
-        associado ao identificador do usuário autenticado.
-
-        A API utiliza o JWT do usuário para acessar o
-        Supabase e respeita as políticas RLS.
-
-        O campo name deve conter entre 3 e 150 caracteres.
-
-        O campo phone é opcional e deve conter entre
-        8 e 15 dígitos numéricos, considerando sua
-        formatação.
-
-        Para remover um telefone cadastrado, envie null.
-
-        Deve ser informado pelo menos um campo válido.
-      operationId: updateMyProfile
-
+  /admin/admins:
+    get:
+      tags: [Admin]
+      summary: Lista administradores ativos e inativos
       security:
         - bearerAuth: []
-
+      responses:
+        "200":
+          description: Lista de administradores no campo data
+        "401":
+          description: Autenticação necessária
+        "403":
+          description: Exige Master ativo
+    post:
+      tags: [Admin]
+      summary: Provisiona um administrador com e-mail confirmado
+      description: Exige Master ativo. O provisionamento é direto e não envia convite.
+      security:
+        - bearerAuth: []
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/UpdateMyProfileRequest"
-            example:
-              name: Maria Souza
-              phone: "(75) 98888-8888"
-
+              type: object
+              additionalProperties: false
+              required: [name, email, password, admin_level]
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 150
+                email:
+                  type: string
+                  format: email
+                  maxLength: 254
+                password:
+                  type: string
+                  format: password
+                  minLength: 8
+                  maxLength: 72
+                  writeOnly: true
+                admin_level:
+                  type: string
+                  enum: [MASTER, OPERATIONAL]
       responses:
-        "200":
-          description: Perfil atualizado com sucesso.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/MyProfileResponse"
-              example:
-                message: Perfil atualizado com sucesso.
-                data:
-                  id: 181227d2-89d7-4ceb-8dff-85b623aeee5b
-                  name: Maria Souza
-                  phone: "(75) 98888-8888"
-                  created_at: "2026-11-01T10:00:00.000Z"
-                  updated_at: "2026-11-08T18:00:00.000Z"
-                  email: maria@example.com
-
+        "201":
+          description: Administrador criado, sem senha na resposta
         "400":
-          $ref: "#/components/responses/BadRequest"
-
+          description: Dados inválidos
         "401":
-          $ref: "#/components/responses/Unauthorized"
-
+          description: Autenticação necessária
         "403":
-          $ref: "#/components/responses/Forbidden"
+          description: Exige Master ativo
+        "409":
+          description: E-mail já cadastrado
 
+  /admin/admins/{id}:
+    patch:
+      tags: [Admin]
+      summary: Atualiza nível ou situação de um administrador
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              minProperties: 1
+              properties:
+                admin_level:
+                  type: string
+                  enum: [MASTER, OPERATIONAL]
+                is_active:
+                  type: boolean
+      responses:
+        "200":
+          description: Administrador atualizado
+        "400":
+          description: Dados inválidos
+        "401":
+          description: Autenticação necessária
+        "403":
+          description: Exige Master ativo
         "404":
-          $ref: "#/components/responses/NotFound"
-
-        "413":
-          $ref: "#/components/responses/PayloadTooLarge"
-
-        "429":
-          $ref: "#/components/responses/TooManyRequests"
-
-        "500":
-          $ref: "#/components/responses/InternalServerError"
-
-    # ========================================
-    # API1-44 - ID-02 - DESATIVAÇÃO DA CONTA
-    # ========================================
-    delete:
-      tags:
-        - Identity
-      summary: Desativar e anonimizar a própria conta
-      description: |
-        Permite que um cidadão autenticado, com conta ativa,
-        solicite a desativação da própria conta.
-
-        A operação tenta revogar as sessões no Supabase Auth,
-        desativa o acesso (user_roles.is_active = false),
-        substitui o nome por "Usuário excluído", remove o
-        telefone cadastrado e anonimiza os dados pessoais
-        de autenticação no Supabase Auth.
-
-        As ocorrências, fotos e o histórico são preservados.
-
-        Se a anonimização do Auth falhar após a desativação
-        no banco, a conta permanece desativada e a limpeza
-        pendente poderá ser retomada administrativamente.
-
-        Não recebe identificador de usuário no corpo:
-        a operação utiliza a identidade do próprio JWT.
-      operationId: deactivateMyAccount
-
-      security:
-        - bearerAuth: []
-
-      responses:
-        "204":
-          description: Conta desativada e anonimizada com sucesso. Resposta sem corpo.
-
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-
-        "403":
-          $ref: "#/components/responses/Forbidden"
-
-        "429":
-          $ref: "#/components/responses/TooManyRequests"
-
-        "503":
-          description: |
-            Não foi possível revogar as sessões ou a conta
-            foi desativada e a anonimização do Auth está pendente.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-              examples:
-                sessionRevocationFailed:
-                  summary: Falha ao encerrar sessões
-                  value:
-                    error:
-                      code: SESSION_REVOCATION_FAILED
-                      message: Não foi possível encerrar as sessões. A conta não foi desativada.
-                authCleanupPending:
-                  summary: Conta desativada com limpeza pendente
-                  value:
-                    error:
-                      code: ACCOUNT_DEACTIVATED_AUTH_PENDING
-                      message: Conta desativada. A limpeza dos dados de autenticação está pendente.
-
-        "500":
-          $ref: "#/components/responses/InternalServerError"
+          description: Administrador não encontrado
+        "409":
+          description: Último Master ativo deve ser preservado
 
   # ========================================
-  # IDENTITY - VERIFICAÇÃO ADMINISTRATIVA
+  # ADMIN — ÓRGÃOS (AGENCIES)
   # ========================================
 
-  /identity/admin-check:
+  /admin/agencies:
     get:
-      tags:
-        - Identity
-      summary: Verificar acesso administrativo
-      description: |
-        Verifica se o usuário autenticado possui
-        perfil ADMIN e conta ativa.
-
-        Requer autenticação.
-      operationId: checkAdminAccess
-
+      tags: [Admin]
+      summary: Lista órgãos ativos e inativos para administradores ativos
       security:
         - bearerAuth: []
-
       responses:
         "200":
-          description: Acesso administrativo autorizado.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/MessageResponse"
-              example:
-                message: Acesso administrativo autorizado.
-
+          description: Catálogo no campo data
         "401":
-          $ref: "#/components/responses/Unauthorized"
-
+          description: Autenticação necessária
         "403":
-          $ref: "#/components/responses/Forbidden"
-
-        "429":
-          $ref: "#/components/responses/TooManyRequests"
-
-        "500":
-          $ref: "#/components/responses/InternalServerError"
-
-  # ========================================
-  # API1-13 - IDENTIDADE DO CIDADÃO
-  # ========================================
-
-  /app/me:
-    get:
-      tags:
-        - App
-      summary: Identificar cidadão autenticado
-      description: |
-        Retorna o identificador, o perfil e a situação
-        da conta do cidadão autenticado.
-
-        Requer token JWT válido, perfil CITIZEN
-        e conta ativa.
-      operationId: getCitizenIdentity
-
+          description: Exige administrador ativo
+    post:
+      tags: [Admin]
+      summary: Cadastra um órgão como Master ativo
       security:
         - bearerAuth: []
-
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: "#/components/schemas/AgencyChanges"
+                - required: [name, email]
       responses:
-        "200":
-          description: Identidade do cidadão retornada.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/IdentityResponse"
-              example:
-                id: 181227d2-89d7-4ceb-8dff-85b623aeee5b
-                role: CITIZEN
-                is_active: true
-
+        "201":
+          description: Órgão cadastrado no campo data
+        "400":
+          description: Dados inválidos
         "401":
-          $ref: "#/components/responses/Unauthorized"
-
+          description: Autenticação necessária
         "403":
-          $ref: "#/components/responses/Forbidden"
+          description: Exige Master ativo
 
-        "429":
-          $ref: "#/components/responses/TooManyRequests"
-
-        "500":
-          $ref: "#/components/responses/InternalServerError"
-
-  # ========================================
-  # API1-13 - IDENTIDADE DO ADMINISTRADOR
-  # ========================================
-
-  /admin/me:
-    get:
-      tags:
-        - Admin
-      summary: Identificar administrador autenticado
-      description: |
-        Retorna o identificador, o perfil e a situação
-        da conta do administrador autenticado.
-
-        Requer token JWT válido, perfil ADMIN
-        e conta ativa.
-      operationId: getAdminIdentity
-
+  /admin/agencies/{id}:
+    patch:
+      tags: [Admin]
+      summary: Edita ou desativa um órgão como Master ativo
+      description: A desativação bloqueia novos encaminhamentos e preserva os anteriores.
       security:
         - bearerAuth: []
-
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AgencyChanges"
       responses:
         "200":
-          description: Identidade do administrador retornada.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/IdentityResponse"
-              example:
-                id: 181227d2-89d7-4ceb-8dff-85b623aeee5b
-                role: ADMIN
-                is_active: true
-
+          description: Órgão atualizado no campo data
+        "400":
+          description: Dados ou identificador inválidos
         "401":
-          $ref: "#/components/responses/Unauthorized"
-
+          description: Autenticação necessária
         "403":
-          $ref: "#/components/responses/Forbidden"
-
-        "429":
-          $ref: "#/components/responses/TooManyRequests"
-
-        "500":
-          $ref: "#/components/responses/InternalServerError"
+          description: Exige Master ativo
+        "404":
+          description: Órgão não encontrado
 
 # ==========================================
 # COMPONENTES REUTILIZÁVEIS
 # ==========================================
 
 components:
-
-  # ========================================
-  # AUTENTICAÇÃO
-  # ========================================
-
   securitySchemes:
     bearerAuth:
       type: http
@@ -1164,32 +1214,65 @@ components:
         O token é validado pela API utilizando
         supabase.auth.getUser(token).
 
-  # ========================================
-  # SCHEMAS
-  # ========================================
-
   schemas:
+    # ======================================
+    # ADMIN — ÓRGÃOS / AGENCIES
+    # ======================================
+
     AgencyChanges:
       type: object
       minProperties: 1
       additionalProperties: false
       properties:
-        name: { type: string, minLength: 1, maxLength: 150 }
-        email: { type: string, format: email, maxLength: 150 }
-        phone: { type: [string, 'null'], minLength: 1, maxLength: 20 }
-        description: { type: [string, 'null'] }
-        is_active: { type: boolean }
+        name:
+          type: string
+          minLength: 1
+          maxLength: 150
+        email:
+          type: string
+          format: email
+          maxLength: 150
+        phone:
+          type: [string, "null"]
+          minLength: 1
+          maxLength: 20
+        description:
+          type: [string, "null"]
+        is_active:
+          type: boolean
+
+    # ======================================
+    # NOTIFICAÇÕES
+    # ======================================
+
     Notification:
       type: object
       required: [id, occurrence_id, title, message, type, read_at, created_at]
       properties:
-        id: { type: string, format: uuid }
-        occurrence_id: { type: [string, 'null'], format: uuid }
-        title: { type: string }
-        message: { type: string }
-        type: { type: string, enum: [OCCURRENCE_STATUS_CHANGED, CITIZEN_RESPONSE] }
-        read_at: { type: [string, 'null'], format: date-time }
-        created_at: { type: string, format: date-time }
+        id:
+          type: string
+          format: uuid
+        occurrence_id:
+          type: [string, "null"]
+          format: uuid
+        title:
+          type: string
+        message:
+          type: string
+        type:
+          type: string
+          enum: [OCCURRENCE_STATUS_CHANGED, CITIZEN_RESPONSE]
+        read_at:
+          type: [string, "null"]
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+
+    # ======================================
+    # VOTES
+    # ======================================
+
     VoteCountResponse:
       type: object
       required: [data]
@@ -1198,11 +1281,15 @@ components:
           type: object
           required: [occurrence_id, vote_count]
           properties:
-            occurrence_id: { type: string, format: uuid }
-            vote_count: { type: integer, minimum: 0 }
+            occurrence_id:
+              type: string
+              format: uuid
+            vote_count:
+              type: integer
+              minimum: 0
 
     # ======================================
-    # API1-48 - DETALHES DA ANÁLISE DE IA
+    # API1-48 — DETALHES DA ANÁLISE DE IA
     # ======================================
 
     AiAnalysisDetails:
@@ -1254,7 +1341,7 @@ components:
           format: date-time
 
     # ======================================
-    # CAT-01 - CATEGORIAS
+    # CAT-01 — CATEGORIAS
     # ======================================
 
     Category:
@@ -1269,21 +1356,16 @@ components:
           type: string
           format: uuid
           description: Identificador único da categoria.
-
         code:
           type: string
           description: Código único da categoria.
           example: CAT01
-
         name:
           type: string
           description: Nome da categoria.
           example: Saneamento e Drenagem
-
         description:
-          type:
-            - string
-            - "null"
+          type: [string, "null"]
           description: Descrição opcional da categoria.
 
     CategoriesListResponse:
@@ -1310,17 +1392,15 @@ components:
         status:
           type: string
           example: ok
-
         message:
           type: string
           example: InfraMap API funcionando!
-
         timestamp:
           type: string
           format: date-time
 
     # ======================================
-    # ID-01 - PERFIL CADASTRAL
+    # ID-01 — PERFIL CADASTRAL
     # ======================================
 
     AccountProfile:
@@ -1339,44 +1419,34 @@ components:
         - created_at
         - updated_at
         - email
-
       properties:
         id:
           type: string
           format: uuid
           readOnly: true
           description: Identificador único do usuário.
-
         name:
           type: string
           readOnly: true
           description: Nome cadastrado do usuário.
           example: Maria Silva
-
         phone:
-          type:
-            - string
-            - "null"
+          type: [string, "null"]
           readOnly: true
           description: Telefone cadastrado do usuário.
           example: "(75) 99999-9999"
-
         created_at:
           type: string
           format: date-time
           readOnly: true
           description: Data de criação do perfil.
-
         updated_at:
           type: string
           format: date-time
           readOnly: true
           description: Data da última atualização do perfil.
-
         email:
-          type:
-            - string
-            - "null"
+          type: [string, "null"]
           format: email
           readOnly: true
           description: |
@@ -1390,13 +1460,11 @@ components:
       required:
         - message
         - data
-
       properties:
         message:
           type: string
           description: Mensagem do resultado da operação.
           example: Usuário autenticado.
-
         data:
           $ref: "#/components/schemas/AccountProfile"
 
@@ -1411,7 +1479,6 @@ components:
         autenticação não são permitidos.
       additionalProperties: false
       minProperties: 1
-
       properties:
         name:
           type: string
@@ -1421,11 +1488,8 @@ components:
             Nome do usuário.
             Deve conter entre 3 e 150 caracteres.
           example: Maria Souza
-
         phone:
-          type:
-            - string
-            - "null"
+          type: [string, "null"]
           minLength: 8
           maxLength: 20
           pattern: '^\+?[0-9 ()-]+$'
@@ -1442,7 +1506,7 @@ components:
           example: "(75) 98888-8888"
 
     # ======================================
-    # IDENTITY - VALIDAÇÃO DE CADASTRO
+    # IDENTITY — VALIDAÇÃO DE CADASTRO
     # ======================================
 
     CreateUserRequest:
@@ -1451,7 +1515,6 @@ components:
         - name
         - email
         - password
-
       properties:
         name:
           type: string
@@ -1459,13 +1522,11 @@ components:
           maxLength: 150
           description: Nome do usuário.
           example: Maria Silva
-
         email:
           type: string
           format: email
           description: E-mail do usuário.
           example: maria@example.com
-
         password:
           type: string
           format: password
@@ -1473,12 +1534,9 @@ components:
           writeOnly: true
           description: Senha com pelo menos 6 caracteres.
           example: senha123
-
         role:
           type: string
-          enum:
-            - CITIZEN
-            - ADMIN
+          enum: [CITIZEN, ADMIN]
           default: CITIZEN
           description: Perfil inicial do usuário.
 
@@ -1486,7 +1544,6 @@ components:
       type: object
       required:
         - message
-
       properties:
         message:
           type: string
@@ -1494,26 +1551,21 @@ components:
 
     UsersQueryResponse:
       type: object
-
       properties:
         message:
           type: string
-
         data:
           type: object
-
           properties:
             page:
               type: integer
               example: 1
-
             limit:
               type: integer
               example: 20
 
     UserLookupResponse:
       type: object
-
       properties:
         message:
           type: string
@@ -1525,24 +1577,18 @@ components:
 
     AuthenticatedUserResponse:
       type: object
-
       properties:
         message:
           type: string
           example: Usuário autenticado.
-
         data:
           type: object
-
           properties:
             id:
               type: string
               format: uuid
-
             email:
-              type:
-                - string
-                - "null"
+              type: [string, "null"]
               format: email
 
     IdentityResponse:
@@ -1551,20 +1597,15 @@ components:
         - id
         - role
         - is_active
-
       properties:
         id:
           type: string
           format: uuid
           description: Identificador do usuário.
-
         role:
           type: string
-          enum:
-            - CITIZEN
-            - ADMIN
+          enum: [CITIZEN, ADMIN]
           description: Perfil cadastrado para o usuário.
-
         is_active:
           type: boolean
           description: Situação da conta.
@@ -1575,7 +1616,6 @@ components:
 
     MessageResponse:
       type: object
-
       properties:
         message:
           type: string
@@ -1584,18 +1624,15 @@ components:
       type: object
       required:
         - error
-
       properties:
         error:
           type: object
           required:
             - code
             - message
-
           properties:
             code:
               type: string
-
             message:
               type: string
 
@@ -1604,7 +1641,6 @@ components:
   # ========================================
 
   responses:
-
     BadRequest:
       description: |
         Requisição inválida ou dados não passaram

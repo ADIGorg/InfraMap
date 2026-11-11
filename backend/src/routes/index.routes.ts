@@ -41,8 +41,6 @@ import { aiAnalysisRoutes } from "../modules/ai-analysis/presentation/ai-analysi
 import { aiProcessingRoutes } from "../modules/ai-analysis/presentation/ai-processing.routes.js";
 
 
-routes.use("/health", healthRoutes);
-routes.use("/admin", administrationRoutes);
 export interface RoutesDependencies {
   adminClient: SupabaseClient;
 }
@@ -161,6 +159,8 @@ export function createRoutes(deps: RoutesDependencies): Router {
   routes.use("/occurrences", votesRoutes);
 
   routes.use("/notifications", notificationsRoutes);
+
+  routes.use("/admin", administrationRoutes);
 
   // ==========================================
   // MOD-03 — Consulta de histórico (autor OU admin)
