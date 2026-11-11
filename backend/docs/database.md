@@ -183,6 +183,8 @@ A migration 20261107002116_noop.sql existe no histórico e não deve ser apagada
 5. **Assinaturas de funções:** há definições com prefixos e tipos diferentes entre DB-10 e MOD/OCC. Comparar as assinaturas efetivas no banco e chamadas dos repositórios, incluindo SECURITY DEFINER.
 6. **Retorno de erros:** alguns repositórios convertem mensagens prefixadas de PostgreSQL em Error genérico; a camada HTTP poderá responder 500 onde o comportamento de domínio prevê 400/403/404/409.
 
+7. **Exposição de metadados de fotos:** get_occurrence (migration 20261109150000) agrega storagePath em photos; o repositório getPublic entrega raw.photos no detalhe público. Corrigir a projeção de saída e documentar um identificador de foto seguro, sem depender de storagePath, além de testar não exposição.
+
 **Tratamento recomendado:** criar testes de integração em banco Supabase local isolado, confirmar o estado final por pg_catalog e elaborar migration nova e reversível. Não corrigir editando migrations históricas já aplicadas. Nenhuma dessas observações autoriza aplicar mudanças diretamente em produção.
 
 ## 10. Operação, backup e evolução
