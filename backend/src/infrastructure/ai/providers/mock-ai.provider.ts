@@ -3,7 +3,7 @@ import type {
   AiAnalysisInput,
   AiAnalysisResult,
   AiAnalysisProvider,
-} from "../../../modules/ai-analysis/domain/providers/ai-analysis.provider.js";
+} from "../../../modules/ai-analysis/application/ports/ai-analysis.provider.js";
 
 /**
  * API1-46 - AI-01

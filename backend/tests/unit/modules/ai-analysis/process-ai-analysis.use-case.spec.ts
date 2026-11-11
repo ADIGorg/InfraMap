@@ -13,7 +13,7 @@ import {
 
 import type {
   AiAnalysisProvider,
-} from "../../../../src/modules/ai-analysis/domain/providers/ai-analysis.provider.js";
+} from "../../../../src/modules/ai-analysis/application/ports/ai-analysis.provider.js";
 
 const draft = {
   id: "analysis-123",

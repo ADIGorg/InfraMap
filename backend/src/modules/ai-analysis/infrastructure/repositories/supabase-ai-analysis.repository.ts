@@ -1,25 +1,77 @@
-
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { AppError } from "../../../../shared/errors/app-error.js";
 import type {
-  SupabaseClient,
-} from "@supabase/supabase-js";
+  AiAnalysisRepository, AiPhotoMime, AiProcessingRepository, AnalysisDraft, AiAnalysisReader,
+} from "../../application/ports/ai-analysis.repository.js";
+import type { AiAnalysisDetailsDto } from "../../application/dtos/ai-analysis.dto.js";
 
-import {
-  AppError,
-} from "../../../shared/errors/app-error.js";
+const BUCKET = "occurrence-photos";
 
-import type {
-  AiProcessingRepository,
-  AnalysisDraft,
-} from "../application/use-cases/process-ai-analysis.use-case.js";
+/** Persistência de um único agregado; acesso privilegiado sempre limitado por user_id. */
+export class SupabaseAiAnalysisRepository implements AiAnalysisRepository, AiProcessingRepository, AiAnalysisReader {
+  constructor(private readonly supabase: SupabaseClient) {}
 
-// API1-48 - AI-03
+  async uploadPhoto(
+    path: string,
+    buffer: Buffer,
+    mime: AiPhotoMime
+  ): Promise<void> {
+    const { error } = await this.supabase.storage
+      .from(BUCKET)
+      .upload(path, buffer, {
+        contentType: mime,
+        upsert: false,
+      });
 
-export class SupabaseAiProcessingRepository
-  implements AiProcessingRepository {
+    if (error) {
+      throw new AppError(
+        503,
+        "AI_STORAGE_FAILED",
+        "Não foi possível armazenar a fotografia."
+      );
+    }
+  }
 
-  constructor(
-    private readonly supabase: SupabaseClient
-  ) {}
+  async createAnalysis(
+    userId: string,
+    analysisId: string,
+    photoPaths: string[]
+  ): Promise<void> {
+    const { error } = await this.supabase
+      .from("ai_analyses")
+      .insert({
+        id: analysisId,
+        user_id: userId,
+        input_photo_paths: photoPaths,
+        status: "PENDING",
+      });
+
+    if (error) {
+      throw new AppError(
+        503,
+        "AI_ANALYSIS_CREATE_FAILED",
+        "Não foi possível registrar a análise."
+      );
+    }
+  }
+
+  async removePhotos(
+    paths: string[]
+  ): Promise<void> {
+    if (paths.length === 0) return;
+
+    const { error } = await this.supabase.storage
+      .from(BUCKET)
+      .remove(paths);
+
+    if (error) {
+      throw new AppError(
+        503,
+        "AI_STORAGE_CLEANUP_FAILED",
+        "Não foi possível remover arquivos temporários."
+      );
+    }
+  }
 
   async findOwn(
     userId: string,
@@ -169,7 +221,7 @@ export class SupabaseAiProcessingRepository
   async getOwnDetails(
     userId: string,
     analysisId: string
-  ) {
+  ): Promise<AiAnalysisDetailsDto | null> {
     const { data, error } = await this.supabase
       .from("ai_analyses")
       .select(`

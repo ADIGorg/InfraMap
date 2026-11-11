@@ -277,3 +277,43 @@ Existe um teste opcional de integração com Supabase Auth, desativado por padr�
 - Atualize `docs/openapi.yaml` e este README quando alterar contratos públicos.
 - Execute testes, build e lint antes de abrir um pull request.
 - Mantenha as validações de autorização no backend e as políticas RLS no Supabase.
+
+
+---
+
+## Revisão arquitetural e provedor Gemini (11/11/2026)
+
+A refatoração de arquitetura está documentada em [docs/refactor-audit.md](docs/refactor-audit.md).
+O módulo `ai-analysis` separa rotas, controller, validação, casos de uso,
+DTOs e repositório; `categories` utiliza um serviço entre controller e repositório.
+
+### Configurar o Gemini
+
+1. Copie `.env.example` para `.env`.
+2. Configure `AI_PROVIDER=gemini`, `GEMINI_API_KEY` e
+   `AI_MODEL=gemini-3.5-flash-lite` (confirme o acesso ao modelo no Google AI Studio).
+3. Para testes sem chamadas externas, selecione `AI_PROVIDER=mock`.
+4. Nunca compartilhe a chave da API ou envie fotos reais contendo dados pessoais
+   enquanto o tratamento de privacidade e as condições do plano gratuito
+   não estiverem validados.
+
+O backend consulta imagens privadas do Supabase Storage e envia os bytes
+diretamente ao Gemini (não compartilha URLs assinadas na chamada Gemini).
+A saída é validada com Zod e o fallback de categoria CAT07 aplica-se para
+confiança menor que 0,70. A confiança é fornecida pelo modelo e não é
+uma probabilidade calibrada.
+
+### Verificações obrigatórias antes de integrar
+
+```bash
+cd backend
+npm ci
+npm run build
+npm run lint
+npm test
+```
+
+A análise permanece executada em memória após o retorno HTTP 202.
+O banco registra PROCESSING antes desse retorno, mas uma interrupção do
+servidor ainda exige uma rotina de recuperação apropriada.
+Testes com Supabase e fotos devem ser feitos apenas em ambiente de teste autorizado.

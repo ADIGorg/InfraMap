@@ -1,3 +1,5 @@
+import type { AiPhotoMime, AiAnalysisRepository } from "../ports/ai-analysis.repository.js";
+export type { AiPhotoMime, AiAnalysisRepository } from "../ports/ai-analysis.repository.js";
 
 import { randomUUID } from "node:crypto";
 
@@ -11,27 +13,9 @@ import {
 
 export const MAX_PHOTO_SIZE = 5 * 1024 * 1024;
 
-export type AiPhotoMime = "image/jpeg" | "image/png";
-
 export interface AiPhotoUpload {
   buffer: Buffer;
   mimetype: string;
-}
-
-export interface AiAnalysisRepository {
-  uploadPhoto(
-    path: string,
-    buffer: Buffer,
-    mime: AiPhotoMime
-  ): Promise<void>;
-
-  createAnalysis(
-    userId: string,
-    analysisId: string,
-    photoPaths: string[]
-  ): Promise<void>;
-
-  removePhotos(paths: string[]): Promise<void>;
 }
 
 export interface CreatedAiAnalysis {

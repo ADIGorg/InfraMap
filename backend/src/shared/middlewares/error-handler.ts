@@ -84,7 +84,7 @@ export const errorHandler: ErrorRequestHandler = (
   if (
     error instanceof AppError &&
     error.statusCode >= 400 &&
-    error.statusCode < 500
+    (error.statusCode < 500 || error.statusCode === 502 || error.statusCode === 503)
   ) {
     logger.warn(
       {
