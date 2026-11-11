@@ -1,6 +1,7 @@
 import type { RequestHandler } from "express";
 import { UnauthorizedError } from "../../../shared/errors/app-error.js";
 import type { AiAnalysisActions } from "../application/ports/ai-analysis.actions.js";
+import type { AiPhotoUpload } from "../application/use-cases/create-ai-analysis.use-case.js";
 import { parseAiAnalysisId } from "./ai-analysis.schema.js";
 
 export type AiAnalysisControllerDependencies = AiAnalysisActions;
