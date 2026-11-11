@@ -40,8 +40,6 @@ import { aiAnalysisRoutes } from "../modules/ai-analysis/presentation/ai-analysi
 import { aiProcessingRoutes } from "../modules/ai-analysis/presentation/ai-processing.routes.js";
 
 
-routes.use("/health", healthRoutes);
-routes.use("/notifications", notificationsRoutes);
 export interface RoutesDependencies {
   adminClient: SupabaseClient;
 }
@@ -158,6 +156,8 @@ export function createRoutes(deps: RoutesDependencies): Router {
   // VOTES — Impacto comunitário (autenticado)
   // ==========================================
   routes.use("/occurrences", votesRoutes);
+
+  routes.use("/notifications", notificationsRoutes);
 
   // ==========================================
   // MOD-03 — Consulta de histórico (autor OU admin)

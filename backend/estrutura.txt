@@ -2,7 +2,6 @@
 ├── docs
 │   ├── architecture.md
 │   └── openapi.yaml
-├── .env.example
 ├── eslint.config.js
 ├── .gitignore
 ├── package.json
@@ -104,6 +103,22 @@
 │   │   │       ├── occurrence-moderation.controller.ts
 │   │   │       ├── occurrence-moderation.routes.ts
 │   │   │       └── occurrence-moderation.schema.ts
+│   │   ├── notifications
+│   │   │   ├── application
+│   │   │   │   └── use-cases
+│   │   │   │       ├── list-notifications.use-case.ts
+│   │   │   │       ├── mark-all-notifications-read.use-case.ts
+│   │   │   │       └── mark-notification-read.use-case.ts
+│   │   │   ├── domain
+│   │   │   │   └── entities
+│   │   │   │       └── notification.entity.ts
+│   │   │   ├── infrastructure
+│   │   │   │   └── repositories
+│   │   │   │       └── supabase-notification.repository.ts
+│   │   │   └── presentation
+│   │   │       ├── notifications.controller.ts
+│   │   │       ├── notifications.routes.ts
+│   │   │       └── notifications.schema.ts
 │   │   ├── occurrences
 │   │   │   ├── application
 │   │   │   │   └── use-cases
@@ -215,6 +230,7 @@
 │   │   ├── 20261109130000_mod04_adjust_location_and_classification.sql
 │   │   ├── 20261109140000_occ01_finalize_occurrence.sql
 │   │   ├── 20261109150000_occ02_read_queries.sql
+│   │   ├── 20261109235900_notify_citizen_response.sql
 │   │   └── 20261110054000_enforce_transactional_voting.sql
 │   └── .temp
 │       ├── cli-latest
@@ -252,16 +268,18 @@
 │           │   └── process-ai-analysis.use-case.spec.ts
 │           ├── categories
 │           │   └── categories.repository.spec.ts
-│           └── identity
-│               ├── deactivate-my-account.use-case.spec.ts
-│               ├── get-current-user.use-case.spec.ts
-│               ├── get-my-profile.use-case.spec.ts
-│               ├── supabase-account-auth.gateway.spec.ts
-│               ├── supabase-account-profile.repository.spec.ts
-│               ├── update-my-profile.use-case.spec.ts
-│               └── update-profile.schema.spec.ts
+│           ├── identity
+│           │   ├── deactivate-my-account.use-case.spec.ts
+│           │   ├── get-current-user.use-case.spec.ts
+│           │   ├── get-my-profile.use-case.spec.ts
+│           │   ├── supabase-account-auth.gateway.spec.ts
+│           │   ├── supabase-account-profile.repository.spec.ts
+│           │   ├── update-my-profile.use-case.spec.ts
+│           │   └── update-profile.schema.spec.ts
+│           └── notifications
+│               └── notifications.use-cases.spec.ts
 ├── tsconfig.json
 ├── tsconfig.scripts.json
 └── vitest.config.ts
 
-73 directories, 192 files
+82 directories, 201 files
