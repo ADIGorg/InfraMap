@@ -150,6 +150,7 @@ Princípios:
 | P1 | Falhas de regras de negócio ainda podem sair como Error genérico e virar HTTP 500. | Introduzir mapeamento tipado AppError/erros SQL e testar 4xx. |
 | P1 | Processamento de IA é best effort em memória. | Implementar recuperação de estado PROCESSING por prazo com retry controlado. |
 | P1 | Gemini aceita JPEG/PNG no upload; schema da finalização declara JPG/JPEG. | Alinhar contrato, validação e Storage antes de ampliar formato. |
+| P1 | get_occurrence retorna storagePath dentro de photos e getPublic repassa esse array sem projeção; o detalhe público pode expor paths internos. | Aplicar DTO público mínimo e obter foto por identificador seguro, com testes de não exposição. |
 | P1 | Caso de uso de finalização importa schema de Presentation. | Mover validação de domínio/DTOs para Application mantendo Zod na borda. |
 | P2 | Documentação, README e política de licença requerem uniformização. | Manter contratos consistentes; revisar README e pipeline. |
 | P2 | Falta validação de OpenAPI e E2E reais em CI. | Adicionar sem impor dependência de serviços de produção. |
