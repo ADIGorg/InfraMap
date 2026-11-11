@@ -1,8 +1,12 @@
+// src/routes/index.routes.ts
 
 import { Router } from "express";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 import healthRoutes from "../modules/health/health.routes.js";
 import { administrationRoutes } from "../modules/administration/presentation/administration.routes.js";
+import { notificationsRoutes } from "../modules/notifications/presentation/notifications.routes.js";
+import { votesRoutes } from "../modules/votes/presentation/votes.routes.js";
 
 import {
   createIdentityRoutes,
@@ -13,107 +17,168 @@ import {
   createProfileReader,
 } from "../modules/identity/infrastructure/repositories/supabase-identity.repository.js";
 
-import {
-  createCategoriesRoutes,
-} from "../modules/categories/categories.routes.js";
-
-import {
-  createCategoriesRepository,
-} from "../modules/categories/categories.repository.js";
+import { createCategoriesRoutes } from "../modules/categories/categories.routes.js";
+import { createCategoriesRepository } from "../modules/categories/categories.repository.js";
 
 import { authenticate } from "../shared/middlewares/authenticate.js";
 import { authorizeRole } from "../shared/middlewares/authorize-role.js";
+import { validateRequest } from "../shared/middlewares/validate-request.js";
 
-import {
-  createUserSupabaseClient,
-} from "../infrastructure/supabase/user-client.factory.js";
+import { createUserSupabaseClient } from "../infrastructure/supabase/user-client.factory.js";
+import { supabasePublic } from "../infrastructure/supabase/public-client.js";
 
-import {
-  supabasePublic,
-} from "../infrastructure/supabase/public-client.js";
+import { UnauthorizedError } from "../shared/errors/app-error.js";
 
-import {
-  UnauthorizedError,
-} from "../shared/errors/app-error.js";
+import { createOccurrenceHistoryRoutes } from "../modules/occurrences/presentation/occurrence-history.routes.js";
+import { createOccurrenceModerationRoutes } from "../modules/moderation/presentation/occurrence-moderation.routes.js";
+import { createOccurrenceRoutes } from "../modules/occurrences/presentation/occurrence.routes.js";
+import { createPublicOccurrenceRoutes } from "../modules/occurrences/presentation/public-occurrence.routes.js";
+import { createMyOccurrenceRoutes } from "../modules/occurrences/presentation/my-occurrence.routes.js";
+import { createAdminOccurrenceQueryRoutes } from "../modules/occurrences/presentation/admin-occurrence-query.routes.js";
+import { createPhotoAccessRoutes } from "../modules/occurrences/presentation/photo-access.routes.js";
 
+import { aiAnalysisRoutes } from "../modules/ai-analysis/presentation/ai-analysis.routes.js";
+import { aiProcessingRoutes } from "../modules/ai-analysis/presentation/ai-processing.routes.js";
 
-import {
-  aiAnalysisRoutes,
-} from "../modules/ai-analysis/presentation/ai-analysis.routes.js";
-
-
-import {
-  aiProcessingRoutes,
-} from "../modules/ai-analysis/presentation/ai-processing.routes.js";
-
-
-
-const routes = Router();
-
-
-// ==========================================
-// HEALTH CHECK
-// ==========================================
 
 routes.use("/health", healthRoutes);
 routes.use("/admin", administrationRoutes);
+export interface RoutesDependencies {
+  adminClient: SupabaseClient;
+}
 
 // ==========================================
-// CAT-01 - CONSULTA PÚBLICA DE CATEGORIAS
+// FACTORY DE ROTAS
 // ==========================================
 
-const categoriesRepository = createCategoriesRepository(
-  supabasePublic
-);
+export function createRoutes(deps: RoutesDependencies): Router {
+  const { adminClient } = deps;
+  const routes = Router();
 
-routes.use(
-  "/categories",
-  createCategoriesRoutes(categoriesRepository)
-);
+  const validateRouteRequest = (schema: unknown) =>
+    validateRequest(schema as Parameters<typeof validateRequest>[0]);
 
-// ==========================================
-// ROTAS DE IDENTIDADE EXISTENTES
-// ==========================================
+  // ==========================================
+  // HEALTH CHECK
+  // ==========================================
+  routes.use("/health", healthRoutes);
 
-routes.use("/identity", identityRouter);
+  // ==========================================
+  // CAT-01 — CONSULTA PÚBLICA DE CATEGORIAS
+  // ==========================================
+  const categoriesRepository = createCategoriesRepository(supabasePublic);
+  routes.use("/categories", createCategoriesRoutes(categoriesRepository));
 
-// ==========================================
-// API1-13 - IDENTIDADE DO USUÁRIO
-// ==========================================
+  // ==========================================
+  // ROTAS DE IDENTIDADE EXISTENTES
+  // ==========================================
+  routes.use("/identity", identityRouter);
 
-const identityMeRoutes = createIdentityRoutes({
-  authenticate,
+  // ==========================================
+  // API1-13 — IDENTIDADE DO USUÁRIO
+  // ==========================================
+  const identityMeRoutes = createIdentityRoutes({
+    authenticate,
+    authorizeRole: (role) => authorizeRole([role]),
+    resolveContext: (request) => {
+      if (!request.user || !request.token) {
+        throw new UnauthorizedError();
+      }
+      const userClient = createUserSupabaseClient(request.token);
+      return {
+        userId: request.user.id,
+        profiles: createProfileReader(userClient),
+      };
+    },
+  });
+  routes.use(identityMeRoutes);
 
-  authorizeRole: (role) => authorizeRole([role]),
+  // ==========================================
+  // MOD-01 / MOD-02 / MOD-03 / MOD-04
+  // ==========================================
+  const occurrenceModerationRoutes = createOccurrenceModerationRoutes({
+    authenticate,
+    authorizeRole,
+    adminClient,
+  });
+  routes.use("/admin/occurrences", occurrenceModerationRoutes);
 
-  resolveContext: (request) => {
-    if (!request.user || !request.token) {
-      throw new UnauthorizedError();
-    }
+  // ==========================================
+  // OCC-02 — Consultas públicas (anônimo)
+  // ==========================================
+  const publicOccurrenceRoutes = createPublicOccurrenceRoutes({
+    adminClient,
+    validateRequest: validateRouteRequest,
+  });
+  routes.use("/occurrences/public", publicOccurrenceRoutes);
 
-    const userClient = createUserSupabaseClient(
-      request.token
-    );
+  // ==========================================
+  // OCC-02 — Consultas do cidadão (CITIZEN ou ADMIN)
+  // ==========================================
+  const myOccurrenceRoutes = createMyOccurrenceRoutes({
+    authenticate,
+    adminClient,
+    validateRequest: validateRouteRequest,
+  });
+  routes.use("/occurrences/mine", myOccurrenceRoutes);
 
-    return {
-      userId: request.user.id,
-      profiles: createProfileReader(userClient),
-    };
-  },
-});
+  // ==========================================
+  // OCC-02 — Consultas administrativas (ADMIN ativo)
+  // ==========================================
+  const adminOccurrenceQueryRoutes = createAdminOccurrenceQueryRoutes({
+    authenticate,
+    authorizeRole,
+    adminClient,
+    validateRequest: validateRouteRequest,
+  });
+  routes.use("/admin/occurrences", adminOccurrenceQueryRoutes);
 
-routes.use(identityMeRoutes);
+  // ==========================================
+  // OCC-03 — Acesso autorizado às fotografias
+  // ==========================================
+  const photoAccessRouters = createPhotoAccessRoutes({
+    authenticate,
+    authorizeRole,
+    adminClient,
+    validateRequest: validateRouteRequest,
+  });
+  routes.use("/occurrences/public", photoAccessRouters.publicRouter);
+  routes.use("/occurrences/mine", photoAccessRouters.myRouter);
+  routes.use("/admin/occurrences", photoAccessRouters.adminRouter);
 
+  // ==========================================
+  // OCC-01 — Finalizar e registrar ocorrência
+  // ==========================================
+  const occurrenceCitizenRoutes = createOccurrenceRoutes({
+    authenticate,
+    adminClient,
+  });
+  routes.use("/occurrences", occurrenceCitizenRoutes);
 
-// ==========================================
-// API1-47 - AI-02
-// CRIAÇÃO DE ANÁLISE E UPLOAD DE FOTOS
-// ==========================================
+  // ==========================================
+  // VOTES — Impacto comunitário (autenticado)
+  // ==========================================
+  routes.use("/occurrences", votesRoutes);
 
-routes.use("/ai-analyses", aiAnalysisRoutes);
+  routes.use("/notifications", notificationsRoutes);
 
-// API1-48 - AI-03
-routes.use("/ai-analyses", aiProcessingRoutes);
+  // ==========================================
+  // MOD-03 — Consulta de histórico (autor OU admin)
+  //
+  // ⚠️ Registrado por último para evitar ambiguidade do Express.
+  // ==========================================
+  const occurrenceHistoryRoutes = createOccurrenceHistoryRoutes({
+    authenticate,
+    adminClient,
+    validateRequest: validateRouteRequest,
+  });
+  routes.use("/occurrences", occurrenceHistoryRoutes);
 
+  // ==========================================
+  // API1-47 / API1-48 — AI-02 / AI-03
+  // ==========================================
+  routes.use("/ai-analyses", aiAnalysisRoutes);
+  routes.use("/ai-analyses", aiProcessingRoutes);
 
-export default routes;
+  return routes;
+}
