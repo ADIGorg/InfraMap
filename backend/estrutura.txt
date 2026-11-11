@@ -1,5 +1,6 @@
 .
 ├── docs
+│   ├── architecture.md
 │   └── openapi.yaml
 ├── .env.example
 ├── eslint.config.js
@@ -9,25 +10,157 @@
 ├── README.md
 ├── scripts
 │   ├── create-test-user.ts
-│   └── get-test-access-token.ts
+│   ├── get-test-access-token.ts
+│   └── retry-account-deactivation.ts
 ├── src
 │   ├── app.ts
 │   ├── config
+│   │   ├── constants.ts
 │   │   └── env.ts
 │   ├── infrastructure
+│   │   ├── ai
+│   │   │   ├── ai-provider.factory.ts
+│   │   │   └── providers
+│   │   │       ├── http-ai.provider.ts
+│   │   │       └── mock-ai.provider.ts
+│   │   ├── storage
+│   │   │   └── supabase-photo-url.service.ts
 │   │   └── supabase
+│   │       ├── admin-client.ts
 │   │       ├── auth-client.ts
+│   │       ├── public-client.ts
 │   │       └── user-client.factory.ts
 │   ├── modules
+│   │   ├── ai-analysis
+│   │   │   ├── application
+│   │   │   │   └── use-cases
+│   │   │   │       ├── create-ai-analysis.use-case.ts
+│   │   │   │       └── process-ai-analysis.use-case.ts
+│   │   │   ├── domain
+│   │   │   │   └── providers
+│   │   │   │       └── ai-analysis.provider.ts
+│   │   │   ├── infrastructure
+│   │   │   │   ├── supabase-ai-analysis.repository.ts
+│   │   │   │   └── supabase-ai-processing.repository.ts
+│   │   │   └── presentation
+│   │   │       ├── ai-analysis.routes.ts
+│   │   │       └── ai-processing.routes.ts
+│   │   ├── categories
+│   │   │   ├── categories.controller.ts
+│   │   │   ├── categories.repository.ts
+│   │   │   └── categories.routes.ts
 │   │   ├── health
 │   │   │   ├── health.controller.ts
 │   │   │   └── health.routes.ts
-│   │   └── identity
-│   │       ├── identity.controller.ts
-│   │       ├── identity.repository.ts
-│   │       ├── identity.routes.ts
-│   │       ├── identity.schema.ts
-│   │       └── identity.service.ts
+│   │   ├── identity
+│   │   │   ├── application
+│   │   │   │   └── use-cases
+│   │   │   │       ├── deactivate-my-account.use-case.ts
+│   │   │   │       ├── get-current-user.use-case.ts
+│   │   │   │       ├── get-my-profile.use-case.ts
+│   │   │   │       └── update-my-profile.use-case.ts
+│   │   │   ├── domain
+│   │   │   │   ├── entities
+│   │   │   │   │   ├── account-profile.entity.ts
+│   │   │   │   │   └── user-profile.entity.ts
+│   │   │   │   └── repositories
+│   │   │   │       ├── account-deactivation.repository.ts
+│   │   │   │       ├── identity.repository.ts
+│   │   │   │       └── profile.repository.ts
+│   │   │   ├── infrastructure
+│   │   │   │   ├── repositories
+│   │   │   │   │   ├── supabase-account-deactivation.repository.ts
+│   │   │   │   │   ├── supabase-account-profile.repository.ts
+│   │   │   │   │   └── supabase-identity.repository.ts
+│   │   │   │   └── supabase-account-auth.gateway.ts
+│   │   │   └── presentation
+│   │   │       ├── deactivate-my-account.routes.ts
+│   │   │       ├── identity.controller.ts
+│   │   │       ├── identity.routes.ts
+│   │   │       ├── identity.schema.ts
+│   │   │       ├── my-profile.controller.ts
+│   │   │       ├── my-profile.routes.ts
+│   │   │       └── update-profile.schema.ts
+│   │   ├── moderation
+│   │   │   ├── application
+│   │   │   │   └── use-cases
+│   │   │   │       ├── adjust-location.use-case.ts
+│   │   │   │       ├── confirm-occurrence.use-case.ts
+│   │   │   │       ├── correct-classification.use-case.ts
+│   │   │   │       ├── create-observation.use-case.ts
+│   │   │   │       ├── reject-occurrence.use-case.ts
+│   │   │   │       ├── resolve-occurrence.use-case.ts
+│   │   │   │       ├── set-priority.use-case.ts
+│   │   │   │       ├── start-analysis.use-case.ts
+│   │   │   │       └── start-service.use-case.ts
+│   │   │   ├── domain
+│   │   │   │   ├── repositories
+│   │   │   │   │   └── occurrence-moderation.repository.ts
+│   │   │   │   └── services
+│   │   │   ├── infrastructure
+│   │   │   │   └── repositories
+│   │   │   │       └── supabase-moderation.repository.ts
+│   │   │   └── presentation
+│   │   │       ├── occurrence-moderation.controller.ts
+│   │   │       ├── occurrence-moderation.routes.ts
+│   │   │       └── occurrence-moderation.schema.ts
+│   │   ├── occurrences
+│   │   │   ├── application
+│   │   │   │   └── use-cases
+│   │   │   │       ├── finalize-occurrence.use-case.ts
+│   │   │   │       ├── get-admin-occurrence.use-case.ts
+│   │   │   │       ├── get-my-occurrence.use-case.ts
+│   │   │   │       ├── get-occurrence-history.use-case.ts
+│   │   │   │       ├── get-photo-signed-url.use-case.ts
+│   │   │   │       ├── get-public-occurrence.use-case.ts
+│   │   │   │       ├── list-admin-occurrences.use-case.ts
+│   │   │   │       ├── list-my-occurrences.use-case.ts
+│   │   │   │       └── list-public-occurrences.use-case.ts
+│   │   │   ├── domain
+│   │   │   │   ├── repositories
+│   │   │   │   │   ├── occurrence-query.repository.ts
+│   │   │   │   │   ├── occurrence.repository.ts
+│   │   │   │   │   └── photo-access.repository.ts
+│   │   │   │   └── services
+│   │   │   │       └── photo-url.service.ts
+│   │   │   ├── infrastructure
+│   │   │   │   └── repositories
+│   │   │   │       ├── supabase-occurrence-query.repository.ts
+│   │   │   │       ├── supabase-occurrence.repository.ts
+│   │   │   │       └── supabase-photo-access.repository.ts
+│   │   │   └── presentation
+│   │   │       ├── admin-occurrence-query.controller.ts
+│   │   │       ├── admin-occurrence-query.routes.ts
+│   │   │       ├── my-occurrence.controller.ts
+│   │   │       ├── my-occurrence.routes.ts
+│   │   │       ├── occurrence.controller.ts
+│   │   │       ├── occurrence-history.controller.ts
+│   │   │       ├── occurrence-history.routes.ts
+│   │   │       ├── occurrence-history.schema.ts
+│   │   │       ├── occurrence-query.schema.ts
+│   │   │       ├── occurrence.routes.ts
+│   │   │       ├── occurrence.schema.ts
+│   │   │       ├── photo-access.controller.ts
+│   │   │       ├── photo-access.routes.ts
+│   │   │       ├── photo-access.schema.ts
+│   │   │       ├── public-occurrence.controller.ts
+│   │   │       └── public-occurrence.routes.ts
+│   │   └── votes
+│   │       ├── application
+│   │       │   └── use-cases
+│   │       │       ├── add-vote.use-case.ts
+│   │       │       ├── get-vote-count.use-case.ts
+│   │       │       └── remove-vote.use-case.ts
+│   │       ├── domain
+│   │       │   └── repositories
+│   │       │       └── vote.repository.ts
+│   │       ├── infrastructure
+│   │       │   └── repositories
+│   │       │       └── supabase-vote.repository.ts
+│   │       └── presentation
+│   │           ├── votes.controller.ts
+│   │           ├── votes.routes.ts
+│   │           └── votes.schema.ts
 │   ├── routes
 │   │   ├── docs.routes.ts
 │   │   └── index.routes.ts
@@ -68,7 +201,21 @@
 │   │   ├── 20261107145244_fix_occurrences_select_allow_public.sql
 │   │   ├── 20261107150607_create_views_and_functions.sql
 │   │   ├── 20261107151203_fix_register_vote_ambiguous_columns.sql
-│   │   └── 20261107152851_create_agencies_and_forwardings.sql
+│   │   ├── 20261107152851_create_agencies_and_forwardings.sql
+│   │   ├── 20261107153332_configure_realtime_notifications.sql
+│   │   ├── 20261107153937_fix_vulenarability_anon_authenticated.sql
+│   │   ├── 20261107154209_restrict_notifications_update_columns.sql
+│   │   ├── 20261107154759_fix_public_occurrences_view_source.sql
+│   │   ├── 20261107155255_grant_select_on_public_occurrences_view.sql
+│   │   ├── 20261107155735_add_read_rpcs_for_occurrences.sql
+│   │   ├── 20261109070000_id02_deactivate_my_account.sql
+│   │   ├── 20261109100000_mod01_transition_occurrence_status.sql
+│   │   ├── 20261109110000_mod02_priority_and_service.sql
+│   │   ├── 20261109120000_mod03_observations_and_history.sql
+│   │   ├── 20261109130000_mod04_adjust_location_and_classification.sql
+│   │   ├── 20261109140000_occ01_finalize_occurrence.sql
+│   │   ├── 20261109150000_occ02_read_queries.sql
+│   │   └── 20261110054000_enforce_transactional_voting.sql
 │   └── .temp
 │       ├── cli-latest
 │       ├── gotrue-version
@@ -84,17 +231,37 @@
 │   │   ├── app.test.ts
 │   │   ├── authenticate.spec.ts
 │   │   ├── authorize-role.spec.ts
+│   │   ├── categories.routes.spec.ts
+│   │   ├── deactivate-my-account.routes.spec.ts
 │   │   ├── error-handler.spec.ts
 │   │   ├── http-security.spec.ts
 │   │   ├── identity.routes.spec.ts
-│   │   ├── identity.service.spec.ts
+│   │   ├── identity.security.spec.ts
+│   │   ├── my-profile.routes.spec.ts
 │   │   ├── request-logger.spec.ts
 │   │   ├── supabase.test.ts
 │   │   └── validate-request.spec.ts
 │   ├── setup.ts
 │   └── unit
+│       ├── infrastructure
+│       │   └── ai
+│       │       └── http-ai.provider.spec.ts
+│       └── modules
+│           ├── ai-analysis
+│           │   ├── create-ai-analysis.use-case.spec.ts
+│           │   └── process-ai-analysis.use-case.spec.ts
+│           ├── categories
+│           │   └── categories.repository.spec.ts
+│           └── identity
+│               ├── deactivate-my-account.use-case.spec.ts
+│               ├── get-current-user.use-case.spec.ts
+│               ├── get-my-profile.use-case.spec.ts
+│               ├── supabase-account-auth.gateway.spec.ts
+│               ├── supabase-account-profile.repository.spec.ts
+│               ├── update-my-profile.use-case.spec.ts
+│               └── update-profile.schema.spec.ts
 ├── tsconfig.json
 ├── tsconfig.scripts.json
 └── vitest.config.ts
 
-22 directories, 76 files
+73 directories, 192 files
