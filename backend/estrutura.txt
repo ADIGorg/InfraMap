@@ -15,6 +15,7 @@
 ├── src
 │   ├── app.ts
 │   ├── config
+│   │   ├── constants.ts
 │   │   └── env.ts
 │   ├── infrastructure
 │   │   ├── ai
@@ -103,47 +104,63 @@
 │   │   │       ├── occurrence-moderation.controller.ts
 │   │   │       ├── occurrence-moderation.routes.ts
 │   │   │       └── occurrence-moderation.schema.ts
-│   │   └── occurrences
+│   │   ├── occurrences
+│   │   │   ├── application
+│   │   │   │   └── use-cases
+│   │   │   │       ├── finalize-occurrence.use-case.ts
+│   │   │   │       ├── get-admin-occurrence.use-case.ts
+│   │   │   │       ├── get-my-occurrence.use-case.ts
+│   │   │   │       ├── get-occurrence-history.use-case.ts
+│   │   │   │       ├── get-photo-signed-url.use-case.ts
+│   │   │   │       ├── get-public-occurrence.use-case.ts
+│   │   │   │       ├── list-admin-occurrences.use-case.ts
+│   │   │   │       ├── list-my-occurrences.use-case.ts
+│   │   │   │       └── list-public-occurrences.use-case.ts
+│   │   │   ├── domain
+│   │   │   │   ├── repositories
+│   │   │   │   │   ├── occurrence-query.repository.ts
+│   │   │   │   │   ├── occurrence.repository.ts
+│   │   │   │   │   └── photo-access.repository.ts
+│   │   │   │   └── services
+│   │   │   │       └── photo-url.service.ts
+│   │   │   ├── infrastructure
+│   │   │   │   └── repositories
+│   │   │   │       ├── supabase-occurrence-query.repository.ts
+│   │   │   │       ├── supabase-occurrence.repository.ts
+│   │   │   │       └── supabase-photo-access.repository.ts
+│   │   │   └── presentation
+│   │   │       ├── admin-occurrence-query.controller.ts
+│   │   │       ├── admin-occurrence-query.routes.ts
+│   │   │       ├── my-occurrence.controller.ts
+│   │   │       ├── my-occurrence.routes.ts
+│   │   │       ├── occurrence.controller.ts
+│   │   │       ├── occurrence-history.controller.ts
+│   │   │       ├── occurrence-history.routes.ts
+│   │   │       ├── occurrence-history.schema.ts
+│   │   │       ├── occurrence-query.schema.ts
+│   │   │       ├── occurrence.routes.ts
+│   │   │       ├── occurrence.schema.ts
+│   │   │       ├── photo-access.controller.ts
+│   │   │       ├── photo-access.routes.ts
+│   │   │       ├── photo-access.schema.ts
+│   │   │       ├── public-occurrence.controller.ts
+│   │   │       └── public-occurrence.routes.ts
+│   │   └── votes
 │   │       ├── application
 │   │       │   └── use-cases
-│   │       │       ├── finalize-occurrence.use-case.ts
-│   │       │       ├── get-admin-occurrence.use-case.ts
-│   │       │       ├── get-my-occurrence.use-case.ts
-│   │       │       ├── get-occurrence-history.use-case.ts
-│   │       │       ├── get-photo-signed-url.use-case.ts
-│   │       │       ├── get-public-occurrence.use-case.ts
-│   │       │       ├── list-admin-occurrences.use-case.ts
-│   │       │       ├── list-my-occurrences.use-case.ts
-│   │       │       └── list-public-occurrences.use-case.ts
+│   │       │       ├── add-vote.use-case.ts
+│   │       │       ├── get-vote-count.use-case.ts
+│   │       │       └── remove-vote.use-case.ts
 │   │       ├── domain
-│   │       │   ├── repositories
-│   │       │   │   ├── occurrence-query.repository.ts
-│   │       │   │   ├── occurrence.repository.ts
-│   │       │   │   └── photo-access.repository.ts
-│   │       │   └── services
-│   │       │       └── photo-url.service.ts
+│   │       │   └── repositories
+│   │       │       └── vote.repository.ts
 │   │       ├── infrastructure
 │   │       │   └── repositories
-│   │       │       ├── supabase-occurrence-query.repository.ts
-│   │       │       ├── supabase-occurrence.repository.ts
-│   │       │       └── supabase-photo-access.repository.ts
+│   │       │       └── supabase-vote.repository.ts
 │   │       └── presentation
-│   │           ├── admin-occurrence-query.controller.ts
-│   │           ├── admin-occurrence-query.routes.ts
-│   │           ├── my-occurrence.controller.ts
-│   │           ├── my-occurrence.routes.ts
-│   │           ├── occurrence.controller.ts
-│   │           ├── occurrence-history.controller.ts
-│   │           ├── occurrence-history.routes.ts
-│   │           ├── occurrence-history.schema.ts
-│   │           ├── occurrence-query.schema.ts
-│   │           ├── occurrence.routes.ts
-│   │           ├── occurrence.schema.ts
-│   │           ├── photo-access.controller.ts
-│   │           ├── photo-access.routes.ts
-│   │           ├── photo-access.schema.ts
-│   │           ├── public-occurrence.controller.ts
-│   │           └── public-occurrence.routes.ts
+│   │           ├── votes.controller.ts
+│   │           ├── votes.routes.ts
+│   │           └── votes.schema.ts
 │   ├── routes
 │   │   ├── docs.routes.ts
 │   │   └── index.routes.ts
@@ -197,7 +214,8 @@
 │   │   ├── 20261109120000_mod03_observations_and_history.sql
 │   │   ├── 20261109130000_mod04_adjust_location_and_classification.sql
 │   │   ├── 20261109140000_occ01_finalize_occurrence.sql
-│   │   └── 20261109150000_occ02_read_queries.sql
+│   │   ├── 20261109150000_occ02_read_queries.sql
+│   │   └── 20261110054000_enforce_transactional_voting.sql
 │   └── .temp
 │       ├── cli-latest
 │       ├── gotrue-version
@@ -246,4 +264,4 @@
 ├── tsconfig.scripts.json
 └── vitest.config.ts
 
-65 directories, 182 files
+73 directories, 192 files

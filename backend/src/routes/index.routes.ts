@@ -38,25 +38,7 @@ import { createPhotoAccessRoutes } from "../modules/occurrences/presentation/pho
 import { aiAnalysisRoutes } from "../modules/ai-analysis/presentation/ai-analysis.routes.js";
 import { aiProcessingRoutes } from "../modules/ai-analysis/presentation/ai-processing.routes.js";
 
-// ==========================================
-// DEPENDÊNCIAS
-// ==========================================
 
-routes.use("/health", healthRoutes);
-routes.use("/occurrences", votesRoutes);
-
-// ==========================================
-// CAT-01 - CONSULTA PÚBLICA DE CATEGORIAS
-// ==========================================
-
-const categoriesRepository = createCategoriesRepository(
-  supabasePublic
-);
-
-routes.use(
-  "/categories",
-  createCategoriesRoutes(categoriesRepository)
-);
 export interface RoutesDependencies {
   adminClient: SupabaseClient;
 }
@@ -168,6 +150,11 @@ export function createRoutes(deps: RoutesDependencies): Router {
     adminClient,
   });
   routes.use("/occurrences", occurrenceCitizenRoutes);
+
+  // ==========================================
+  // VOTES — Impacto comunitário (autenticado)
+  // ==========================================
+  routes.use("/occurrences", votesRoutes);
 
   // ==========================================
   // MOD-03 — Consulta de histórico (autor OU admin)
