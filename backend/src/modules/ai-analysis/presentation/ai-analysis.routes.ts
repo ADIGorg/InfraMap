@@ -4,7 +4,10 @@ import { AppError, BadRequestError } from "../../../shared/errors/app-error.js";
 import { authenticate } from "../../../shared/middlewares/authenticate.js";
 import { authorizeRole } from "../../../shared/middlewares/authorize-role.js";
 import { MAX_PHOTO_SIZE } from "../application/use-cases/create-ai-analysis.use-case.js";
-import { createAnalysis, processAnalysis, getAnalysis } from "./ai-analysis.controller.js";
+import {
+  createAiAnalysisController,
+  type AiAnalysisControllerDependencies,
+} from "./ai-analysis.controller.js";
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -28,15 +31,16 @@ const receivePhotos: RequestHandler = (req, res, next) => {
   });
 };
 
+/** As rotas recebem casos de uso já compostos: sem acesso direto ao Supabase. */
 export function createAiAnalysisRoutes(
+  dependencies: AiAnalysisControllerDependencies,
   authentication: RequestHandler = authenticate,
   authorization: RequestHandler = authorizeRole(["CITIZEN"])
 ) {
   const router = Router();
-  router.post("/", authentication, authorization, receivePhotos, createAnalysis);
-  router.post("/:id/analyze", authentication, authorization, processAnalysis);
-  router.get("/:id", authentication, authorization, getAnalysis);
+  const controller = createAiAnalysisController(dependencies);
+  router.post("/", authentication, authorization, receivePhotos, controller.create);
+  router.post("/:id/analyze", authentication, authorization, controller.analyze);
+  router.get("/:id", authentication, authorization, controller.get);
   return router;
 }
-
-export const aiAnalysisRoutes = createAiAnalysisRoutes();

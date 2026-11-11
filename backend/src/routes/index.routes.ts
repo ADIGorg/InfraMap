@@ -37,7 +37,8 @@ import { createMyOccurrenceRoutes } from "../modules/occurrences/presentation/my
 import { createAdminOccurrenceQueryRoutes } from "../modules/occurrences/presentation/admin-occurrence-query.routes.js";
 import { createPhotoAccessRoutes } from "../modules/occurrences/presentation/photo-access.routes.js";
 
-import { aiAnalysisRoutes } from "../modules/ai-analysis/presentation/ai-analysis.routes.js";
+import { createAiAnalysisRoutes } from "../modules/ai-analysis/presentation/ai-analysis.routes.js";
+import { createAiAnalysisDependencies } from "../modules/ai-analysis/infrastructure/ai-analysis.module.js";
 
 
 export interface RoutesDependencies {
@@ -176,7 +177,7 @@ export function createRoutes(deps: RoutesDependencies): Router {
   // ==========================================
   // API1-47 / API1-48 — AI-02 / AI-03
   // ==========================================
-  routes.use("/ai-analyses", aiAnalysisRoutes);
+  routes.use("/ai-analyses", createAiAnalysisRoutes(createAiAnalysisDependencies(adminClient)));
 
   return routes;
 }
