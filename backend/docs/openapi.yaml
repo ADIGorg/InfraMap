@@ -38,6 +38,77 @@ tags:
 # ==========================================
 
 paths:
+  /notifications:
+    get:
+      tags: [Notifications]
+      summary: Lista as notificações do cidadão autenticado
+      description: |
+        Ordena da mais recente para a mais antiga. Use esta rota também após
+        reconectar o aplicativo para recuperar notificações persistidas.
+
+        Para receber novas notificações, assine eventos INSERT de Postgres Changes
+        na tabela public.notifications com JWT e filtro user_id=eq.<id do usuário>.
+        A política RLS limita a entrega ao destinatário. Os eventos são publicados
+        após o commit e o REST permanece como fonte de verdade.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: page
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 21474836, default: 1 }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+      responses:
+        '200':
+          description: Notificações paginadas
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, pagination]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Notification'
+                  pagination:
+                    type: object
+                    required: [page, limit, total, total_pages]
+                    properties:
+                      page: { type: integer }
+                      limit: { type: integer }
+                      total: { type: integer }
+                      total_pages: { type: integer }
+        '400': { description: Paginação inválida }
+        '401': { description: Token ausente ou inválido }
+        '403': { description: Conta inativa ou papel incompatível }
+
+  /notifications/{id}/read:
+    patch:
+      tags: [Notifications]
+      summary: Marca uma notificação como lida
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '204': { description: Notificação lida, inclusive se já estava lida }
+        '400': { description: Identificador inválido }
+        '401': { description: Token ausente ou inválido }
+        '403': { description: Conta inativa ou papel incompatível }
+        '404': { description: Notificação não encontrada para este cidadão }
+
+  /notifications/read-all:
+    patch:
+      tags: [Notifications]
+      summary: Marca todas as notificações do cidadão como lidas
+      security: [{ bearerAuth: [] }]
+      responses:
+        '204': { description: Operação concluída }
+        '401': { description: Token ausente ou inválido }
+        '403': { description: Conta inativa ou papel incompatível }
   /occurrences/{id}/votes:
     get:
       summary: Consulta a contagem de votos de uma ocorrência pública
@@ -953,6 +1024,17 @@ components:
   # ========================================
 
   schemas:
+    Notification:
+      type: object
+      required: [id, occurrence_id, title, message, type, read_at, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        occurrence_id: { type: [string, 'null'], format: uuid }
+        title: { type: string }
+        message: { type: string }
+        type: { type: string, enum: [OCCURRENCE_STATUS_CHANGED, CITIZEN_RESPONSE] }
+        read_at: { type: [string, 'null'], format: date-time }
+        created_at: { type: string, format: date-time }
     VoteCountResponse:
       type: object
       required: [data]
