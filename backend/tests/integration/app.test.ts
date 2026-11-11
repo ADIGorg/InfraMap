@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import request from "supertest";
-import app from "../../src/app.js";
+import type { SupabaseClient } from "@supabase/supabase-js";
+
+import { createApp } from "../../src/app.js";
+
+// Cliente fake — não é usado pelos testes de /health e 404,
+// apenas satisfaz o contrato de dependência.
+const fakeAdminClient = {} as SupabaseClient;
+const app = createApp({ adminClient: fakeAdminClient });
 
 describe("InfraMap API", () => {
   it("deve retornar HTTP 200 no health check", async () => {
@@ -20,10 +27,10 @@ describe("InfraMap API", () => {
 
     expect(response.status).toBe(404);
     expect(response.body).toEqual({
-    error: {
-    code: "NOT_FOUND",
-    message: "Rota não encontrada.",
-    },
+      error: {
+        code: "NOT_FOUND",
+        message: "Rota não encontrada.",
+      },
     });
   });
 });
