@@ -38,6 +38,38 @@ tags:
 # ==========================================
 
 paths:
+  /admin/agencies:
+    get:
+      tags: [Admin]
+      summary: Lista órgãos ativos e inativos para administradores ativos
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Catálogo no campo data }
+        '401': { description: Autenticação necessária }
+        '403': { description: Exige administrador ativo }
+    post:
+      tags: [Admin]
+      summary: Cadastra um órgão como Master ativo
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/AgencyChanges'
+                - required: [name, email]
+      responses:
+        '201': { description: Órgão cadastrado no campo data }
+        '400': { description: Dados inválidos }
+        '401': { description: Autenticação necessária }
+        '403': { description: Exige Master ativo }
+
+  /admin/agencies/{id}:
+    patch:
+      tags: [Admin]
+      summary: Edita ou desativa um órgão como Master ativo
+      description: A desativação bloqueia novos encaminhamentos e preserva os anteriores.
   /notifications:
     get:
       tags: [Notifications]
@@ -93,6 +125,119 @@ paths:
           in: path
           required: true
           schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgencyChanges'
+      responses:
+        '200': { description: Órgão atualizado no campo data }
+        '400': { description: Dados ou identificador inválidos }
+        '401': { description: Autenticação necessária }
+        '403': { description: Exige Master ativo }
+        '404': { description: Órgão não encontrado }
+  /admin/admins:
+    get:
+      tags: [Admin]
+      summary: Lista administradores ativos e inativos
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Lista de administradores no campo data }
+        '401': { description: Autenticação necessária }
+        '403': { description: Exige Master ativo }
+    post:
+      tags: [Admin]
+      summary: Provisiona um administrador com e-mail confirmado
+      description: Exige Master ativo. O provisionamento é direto e não envia convite.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [name, email, password, admin_level]
+              properties:
+                name: { type: string, minLength: 1, maxLength: 150 }
+                email: { type: string, format: email, maxLength: 254 }
+                password: { type: string, format: password, minLength: 8, maxLength: 72, writeOnly: true }
+                admin_level: { type: string, enum: [MASTER, OPERATIONAL] }
+      responses:
+        '201': { description: Administrador criado, sem senha na resposta }
+        '400': { description: Dados inválidos }
+        '401': { description: Autenticação necessária }
+        '403': { description: Exige Master ativo }
+        '409': { description: E-mail já cadastrado }
+
+  /admin/admins/{id}:
+    patch:
+      tags: [Admin]
+      summary: Atualiza nível ou situação de um administrador
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              minProperties: 1
+              properties:
+                admin_level: { type: string, enum: [MASTER, OPERATIONAL] }
+                is_active: { type: boolean }
+      responses:
+        '200': { description: Administrador atualizado }
+        '400': { description: Dados inválidos }
+        '401': { description: Autenticação necessária }
+        '403': { description: Exige Master ativo }
+        '404': { description: Administrador não encontrado }
+        '409': { description: Último Master ativo deve ser preservado }
+  /admin/dashboard:
+    get:
+      tags: [Admin]
+      summary: Consulta indicadores administrativos
+      description: |
+        Exige ADMIN ativo (MASTER ou OPERATIONAL). Considera todas as ocorrências.
+        A prioridade HIGH é contada em todos os status. A média usa apenas
+        RESOLVED com resolved_at e representa dias decorridos de 24 horas,
+        incluindo frações. Sem resoluções elegíveis, a média é null.
+        As contagens sempre incluem os seis status, mesmo quando são zero.
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Indicadores calculados em uma consulta no banco
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    required: [counts_by_status, high_priority_total, average_resolution_days]
+                    properties:
+                      counts_by_status:
+                        type: object
+                        required: [RECEIVED, UNDER_ANALYSIS, CONFIRMED, IN_SERVICE, RESOLVED, REJECTED]
+                        properties:
+                          RECEIVED: { type: integer, minimum: 0 }
+                          UNDER_ANALYSIS: { type: integer, minimum: 0 }
+                          CONFIRMED: { type: integer, minimum: 0 }
+                          IN_SERVICE: { type: integer, minimum: 0 }
+                          RESOLVED: { type: integer, minimum: 0 }
+                          REJECTED: { type: integer, minimum: 0 }
+                      high_priority_total: { type: integer, minimum: 0 }
+                      average_resolution_days: { type: [number, 'null'] }
+        '401': { description: Token ausente ou inválido }
+        '403': { description: Conta inativa ou usuário sem papel ADMIN }
+        '500': { description: Falha ao consultar indicadores }
       responses:
         '204': { description: Notificação lida, inclusive se já estava lida }
         '400': { description: Identificador inválido }
@@ -1024,6 +1169,16 @@ components:
   # ========================================
 
   schemas:
+    AgencyChanges:
+      type: object
+      minProperties: 1
+      additionalProperties: false
+      properties:
+        name: { type: string, minLength: 1, maxLength: 150 }
+        email: { type: string, format: email, maxLength: 150 }
+        phone: { type: [string, 'null'], minLength: 1, maxLength: 20 }
+        description: { type: [string, 'null'] }
+        is_active: { type: boolean }
     Notification:
       type: object
       required: [id, occurrence_id, title, message, type, read_at, created_at]

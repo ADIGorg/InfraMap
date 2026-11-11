@@ -4,6 +4,7 @@ import { Router } from "express";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import healthRoutes from "../modules/health/health.routes.js";
+import { administrationRoutes } from "../modules/administration/presentation/administration.routes.js";
 import { notificationsRoutes } from "../modules/notifications/presentation/notifications.routes.js";
 import { votesRoutes } from "../modules/votes/presentation/votes.routes.js";
 
@@ -40,6 +41,8 @@ import { aiAnalysisRoutes } from "../modules/ai-analysis/presentation/ai-analysi
 import { aiProcessingRoutes } from "../modules/ai-analysis/presentation/ai-processing.routes.js";
 
 
+routes.use("/health", healthRoutes);
+routes.use("/admin", administrationRoutes);
 export interface RoutesDependencies {
   adminClient: SupabaseClient;
 }
