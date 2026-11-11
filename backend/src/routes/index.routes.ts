@@ -4,6 +4,7 @@ import { Router } from "express";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import healthRoutes from "../modules/health/health.routes.js";
+import { votesRoutes } from "../modules/votes/presentation/votes.routes.js";
 
 import {
   createIdentityRoutes,
@@ -41,6 +42,21 @@ import { aiProcessingRoutes } from "../modules/ai-analysis/presentation/ai-proce
 // DEPENDÊNCIAS
 // ==========================================
 
+routes.use("/health", healthRoutes);
+routes.use("/occurrences", votesRoutes);
+
+// ==========================================
+// CAT-01 - CONSULTA PÚBLICA DE CATEGORIAS
+// ==========================================
+
+const categoriesRepository = createCategoriesRepository(
+  supabasePublic
+);
+
+routes.use(
+  "/categories",
+  createCategoriesRoutes(categoriesRepository)
+);
 export interface RoutesDependencies {
   adminClient: SupabaseClient;
 }
