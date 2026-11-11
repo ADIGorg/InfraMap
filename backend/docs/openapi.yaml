@@ -4,16 +4,15 @@ info:
   title: InfraMap API
   version: 1.0.0
   license:                               
-    name: UNLICENSED
-    identifier: UNLICENSED
+    name: ISC
+    identifier: ISC
   description: |
-    API REST do InfraMap, responsável pela autenticação,
-    identificação de usuários, gerenciamento de perfis,
-    consulta de categorias e integração com o Supabase.
-
-    A API utiliza Supabase Auth para validar tokens JWT
-    e PostgreSQL com Row Level Security (RLS) para
-    controlar o acesso aos dados.
+    API REST do InfraMap para identidade, categorias, análises fotográficas,
+    ocorrências, moderação, votos, notificações e administração.
+    O backend usa Supabase Auth, PostgreSQL/PostGIS, Storage privado e
+    adaptadores de IA (mock, Gemini ou HTTP legado).
+    Há incompatibilidades SQL ainda pendentes de homologação em banco,
+    documentadas em docs/database.md e docs/domain-rules.md.
 
 servers:
   - url: http://localhost:3000/api/v1
@@ -32,6 +31,13 @@ tags:
     description: Consulta pública às categorias de infraestrutura.
   - name: Notifications
     description: Notificações do cidadão autenticado.
+
+  - name: Occurrences
+    description: Registro, acompanhamento e consulta de ocorrências.
+  - name: Moderation
+    description: Operações de moderação disponíveis para ADMIN ativo.
+  - name: Photos
+    description: Acesso autorizado a URLs assinadas de fotos privadas.
 
 paths:
   # ========================================
@@ -248,122 +254,25 @@ paths:
   /identity/me:
     get:
       tags: [Identity]
-      summary: Consultar o próprio perfil
+      summary: Consultar identidade básica autenticada
       description: |
-        Retorna os dados cadastrais do usuário autenticado.
-
-        Requer token JWT válido e conta ativa.
-
-        O usuário pode consultar somente o próprio perfil.
-
-        Os dados cadastrais são consultados na tabela
-        public.profiles, utilizando o JWT do usuário e
-        respeitando as políticas RLS do Supabase.
-
-        O e-mail é obtido do Supabase Auth.
-
-        Contas inativas ou sem perfil de autorização
-        válido não podem executar esta operação.
-      operationId: getMyProfile
+        Implementação atualmente montada em identity.routes.ts.
+        Retorna apenas id e email do usuário do JWT validado.
+        A factory de perfil completo (my-profile.routes.ts) não está
+        montada no router principal; PATCH /identity/me não está
+        disponível nesta versão da aplicação.
+      operationId: getBasicIdentity
       security:
         - bearerAuth: []
       responses:
         "200":
-          description: Perfil consultado com sucesso.
+          description: Identidade básica consultada.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/MyProfileResponse"
-              example:
-                message: Usuário autenticado.
-                data:
-                  id: 181227d2-89d7-4ceb-8dff-85b623aeee5b
-                  name: Maria Silva
-                  phone: "(75) 99999-9999"
-                  created_at: "2026-11-01T10:00:00.000Z"
-                  updated_at: "2026-11-01T10:00:00.000Z"
-                  email: maria@example.com
+                $ref: "#/components/schemas/AuthenticatedUserResponse"
         "401":
           $ref: "#/components/responses/Unauthorized"
-        "403":
-          $ref: "#/components/responses/Forbidden"
-        "404":
-          $ref: "#/components/responses/NotFound"
-        "429":
-          $ref: "#/components/responses/TooManyRequests"
-        "500":
-          $ref: "#/components/responses/InternalServerError"
-    patch:
-      tags: [Identity]
-      summary: Atualizar o próprio perfil
-      description: |
-        Permite atualizar os dados cadastrais do
-        usuário autenticado.
-
-        Requer token JWT válido e conta ativa.
-
-        Somente os campos name e phone são permitidos.
-
-        A operação não permite modificar:
-        - id
-        - email
-        - role
-        - admin_level
-        - is_active
-
-        A atualização ocorre exclusivamente no registro
-        associado ao identificador do usuário autenticado.
-
-        A API utiliza o JWT do usuário para acessar o
-        Supabase e respeita as políticas RLS.
-
-        O campo name deve conter entre 3 e 150 caracteres.
-
-        O campo phone é opcional e deve conter entre
-        8 e 15 dígitos numéricos, considerando sua
-        formatação.
-
-        Para remover um telefone cadastrado, envie null.
-
-        Deve ser informado pelo menos um campo válido.
-      operationId: updateMyProfile
-      security:
-        - bearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/UpdateMyProfileRequest"
-            example:
-              name: Maria Souza
-              phone: "(75) 98888-8888"
-      responses:
-        "200":
-          description: Perfil atualizado com sucesso.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/MyProfileResponse"
-              example:
-                message: Perfil atualizado com sucesso.
-                data:
-                  id: 181227d2-89d7-4ceb-8dff-85b623aeee5b
-                  name: Maria Souza
-                  phone: "(75) 98888-8888"
-                  created_at: "2026-11-01T10:00:00.000Z"
-                  updated_at: "2026-11-08T18:00:00.000Z"
-                  email: maria@example.com
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "403":
-          $ref: "#/components/responses/Forbidden"
-        "404":
-          $ref: "#/components/responses/NotFound"
-        "413":
-          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
         "500":
@@ -539,6 +448,7 @@ paths:
 
   /occurrences/{id}/votes:
     get:
+      operationId: getVoteCount
       tags: [App]
       summary: Consulta a contagem de votos de uma ocorrência pública
       security: []
@@ -561,6 +471,7 @@ paths:
         "404":
           description: Ocorrência pública não encontrada
     post:
+      operationId: addVote
       tags: [App]
       summary: Registra um voto do cidadão ativo
       security:
@@ -592,6 +503,7 @@ paths:
 
   /occurrences/{id}/votes/me:
     delete:
+      operationId: removeMyVote
       tags: [App]
       summary: Retira o voto do próprio cidadão
       security:
@@ -860,6 +772,7 @@ paths:
 
   /notifications:
     get:
+      operationId: listMyNotifications
       tags: [Notifications]
       summary: Lista as notificações do cidadão autenticado
       description: |
@@ -921,6 +834,7 @@ paths:
 
   /notifications/{id}/read:
     patch:
+      operationId: markNotificationRead
       tags: [Notifications]
       summary: Marca uma notificação como lida
       security:
@@ -946,6 +860,7 @@ paths:
 
   /notifications/read-all:
     patch:
+      operationId: markAllNotificationsRead
       tags: [Notifications]
       summary: Marca todas as notificações do cidadão como lidas
       security:
@@ -964,6 +879,7 @@ paths:
 
   /admin/dashboard:
     get:
+      operationId: getAdminDashboard
       tags: [Admin]
       summary: Consulta indicadores administrativos
       description: |
@@ -1027,6 +943,7 @@ paths:
 
   /admin/admins:
     get:
+      operationId: listAdministrators
       tags: [Admin]
       summary: Lista administradores ativos e inativos
       security:
@@ -1039,6 +956,7 @@ paths:
         "403":
           description: Exige Master ativo
     post:
+      operationId: createAdministrator
       tags: [Admin]
       summary: Provisiona um administrador com e-mail confirmado
       description: Exige Master ativo. O provisionamento é direto e não envia convite.
@@ -1084,6 +1002,7 @@ paths:
 
   /admin/admins/{id}:
     patch:
+      operationId: updateAdministrator
       tags: [Admin]
       summary: Atualiza nível ou situação de um administrador
       security:
@@ -1129,6 +1048,7 @@ paths:
 
   /admin/agencies:
     get:
+      operationId: listAgencies
       tags: [Admin]
       summary: Lista órgãos ativos e inativos para administradores ativos
       security:
@@ -1141,6 +1061,7 @@ paths:
         "403":
           description: Exige administrador ativo
     post:
+      operationId: createAgency
       tags: [Admin]
       summary: Cadastra um órgão como Master ativo
       security:
@@ -1165,6 +1086,7 @@ paths:
 
   /admin/agencies/{id}:
     patch:
+      operationId: updateAgency
       tags: [Admin]
       summary: Edita ou desativa um órgão como Master ativo
       description: A desativação bloqueia novos encaminhamentos e preserva os anteriores.
@@ -1199,6 +1121,652 @@ paths:
 # COMPONENTES REUTILIZÁVEIS
 # ==========================================
 
+  # ========================================
+  # OCCURRENCES / MODERATION / PHOTOS
+  # Rotas montadas em src/routes/index.routes.ts
+  # ========================================
+  /occurrences/finalize:
+    post:
+      tags: [Occurrences]
+      summary: "Finalizar ocorrência vinculada a análise concluída"
+      operationId: finalizeOccurrence
+      description: "Cidadão ativo. A análise pertence ao usuário e deve estar COMPLETED. O banco deve criar ocorrência, fotos e histórico e consumir a análise em uma transação. Existem divergências SQL pendentes em docs/database.md."
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FinalizeOccurrenceRequest"
+      responses:
+        "201":
+          description: "Recurso criado."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FinalizeOccurrenceResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /occurrences/public:
+    get:
+      tags: [Occurrences]
+      summary: "Listar ocorrências públicas confirmadas ou em atendimento"
+      operationId: listPublicOccurrences
+      security:
+        []
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
+        - $ref: "#/components/parameters/OccurrenceSort"
+        - $ref: "#/components/parameters/OccurrenceCategoryId"
+        - $ref: "#/components/parameters/MinLat"
+        - $ref: "#/components/parameters/MaxLat"
+        - $ref: "#/components/parameters/MinLng"
+        - $ref: "#/components/parameters/MaxLng"
+      responses:
+        "200":
+          description: "Consulta ou alteração concluída."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedOccurrenceResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /occurrences/public/{id}:
+    get:
+      tags: [Occurrences]
+      summary: "Consultar uma ocorrência pública"
+      operationId: getPublicOccurrence
+      security:
+        []
+      parameters:
+        - $ref: "#/components/parameters/OccurrenceId"
+      responses:
+        "200":
+          description: "Consulta ou alteração concluída."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OccurrenceDetailResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /occurrences/mine:
+    get:
+      tags: [Occurrences]
+      summary: "Listar ocorrências do próprio cidadão"
+      operationId: listMyOccurrences
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
+        - $ref: "#/components/parameters/OccurrenceSort"
+        - $ref: "#/components/parameters/OccurrenceCategoryId"
+        - $ref: "#/components/parameters/MinLat"
+        - $ref: "#/components/parameters/MaxLat"
+        - $ref: "#/components/parameters/MinLng"
+        - $ref: "#/components/parameters/MaxLng"
+        - $ref: "#/components/parameters/OccurrenceStatusFilter"
+      responses:
+        "200":
+          description: "Consulta ou alteração concluída."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedOccurrenceResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /occurrences/mine/{id}:
+    get:
+      tags: [Occurrences]
+      summary: "Consultar ocorrência do próprio cidadão"
+      operationId: getMyOccurrence
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/OccurrenceId"
+      responses:
+        "200":
+          description: "Consulta ou alteração concluída."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OccurrenceDetailResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /admin/occurrences:
+    get:
+      tags: [Occurrences]
+      summary: "Listar ocorrências para administradores"
+      operationId: listAdminOccurrences
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
+        - $ref: "#/components/parameters/OccurrenceSort"
+        - $ref: "#/components/parameters/OccurrenceCategoryId"
+        - $ref: "#/components/parameters/MinLat"
+        - $ref: "#/components/parameters/MaxLat"
+        - $ref: "#/components/parameters/MinLng"
+        - $ref: "#/components/parameters/MaxLng"
+        - $ref: "#/components/parameters/OccurrenceStatusFilter"
+      responses:
+        "200":
+          description: "Consulta ou alteração concluída."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedOccurrenceResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /admin/occurrences/{id}:
+    get:
+      tags: [Occurrences]
+      summary: "Consultar ocorrência pelo painel administrativo"
+      operationId: getAdminOccurrence
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/OccurrenceId"
+      responses:
+        "200":
+          description: "Consulta ou alteração concluída."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OccurrenceDetailResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /occurrences/public/{id}/photos/{photoId}:
+    get:
+      tags: [Photos]
+      summary: "Obter URL assinada de foto de ocorrência pública"
+      operationId: getPublicOccurrencePhotoUrl
+      description: "Disponível somente se a ocorrência estiver CONFIRMED ou IN_SERVICE. O bucket permanece privado."
+      security:
+        []
+      parameters:
+        - $ref: "#/components/parameters/OccurrenceId"
+        - $ref: "#/components/parameters/PhotoId"
+      responses:
+        "200":
+          description: "Consulta ou alteração concluída."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PhotoUrlResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /occurrences/mine/{id}/photos/{photoId}:
+    get:
+      tags: [Photos]
+      summary: "Obter URL assinada da foto de própria ocorrência"
+      operationId: getMyOccurrencePhotoUrl
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/OccurrenceId"
+        - $ref: "#/components/parameters/PhotoId"
+      responses:
+        "200":
+          description: "Consulta ou alteração concluída."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PhotoUrlResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /admin/occurrences/{id}/photos/{photoId}:
+    get:
+      tags: [Photos]
+      summary: "Obter URL assinada de foto para moderação"
+      operationId: getAdminOccurrencePhotoUrl
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/OccurrenceId"
+        - $ref: "#/components/parameters/PhotoId"
+      responses:
+        "200":
+          description: "Consulta ou alteração concluída."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PhotoUrlResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /occurrences/{id}/history:
+    get:
+      tags: [Occurrences]
+      summary: "Consultar histórico da ocorrência"
+      operationId: getOccurrenceHistory
+      description: "Somente o autor ou administrador ativo pode consultar. Observações INTERNAL não devem ser entregues ao cidadão."
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/OccurrenceId"
+      responses:
+        "200":
+          description: "Consulta ou alteração concluída."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OccurrenceHistoryResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /admin/occurrences/{id}/start-analysis:
+    patch:
+      tags: [Moderation]
+      summary: "Iniciar análise de ocorrência recebida"
+      operationId: startOccurrenceAnalysis
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/OccurrenceId"
+      responses:
+        "200":
+          description: "Consulta ou alteração concluída."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /admin/occurrences/{id}/confirm:
+    post:
+      tags: [Moderation]
+      summary: "Confirmar ocorrência em análise"
+      operationId: confirmOccurrence
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/OccurrenceId"
+      responses:
+        "200":
+          description: "Consulta ou alteração concluída."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /admin/occurrences/{id}/reject:
+    post:
+      tags: [Moderation]
+      summary: "Rejeitar ocorrência com justificativa"
+      operationId: rejectOccurrence
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/OccurrenceId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ModerationRejectRequest"
+      responses:
+        "200":
+          description: "Consulta ou alteração concluída."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /admin/occurrences/{id}/priority:
+    patch:
+      tags: [Moderation]
+      summary: "Definir prioridade de ocorrência confirmada"
+      operationId: setOccurrencePriority
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/OccurrenceId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ModerationPriorityRequest"
+      responses:
+        "200":
+          description: "Consulta ou alteração concluída."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /admin/occurrences/{id}/start-service:
+    post:
+      tags: [Moderation]
+      summary: "Iniciar atendimento com ação concreta"
+      operationId: startOccurrenceService
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/OccurrenceId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ModerationStartServiceRequest"
+      responses:
+        "200":
+          description: "Consulta ou alteração concluída."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /admin/occurrences/{id}/resolve:
+    post:
+      tags: [Moderation]
+      summary: "Marcar ocorrência em atendimento como resolvida"
+      operationId: resolveOccurrence
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/OccurrenceId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ModerationResolveRequest"
+      responses:
+        "200":
+          description: "Consulta ou alteração concluída."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /admin/occurrences/{id}/observations:
+    post:
+      tags: [Moderation]
+      summary: "Registrar observação administrativa"
+      operationId: createOccurrenceObservation
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/OccurrenceId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ModerationObservationRequest"
+      responses:
+        "201":
+          description: "Recurso criado."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ObservationCreationResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /admin/occurrences/{id}/location:
+    patch:
+      tags: [Moderation]
+      summary: "Corrigir localização mantendo a original"
+      operationId: adjustOccurrenceLocation
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/OccurrenceId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GeoPoint"
+      responses:
+        "200":
+          description: "Consulta ou alteração concluída."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /admin/occurrences/{id}/classification:
+    patch:
+      tags: [Moderation]
+      summary: "Corrigir categoria ou descrição da ocorrência"
+      operationId: correctOccurrenceClassification
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/OccurrenceId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ModerationClassificationRequest"
+      responses:
+        "200":
+          description: "Consulta ou alteração concluída."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+
 components:
   securitySchemes:
     bearerAuth:
@@ -1214,7 +1782,259 @@ components:
         O token é validado pela API utilizando
         supabase.auth.getUser(token).
 
+  parameters:
+    OccurrenceId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    PhotoId:
+      name: photoId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    Page:
+      name: page
+      in: query
+      schema: { type: integer, minimum: 1, default: 1 }
+    PageSize:
+      name: pageSize
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+    OccurrenceSort:
+      name: sort
+      in: query
+      schema: { type: string, enum: [recent, oldest, most_liked], default: recent }
+    OccurrenceCategoryId:
+      name: categoryId
+      in: query
+      schema: { type: string, format: uuid }
+    MinLat:
+      name: minLat
+      in: query
+      schema: { type: number, minimum: -90, maximum: 90 }
+    MaxLat:
+      name: maxLat
+      in: query
+      schema: { type: number, minimum: -90, maximum: 90 }
+    MinLng:
+      name: minLng
+      in: query
+      schema: { type: number, minimum: -180, maximum: 180 }
+    MaxLng:
+      name: maxLng
+      in: query
+      schema: { type: number, minimum: -180, maximum: 180 }
+    OccurrenceStatusFilter:
+      name: status
+      in: query
+      description: Um status ou múltiplos valores para consultas autenticadas.
+      schema:
+        oneOf:
+          - type: string
+          - type: array
+            items:
+              type: string
+              enum: [RECEIVED, UNDER_ANALYSIS, CONFIRMED, IN_SERVICE, RESOLVED, REJECTED]
+
   schemas:
+    # ======================================
+    # OCCURRENCES / MODERATION / PHOTOS
+    # ======================================
+
+    GeoPoint:
+      type: object
+      additionalProperties: false
+      required: [lat, lng]
+      properties:
+        lat: { type: number, minimum: -90, maximum: 90 }
+        lng: { type: number, minimum: -180, maximum: 180 }
+
+    OccurrenceStatus:
+      type: string
+      enum: [RECEIVED, UNDER_ANALYSIS, CONFIRMED, IN_SERVICE, RESOLVED, REJECTED]
+
+    OccurrenceCategorySummary:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        code: { type: string }
+        name: { type: string }
+
+    OccurrencePhotoMetadata:
+      type: object
+      description: |
+        Metadados atualmente presentes no detalhe retornado pelas RPCs.
+        A exposição de storagePath em respostas públicas está marcada para
+        correção na auditoria de segurança; não usar como URL pública.
+      properties:
+        storagePath: { type: string }
+        mimeType: { type: string }
+        sizeBytes: { type: integer, minimum: 0 }
+        position: { type: integer, minimum: 0 }
+
+    OccurrenceItem:
+      type: object
+      description: |
+        Campos variam por projeção PUBLIC, CITIZEN e ADMIN.
+        PUBLIC retorna localização aproximada; ADMIN pode retornar dados
+        de autor, localização original e detalhes adicionais.
+      required: [id, category, description, status, location, votesCount, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        category: { $ref: "#/components/schemas/OccurrenceCategorySummary" }
+        description: { type: string, maxLength: 500 }
+        status: { $ref: "#/components/schemas/OccurrenceStatus" }
+        priority:
+          type: [string, "null"]
+          enum: [LOW, MEDIUM, HIGH, null]
+        location: { $ref: "#/components/schemas/GeoPoint" }
+        votesCount: { type: integer, minimum: 0 }
+        photosCount: { type: integer, minimum: 0 }
+        photos:
+          type: array
+          items: { $ref: "#/components/schemas/OccurrencePhotoMetadata" }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        resolvedAt: { type: [string, "null"], format: date-time }
+        author:
+          type: object
+          properties:
+            id: { type: string, format: uuid }
+            name: { type: string }
+        locationOriginal: { $ref: "#/components/schemas/GeoPoint" }
+        locationAdjusted:
+          oneOf:
+            - $ref: "#/components/schemas/GeoPoint"
+            - type: "null"
+        categorySource: { type: string }
+        descriptionSource: { type: string }
+
+    PaginatedOccurrenceResponse:
+      type: object
+      required: [data, pagination]
+      properties:
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/OccurrenceItem" }
+        pagination:
+          type: object
+          required: [page, pageSize, total, totalPages]
+          properties:
+            page: { type: integer, minimum: 1 }
+            pageSize: { type: integer, minimum: 1 }
+            total: { type: integer, minimum: 0 }
+            totalPages: { type: integer, minimum: 0 }
+
+    OccurrenceDetailResponse:
+      type: object
+      required: [data]
+      properties:
+        data: { $ref: "#/components/schemas/OccurrenceItem" }
+
+    OccurrenceHistoryResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+            description: Evento de histórico ou observação, conforme papel do solicitante.
+            additionalProperties: true
+
+    PhotoUrlResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          required: [url, expiresAt, expiresInSeconds]
+          properties:
+            url: { type: string, format: uri }
+            expiresAt: { type: string, format: date-time }
+            expiresInSeconds: { type: integer, minimum: 1 }
+
+    FinalizeOccurrenceRequest:
+      type: object
+      required: [aiAnalysisId, categoryId, description, location, categorySource, descriptionSource, photos]
+      properties:
+        aiAnalysisId: { type: string, format: uuid }
+        categoryId: { type: string, format: uuid }
+        description: { type: string, minLength: 1, maxLength: 500 }
+        location: { $ref: "#/components/schemas/GeoPoint" }
+        categorySource: { type: string, enum: [AI_CONFIRMED, AI_EDITED, MANUAL] }
+        descriptionSource: { type: string, enum: [AI_CONFIRMED, AI_EDITED, MANUAL] }
+        photos:
+          type: array
+          minItems: 1
+          maxItems: 3
+          items:
+            type: object
+            required: [storagePath, mimeType, sizeBytes]
+            properties:
+              storagePath: { type: string, minLength: 1 }
+              mimeType: { type: string, enum: [image/jpeg, image/jpg] }
+              sizeBytes: { type: integer, minimum: 1 }
+
+    FinalizeOccurrenceResponse:
+      type: object
+      required: [message, data]
+      properties:
+        message: { type: string }
+        data:
+          type: object
+          required: [id, status, summary]
+          properties:
+            id: { type: string, format: uuid }
+            status: { type: string, const: RECEIVED }
+            summary:
+              type: object
+              required: [categoryId, descriptionLength, photosCount]
+              properties:
+                categoryId: { type: string, format: uuid }
+                descriptionLength: { type: integer, minimum: 1 }
+                photosCount: { type: integer, minimum: 1, maximum: 3 }
+
+    ObservationCreationResponse:
+      type: object
+      required: [message, data]
+      properties:
+        message: { type: string }
+        data: { type: string, format: uuid }
+
+    ModerationRejectRequest:
+      type: object
+      required: [justification]
+      properties:
+        justification: { type: string, minLength: 10, maxLength: 2000 }
+    ModerationPriorityRequest:
+      type: object
+      required: [priority]
+      properties:
+        priority: { type: string, enum: [LOW, MEDIUM, HIGH] }
+    ModerationStartServiceRequest:
+      type: object
+      required: [actionNotes]
+      properties:
+        actionNotes: { type: string, minLength: 10, maxLength: 2000 }
+    ModerationResolveRequest:
+      type: object
+      properties:
+        resolutionNotes: { type: string, maxLength: 2000 }
+    ModerationObservationRequest:
+      type: object
+      required: [content, visibility]
+      properties:
+        content: { type: string, minLength: 5, maxLength: 2000 }
+        visibility: { type: string, enum: [INTERNAL, CITIZEN_RESPONSE] }
+    ModerationClassificationRequest:
+      type: object
+      minProperties: 1
+      properties:
+        categoryId: { type: string, format: uuid }
+        description: { type: string, minLength: 1, maxLength: 500 }
+
     # ======================================
     # ADMIN — ÓRGÃOS / AGENCIES
     # ======================================
