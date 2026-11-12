@@ -1,6 +1,8 @@
 # Testes de regras de negócio e banco — InfraMap
 
-> Branch: `test/business-rules-db-20261112`  
+> **Aviso:** documentação atualizada dos três tickets QA-01/02/03 e resultados de CI em [qa-sprint2.md](./qa-sprint2.md). Este documento detalha prioritariamente o pgTAP herdado da primeira suíte.
+
+> Branch: `feature/qa-sprint2-20261112`  
 > Base: `main` de 12/11/2026. **Nenhuma migration de produção ou regra da aplicação foi modificada.**
 >
 > Referências normativas: `03 — BUSINESS RULES.md`, esquema do Anexo 2, migrations ativas e contratos existentes no GitHub.
@@ -11,7 +13,7 @@ Pré-requisitos: Node.js >= 22.12.0, npm, Docker Desktop aberto e espaço para a
 
 ```bash
 git fetch origin
-git switch test/business-rules-db-20261112
+git switch feature/qa-sprint2-20261112
 cd backend
 npm ci
 npm run test:unit
@@ -28,7 +30,7 @@ npm run test:all
 npx supabase stop
 ```
 
-O primeiro `supabase start` pode baixar diversas imagens Docker. Em Windows/PowerShell, os comandos acima funcionam no terminal do VS Code com Docker Desktop ativo. Caso a branch não esteja disponível localmente, use `git fetch origin` e `git switch --track origin/test/business-rules-db-20261112`.
+O primeiro `supabase start` pode baixar diversas imagens Docker. Em Windows/PowerShell, os comandos acima funcionam no terminal do VS Code com Docker Desktop ativo. Caso a branch não esteja disponível localmente, use `git fetch origin` e `git switch --track origin/feature/qa-sprint2-20261112`.
 
 **Não rodar `supabase db reset --linked`, `supabase db push`, `supabase test db --remote` ou `migration repair` durante esta validação.** A suíte pgTAP foi criada para o banco local.
 
