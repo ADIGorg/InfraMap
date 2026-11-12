@@ -55,7 +55,7 @@ Os comandos `test:integration:db` e `test:e2e` usam `scripts/run-qa-local.ts` pa
 | `tests/unit/modules/votes/vote-rpc-business-rules.spec.ts` | Uso da RPC, SQLSTATE para auto-voto, voto duplicado, conflito e ausência de voto |
 | Suítes pré-existentes | Identidade, autenticação, e-mail, categorias, IA/fallback e notificações |
 
-**Evidência efetiva:** GitHub Actions com **275 testes aprovados**, 21 ignorados (testes dependentes de stack/condicionais), compilação TypeScript e ESLint aprovados no job unitário, na revisão `7692c4b`. Os testes dependentes de Supabase são executados separadamente.
+**Evidência efetiva:** GitHub Actions [execução 43285364087](https://github.com/ADIGorg/InfraMap/actions/runs/43285364087): **275 testes TypeScript aprovados**, 24 ignorados na execução sem stack, compilação TypeScript e ESLint aprovados. Os testes dependentes de Supabase são executados separadamente.
 
 ## QA-02 — Testes com banco, RLS, RPC e Storage reais
 
@@ -70,7 +70,7 @@ Os comandos `test:integration:db` e `test:e2e` usam `scripts/run-qa-local.ts` pa
 
 `tests/integration/supabase/auth-rls-storage.spec.ts` executa cadastro público, Auth real, múltiplos JWTs, isolamento RLS, tentativa de escalonamento de papel, privilégios MASTER/OPERATIONAL, notificações privadas, Storage privado, geração de signed URLs e negação de RPC administrativa a cidadão.
 
-**Evidência efetiva anterior:** 9 testes reais de Auth/RLS/Storage aprovados, um teste legado ignorado. A verificação adicional de cadastro público foi incluída após esse resultado e exige nova execução. pgTAP encontrou **8 asserções falhas** com a migration atual; os bloqueios estão na seção de revisão.
+**Evidência efetiva:** **10 testes reais de Auth/RLS/Storage aprovados** (incluindo cadastro público), um teste legado ignorado; pgTAP executou 224 asserções e **8 falharam** no banco local com as migrations atuais. [Ver execução](https://github.com/ADIGorg/InfraMap/actions/runs/43285364087).
 
 ## QA-03 — Testes E2E usando API real
 
@@ -87,7 +87,7 @@ Os comandos `test:integration:db` e `test:e2e` usam `scripts/run-qa-local.ts` pa
 
 As fixtures criam usuários aleatórios no **Supabase local**, evitam colisão entre execuções e usam provedores mock para IA/e-mail. Isso valida os caminhos API → SQL → Storage sem disparar requisições a serviços pagos.
 
-**Evidência efetiva anterior:** 5 dos 11 cenários de E2E passaram; outros 6 falharam, em boa parte por um erro inicial de leitura de ocorrência no módulo de moderação. Os dois cenários independentes de fotografias foram adicionados depois e ainda exigem confirmação da execução atual.
+**Evidência efetiva:** **5 dos 13 cenários E2E passaram e 8 falharam**. Os seis testes da cadeia de moderação/rejeição falham ou sofrem cascata a partir do erro administrativo de leitura de ocorrência. Os **dois testes independentes** falharam comprovando defeitos adicionais: detalhe público confirmou `photoUrls=[]` onde se esperava uma URL assinada; e o endpoint público de foto devolveu HTTP **200** para ocorrência `public_visible=false`. [Ver execução](https://github.com/ADIGorg/InfraMap/actions/runs/43285364087).
 
 ## Revisão técnica final: defeitos comprovados (não corrigidos nesta branch)
 
