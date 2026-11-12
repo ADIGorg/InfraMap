@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - test/business-rules-db-20261112
+      - test/qa-01-02-03-sprint2-20261112
     paths:
       - "backend/**"
       - ".github/workflows/inframap-tests.yml"
@@ -48,21 +49,41 @@ jobs:
           EMAIL_PROVIDER: mock
 
   database:
-    name: Supabase local + pgTAP
+    name: Supabase local + pgTAP + API E2E
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 40
     defaults:
       run:
         working-directory: backend
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - name: Install dependencies
+        run: npm ci
       - uses: supabase/setup-cli@v1
         with:
           version: latest
       - name: Start isolated local Supabase database
         run: supabase start
       - name: Run pgTAP business and RLS tests
+        id: pgtap
+        continue-on-error: true
         run: supabase test db
+      - name: E2E — Auth, API, Storage, moderation and forwarding
+        id: e2e
+        continue-on-error: true
+        run: npm run test:e2e
+      - name: Require BOTH SQL and E2E to succeed
+        if: always()
+        run: |
+          echo "pgTAP: ${{ steps.pgtap.outcome }}"
+          echo "E2E: ${{ steps.e2e.outcome }}"
+          test "${{ steps.pgtap.outcome }}" = "success"
+          test "${{ steps.e2e.outcome }}" = "success"
       - name: Stop local Supabase stack
         if: always()
         run: supabase stop
