@@ -6,6 +6,9 @@ declare global {
       // Usuário autenticado pelo Supabase.
       user?: User;
 
+      // Papel de negócio consultado em user_roles pelo middleware de autorização.
+      identityRole?: 'CITIZEN' | 'ADMIN';
+
       // Access Token utilizado nas consultas com RLS.
       token?: string;
 
