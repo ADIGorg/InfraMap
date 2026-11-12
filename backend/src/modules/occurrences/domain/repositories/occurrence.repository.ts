@@ -22,13 +22,13 @@ export interface PhotoInput {
   sizeBytes: number;
 }
 
-export type DataSource = 'AI_CONFIRMED' | 'AI_EDITED' | 'MANUAL';
+export type DataSource = 'AI_CONFIRMED' | 'AI_EDITED' | 'USER_MANUAL';
 
 export interface FinalizeOccurrenceInput {
   aiAnalysisId: string;
   categoryId: string;
   description: string;
-  location: { lat: number; lng: number };
+  location: { lat: number; lng: number; source: 'GPS' | 'MANUAL' };
   categorySource: DataSource;
   descriptionSource: DataSource;
   photos: PhotoInput[];
