@@ -6,7 +6,7 @@ interface IOccurrenceModerationRepository {
     occurrenceId: string,
     adminId: string,
     actionNotes: string
-  ): Promise<void>;
+  ): Promise<unknown>;
 }
 
 export class StartServiceUseCase {
