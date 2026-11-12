@@ -13,6 +13,10 @@ on:
       - ".github/workflows/inframap-tests.yml"
   workflow_dispatch:
 
+concurrency:
+  group: inframap-testing-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   api:
     name: TypeScript + Vitest
