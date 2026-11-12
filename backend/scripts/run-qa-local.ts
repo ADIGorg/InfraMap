@@ -62,7 +62,7 @@ function main(): void {
   const vitest = resolve("node_modules", "vitest", "vitest.mjs");
   const folder = mode === "e2e" ? "tests/e2e" : "tests/integration/supabase";
   console.log(`QA (${mode}): executando ${folder} contra o Supabase local.`);
-  const result = spawnSync(process.execPath, [vitest, "run", folder, "--maxWorkers=1", "--minWorkers=1"], {
+  const result = spawnSync(process.execPath, [vitest, "run", folder], {
     stdio: "inherit",
     env,
   });
