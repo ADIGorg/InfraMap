@@ -1,4 +1,4 @@
-import { ConflictError, NotFoundError } from "../../../../shared/errors/app-error.js";
+import { ConflictError, NotFoundError, BadRequestError } from "../../../../shared/errors/app-error.js";
 import { canTransitionOccurrence } from "../../domain/services/occurrence-transition-policy.js";
 interface IOccurrenceModerationRepository {
   getOccurrenceById(occurrenceId: string): Promise<{ status: string } | null>;
@@ -15,7 +15,7 @@ export class RejectOccurrenceUseCase {
 
   async execute(adminId: string, occurrenceId: string, justification: string): Promise<void> {
     if (!justification || justification.trim().length < 10) {
-      throw new Error('Rejeição exige justificativa com pelo menos 10 caracteres (RN037).');
+      throw new BadRequestError('Rejeição exige justificativa com pelo menos 10 caracteres (RN037).');
     }
 
     const occurrence = await this.repository.getOccurrenceById(occurrenceId);
