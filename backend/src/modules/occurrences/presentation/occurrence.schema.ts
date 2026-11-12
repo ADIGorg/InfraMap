@@ -1,15 +1,15 @@
 import { z } from 'zod';
 
-const dataSourceSchema = z.enum(['AI_CONFIRMED', 'AI_EDITED', 'MANUAL'], {
-  message: 'Fonte deve ser AI_CONFIRMED, AI_EDITED ou MANUAL (RN068).',
+const dataSourceSchema = z.enum(['AI_CONFIRMED', 'AI_EDITED', 'USER_MANUAL'], {
+  message: 'Fonte deve ser AI_CONFIRMED, AI_EDITED ou USER_MANUAL (RN068).',
 });
 
 const photoSchema = z.object({
   storagePath: z.string().min(1, 'O caminho da foto é obrigatório.'),
-  mimeType: z.enum(['image/jpeg', 'image/jpg'], {
-    message: 'As fotos devem ser JPG/JPEG (RN010).',
+  mimeType: z.enum(['image/jpeg', 'image/png'], {
+    message: 'As fotos devem ser JPEG ou PNG (RN010).',
   }),
-  sizeBytes: z.number().positive('Tamanho da foto deve ser positivo.'),
+  sizeBytes: z.number().int().positive('Tamanho da foto deve ser positivo.').max(5 * 1024 * 1024),
 });
 
 export const finalizeOccurrenceSchema = z.object({
@@ -24,6 +24,7 @@ export const finalizeOccurrenceSchema = z.object({
     location: z.object({
       lat: z.number().min(-90).max(90),
       lng: z.number().min(-180).max(180),
+      source: z.enum(['GPS', 'MANUAL']).default('GPS'),
     }),
     categorySource: dataSourceSchema,
     descriptionSource: dataSourceSchema,
