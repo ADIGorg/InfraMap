@@ -1,3 +1,4 @@
+import { mapPostgrestError } from "../../../../shared/errors/map-postgrest-error.js";
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 import type {
@@ -77,7 +78,7 @@ export class SupabaseOccurrenceQueryRepository implements IOccurrenceQueryReposi
       p_sort: filters.sort,
     });
 
-    if (error) throw new Error(`Erro na consulta: ${error.message}`);
+    if (error) throw mapPostgrestError(error, 'consultar as ocorrências');
 
     const rows = (data ?? []) as RawRow[];
     const total = rows[0] ? toInt(rows[0].total_count) : 0;
@@ -98,7 +99,7 @@ export class SupabaseOccurrenceQueryRepository implements IOccurrenceQueryReposi
       p_occurrence_id: id,
     });
 
-    if (error) throw new Error(`Erro na consulta: ${error.message}`);
+    if (error) throw mapPostgrestError(error, 'consultar as ocorrências');
     return (data as Record<string, unknown> | null) ?? null;
   }
 
