@@ -62,6 +62,7 @@ export function authorizeRole(allowedRoles: string[]) {
                 );
             }
 
+            req.identityRole = userRole.role as 'CITIZEN' | 'ADMIN';
             return next();
 
         } catch (error) {
