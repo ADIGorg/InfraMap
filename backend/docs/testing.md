@@ -160,6 +160,6 @@ A captura física pela câmera é obrigação do aplicativo móvel (não verific
 ## 7. Resultados observados e parecer final
 
 - **QA-01:** `npm test`, TypeScript e lint aprovados no Actions; 276 casos passaram, 1 skip da integração externa.
-- **QA-02:** pgTAP local com 235 asserções executadas (227 aprovadas/8 falhas de regressão) antes de adicionar 8 casos da suíte 09. Pendências detectadas não devem ser removidas do teste.
-- **QA-03:** 9 testes E2E executados em Supabase local, 5 aprovados e 4 falhas reproduzidas em endpoints da aplicação; cenários posteriores reforçam privacidade de fotos, que exige homologação adicional.
+- **QA-02:** pgTAP local com **243 asserções** executadas, **232 aprovadas e 11 falhas** de regressão, incluindo SQLSTATE 42601 em 3 RPCs, ACL de EXECUTE e privacidade. Não remover asserts.
+- **QA-03:** **11 testes E2E** executados em Supabase local, **5 aprovados e 6 falhas** reproduzidas: moderação/histórico HTTP 500, votos públicos HTTP 401, detalhe com `photoUrls: []`, URL assinada de foto oculta HTTP 200 e prioridade HTTP 500. Relatório: [GitHub Actions 43285831320](https://github.com/ADIGorg/InfraMap/actions/runs/43285831320).
 - **Auditoria com localização de arquivos, evidências, prioridades e propostas de correção:** ver [qa-sprint2-review.md](./qa-sprint2-review.md).
