@@ -5,7 +5,7 @@ interface IOccurrenceModerationRepository {
     adminId: string,
     newCategoryId: string | null,
     newDescription: string | null
-  ): Promise<void>;
+  ): Promise<unknown>;
 }
 
 export class CorrectClassificationUseCase {
