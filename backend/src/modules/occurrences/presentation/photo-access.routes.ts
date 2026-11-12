@@ -48,7 +48,7 @@ export function createPhotoAccessRoutes({
 
   // ── Cidadão autor ────────────────────────────────
   const myRouter = Router();
-  myRouter.use(authenticate);
+  myRouter.use(authenticate, authorizeRole(['CITIZEN']));
   myRouter.get(
     '/:id/photos/:photoId',
     validateRequest({ params: photoAccessParamsSchema.shape.params }),
