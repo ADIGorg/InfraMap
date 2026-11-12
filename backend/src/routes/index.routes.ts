@@ -72,6 +72,21 @@ export function createRoutes(deps: RoutesDependencies): Router {
   // ==========================================
   routes.use("/identity", identityRouter);
 
+  // ID-01: GET/PATCH do perfil cadastral, com JWT e RLS do solicitante.
+  routes.use("/identity", createMyProfileRoutes({
+    authenticate,
+    resolveContext: (request) => {
+      if (!request.user || !request.token) throw new UnauthorizedError();
+      const client = createUserSupabaseClient(request.token);
+      return {
+        userId: request.user.id,
+        email: request.user.email ?? null,
+        accountProfiles: createAccountProfileRepository(client),
+        identities: createProfileReader(client),
+      };
+    },
+  }));
+
   // ==========================================
   // API1-13 — IDENTIDADE DO USUÁRIO
   // ==========================================
