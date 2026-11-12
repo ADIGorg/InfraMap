@@ -1,12 +1,7 @@
-export type OccurrenceStatus =
-  | 'RECEIVED'
-  | 'UNDER_ANALYSIS'
-  | 'CONFIRMED'
-  | 'REJECTED'
-  | 'IN_SERVICE'   // ← antes era IN_PROGRESS
-  | 'RESOLVED';
+import type { OccurrenceStatus } from "../../../occurrences/domain/value-objects/occurrence-status.js";
+import type { OccurrencePriority } from "../../../occurrences/domain/value-objects/occurrence-priority.js";
 
-export type OccurrencePriority = 'LOW' | 'MEDIUM' | 'HIGH';
+export type { OccurrenceStatus, OccurrencePriority };
 
 export interface OccurrenceBasicInfo {
   id: string;
