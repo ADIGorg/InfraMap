@@ -41,7 +41,8 @@ CREATE FUNCTION public.finalize_occurrence(
   p_category_source VARCHAR,
   p_description_source VARCHAR,
   p_photos JSONB,
-  p_occurrence_id UUID
+  p_occurrence_id UUID,
+  p_location_source public.location_source DEFAULT 'GPS'
 ) RETURNS UUID
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = ''
 AS $$
@@ -130,7 +131,7 @@ BEGIN
     'RECEIVED', NULL, p_category_source::public.field_source,
     p_description_source::public.field_source,
     extensions.ST_SetSRID(extensions.ST_MakePoint(p_lng, p_lat),4326)::extensions.geography,
-    'GPS'::public.location_source
+    p_location_source
   );
 
   FOR i IN 0..(v_photo_count-1) LOOP
@@ -186,10 +187,10 @@ BEGIN
 END $$;
 
 REVOKE ALL ON FUNCTION public.finalize_occurrence(
-  UUID,UUID,UUID,VARCHAR,DOUBLE PRECISION,DOUBLE PRECISION,VARCHAR,VARCHAR,JSONB,UUID
+  UUID,UUID,UUID,VARCHAR,DOUBLE PRECISION,DOUBLE PRECISION,VARCHAR,VARCHAR,JSONB,UUID,public.location_source
 ) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.finalize_occurrence(
-  UUID,UUID,UUID,VARCHAR,DOUBLE PRECISION,DOUBLE PRECISION,VARCHAR,VARCHAR,JSONB,UUID
+  UUID,UUID,UUID,VARCHAR,DOUBLE PRECISION,DOUBLE PRECISION,VARCHAR,VARCHAR,JSONB,UUID,public.location_source
 ) TO authenticated;
 REVOKE EXECUTE ON FUNCTION public.finalize_occurrence(
   UUID,UUID,VARCHAR,public.field_source,public.field_source,
@@ -461,10 +462,10 @@ GRANT EXECUTE ON FUNCTION public.get_occurrence(TEXT,UUID,UUID) TO service_role;
 END $$;
 
 REVOKE ALL ON FUNCTION public.finalize_occurrence(
-  UUID,UUID,UUID,VARCHAR,DOUBLE PRECISION,DOUBLE PRECISION,VARCHAR,VARCHAR,JSONB,UUID
+  UUID,UUID,UUID,VARCHAR,DOUBLE PRECISION,DOUBLE PRECISION,VARCHAR,VARCHAR,JSONB,UUID,public.location_source
 ) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.finalize_occurrence(
-  UUID,UUID,UUID,VARCHAR,DOUBLE PRECISION,DOUBLE PRECISION,VARCHAR,VARCHAR,JSONB,UUID
+  UUID,UUID,UUID,VARCHAR,DOUBLE PRECISION,DOUBLE PRECISION,VARCHAR,VARCHAR,JSONB,UUID,public.location_source
 ) TO authenticated;
 REVOKE EXECUTE ON FUNCTION public.finalize_occurrence(
   UUID,UUID,VARCHAR,public.field_source,public.field_source,
