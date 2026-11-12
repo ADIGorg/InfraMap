@@ -50,6 +50,13 @@ describe("API1-65 / QA-03 — API + Supabase local, sem mocks de repository", ()
     expect(response.status, JSON.stringify(response.body)).toBe(200);
   });
 
+  it("regressão: autor deve consultar histórico HTTP sem SELECT direto revogado", async () => {
+    const { occurrenceId } = await h.createOccurrence(citizen);
+    const history = await h.http().get(`${API}/occurrences/${occurrenceId}/history`)
+      .set("Authorization", h.bearer(citizen));
+    expect(history.status, JSON.stringify(history.body)).toBe(200);
+  });
+
   it("regressão: contagem pública de votos não pode exigir JWT", async () => {
     const { occurrenceId } = await h.createOccurrence(citizen);
     await transitionFixture(occurrenceId, "UNDER_ANALYSIS");
@@ -235,6 +242,35 @@ describe("API1-65 / QA-03 — API + Supabase local, sem mocks de repository", ()
     const dashboard = await h.http().get(`${API}/admin/dashboard`)
       .set("Authorization", h.bearer(operational));
     expect(dashboard.status, JSON.stringify(dashboard.body)).toBe(200);
+
+    const citizenCannotCreateAdmin = await h.http().post(`${API}/admin/admins`)
+      .set("Authorization", h.bearer(citizen))
+      .send({
+        name: "Admin indevido",
+        email: "qa-denied@example.com",
+        password: "Teste1234!Secure",
+        admin_level: "OPERATIONAL",
+      });
+    expect(citizenCannotCreateAdmin.status).toBe(403);
+
+    const newAdminEmail = `qa-created-${Date.now()}-${Math.random().toString(36).slice(2)}@example.com`;
+    const createdAdmin = await h.http().post(`${API}/admin/admins`)
+      .set("Authorization", h.bearer(master))
+      .send({
+        name: "Administrador QA criado por Master",
+        email: newAdminEmail,
+        password: "Teste1234!Secure",
+        admin_level: "OPERATIONAL",
+      });
+    expect(createdAdmin.status, JSON.stringify(createdAdmin.body)).toBe(201);
+    const createdAdminId: string = createdAdmin.body.data.id;
+    const updatedAdmin = await h.http().patch(`${API}/admin/admins/${createdAdminId}`)
+      .set("Authorization", h.bearer(master))
+      .send({is_active: false});
+    expect(updatedAdmin.status, JSON.stringify(updatedAdmin.body)).toBe(200);
+    const state = await h.admin.from("user_roles")
+      .select("is_active").eq("user_id", createdAdminId).single();
+    expect(state.data?.is_active).toBe(false);
 
     const agency = await h.http().post(`${API}/admin/agencies`)
       .set("Authorization", h.bearer(master))
