@@ -1,3 +1,4 @@
+import { BadRequestError, NotFoundError } from "../../../../shared/errors/app-error.js";
 interface IOccurrenceModerationRepository {
   getOccurrenceById(occurrenceId: string): Promise<unknown>;
   correctClassification(
@@ -18,21 +19,21 @@ export class CorrectClassificationUseCase {
     newDescription?: string | null
   ): Promise<void> {
     if (!newCategoryId && !newDescription) {
-      throw new Error('Informe ao menos uma correção (categoria ou descrição).');
+      throw new BadRequestError('Informe ao menos uma correção (categoria ou descrição).');
     }
 
     if (newDescription !== undefined && newDescription !== null) {
       const trimmed = newDescription.trim();
       if (trimmed.length === 0) {
-        throw new Error('A descrição não pode ser vazia.');
+        throw new BadRequestError('A descrição não pode ser vazia.');
       }
       if (trimmed.length > 500) {
-        throw new Error('A descrição deve ter no máximo 500 caracteres (RN009).');
+        throw new BadRequestError('A descrição deve ter no máximo 500 caracteres (RN009).');
       }
     }
 
     const occurrence = await this.repository.getOccurrenceById(occurrenceId);
-    if (!occurrence) throw new Error('Ocorrência não encontrada.');
+    if (!occurrence) throw new NotFoundError('Ocorrência não encontrada.');
 
     await this.repository.correctClassification(
       occurrenceId,
