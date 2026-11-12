@@ -69,7 +69,10 @@ export class LocalQaStack {
     let id: string;
 
     if (viaSignup) {
-      const { data, error } = await this.anonymous.auth.signUp({
+      const signupClient = createClient(this.url, this.publishableKey, {
+        auth: { autoRefreshToken: false, persistSession: false },
+      });
+      const { data, error } = await signupClient.auth.signUp({
         email, password, options: { data: { name } },
       });
       if (error || !data.user) throw new Error("Cadastro Supabase Auth: " + error?.message);
