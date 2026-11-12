@@ -5,7 +5,7 @@ interface IOccurrenceModerationRepository {
     adminId: string,
     status: 'REJECTED',
     justification: string,
-  ): Promise<void>;
+  ): Promise<unknown>;
 }
 
 export class RejectOccurrenceUseCase {
