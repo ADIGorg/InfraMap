@@ -16,7 +16,7 @@ const root = "/api/v1";
  * O provider de IA e o de e-mail são MOCK (sem serviços externos pagos).
  * IMPORTANTE: falhas reais da main são reportadas, não simuladas como sucesso.
  */
-describe.runIf(enabled).sequential("QA-03 — jornada completa real", () => {
+describe.runIf(enabled)("QA-03 — jornada completa real", () => {
   let app: Express;
   let service: SupabaseClient;
   let citizen: QaUser;
