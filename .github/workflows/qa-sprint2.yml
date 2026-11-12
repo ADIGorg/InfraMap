@@ -1,0 +1,105 @@
+name: QA Sprint 2 - Unit, Integration, PostgreSQL and E2E
+
+on:
+  push:
+    branches:
+      - qa/sprint2-qa01-qa02-qa03-20261112
+  pull_request:
+    paths:
+      - "backend/**"
+      - ".github/workflows/qa-sprint2.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: qa-sprint2-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  typescript:
+    name: QA-01 - Build, lint and isolated tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      NODE_ENV: test
+      SUPABASE_URL: http://127.0.0.1:54321
+      SUPABASE_PUBLISHABLE_KEY: unit-test-anon
+      SUPABASE_SECRET_KEY: unit-test-secret
+      AI_PROVIDER: mock
+      EMAIL_PROVIDER: mock
+      LOG_LEVEL: silent
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - run: npm run build
+      - run: npm run lint
+      - run: npm run test:unit
+      - run: npm run test:integration
+
+  database-and-e2e:
+    name: QA-02/03 - Supabase local, RPC, RLS, Storage and E2E
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      NODE_ENV: test
+      AI_PROVIDER: mock
+      EMAIL_PROVIDER: mock
+      LOG_LEVEL: silent
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Start disposable local Supabase
+        run: supabase start
+      - name: Read only ephemeral LOCAL keys
+        shell: bash
+        run: |
+          set -euo pipefail
+          STATUS="$(supabase status -o json)"
+          echo "SUPABASE_URL=$(jq -r '.API_URL' <<< "$STATUS")" >> "$GITHUB_ENV"
+          echo "SUPABASE_PUBLISHABLE_KEY=$(jq -r '.ANON_KEY' <<< "$STATUS")" >> "$GITHUB_ENV"
+          echo "SUPABASE_SECRET_KEY=$(jq -r '.SERVICE_ROLE_KEY' <<< "$STATUS")" >> "$GITHUB_ENV"
+      - name: QA-02 - PostgreSQL, invariants, RPCs and RLS (pgTAP)
+        id: pgtap
+        continue-on-error: true
+        run: npm run test:db
+      - name: QA-02 - Live Auth, RLS and private Storage
+        id: integration
+        continue-on-error: true
+        run: npm run test:db-integration
+      - name: QA-03 - Complete API scenarios using local Supabase
+        id: e2e
+        continue-on-error: true
+        run: npm run test:e2e
+      - name: Stop disposable stack
+        if: always()
+        run: supabase stop
+      - name: Keep CI red if any real test failed
+        if: always()
+        shell: bash
+        run: |
+          echo "pgTAP: ${{ steps.pgtap.outcome }}"
+          echo "Integration: ${{ steps.integration.outcome }}"
+          echo "E2E: ${{ steps.e2e.outcome }}"
+          test "${{ steps.pgtap.outcome }}" = "success"
+          test "${{ steps.integration.outcome }}" = "success"
+          test "${{ steps.e2e.outcome }}" = "success"
