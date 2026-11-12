@@ -1,0 +1,76 @@
+name: InfraMap Sprint 2 QA (01-03)
+
+on:
+  push:
+    branches:
+      - 'feature/qa-sprint2-*'
+    paths:
+      - 'backend/**'
+      - '.github/workflows/qa-sprint2.yml'
+  pull_request:
+    paths:
+      - 'backend/**'
+      - '.github/workflows/qa-sprint2.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: qa-sprint2-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  unit:
+    name: QA-01 - Build + lint + Vitest
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - run: npm run build
+      - run: npm run lint
+      - name: Vitest unitário e HTTP
+        run: npm test
+        env:
+          NODE_ENV: test
+          AI_PROVIDER: mock
+          EMAIL_PROVIDER: mock
+
+  database-e2e:
+    name: QA-02/03 - PostgreSQL + Storage + E2E
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 'latest'
+      - name: Iniciar stack LOCAL isolada
+        id: stack
+        run: npx supabase start -x studio,imgproxy,logflare,vector,mailpit,edge-runtime,realtime,supavisor
+      - name: QA-02 - Banco + RLS + transações pgTAP
+        if: steps.stack.outcome == 'success'
+        run: npm run test:db
+      - name: QA-02 - Integração Auth/RPC/Storage
+        if: always() && steps.stack.outcome == 'success'
+        run: npm run test:integration:db
+      - name: QA-03 - Fluxo real da API com mock IA/e-mail
+        if: always() && steps.stack.outcome == 'success'
+        run: npm run test:e2e
+      - name: Parar stack local
+        if: always()
+        run: npx supabase stop || true
