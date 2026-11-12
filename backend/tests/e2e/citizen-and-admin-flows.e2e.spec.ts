@@ -50,6 +50,14 @@ describe("API1-65 / QA-03 — API + Supabase local, sem mocks de repository", ()
     expect(response.status, JSON.stringify(response.body)).toBe(200);
   });
 
+  it("regressão: contagem pública de votos não pode exigir JWT", async () => {
+    const { occurrenceId } = await h.createOccurrence(citizen);
+    await transitionFixture(occurrenceId, "UNDER_ANALYSIS");
+    await transitionFixture(occurrenceId, "CONFIRMED");
+    const response = await h.http().get(`${API}/occurrences/${occurrenceId}/votes`);
+    expect(response.status, JSON.stringify(response.body)).toBe(200);
+  });
+
   it("cadastro real, login, isolamento e atualização de perfil", async () => {
     const me = await h.http().get(`${API}/identity/me`)
       .set("Authorization", h.bearer(citizen));
@@ -138,8 +146,11 @@ describe("API1-65 / QA-03 — API + Supabase local, sem mocks de repository", ()
     const duplicate = await h.http().post(`${API}/occurrences/${occurrenceId}/votes`)
       .set("Authorization", h.bearer(voter));
     expect(duplicate.status).toBe(409);
-    const count = await h.http().get(`${API}/occurrences/${occurrenceId}/votes`);
-    expect(count.status).toBe(200);
+    // A chamada sem JWT está no teste de regressão independente acima:
+    // o router de histórico aplica authenticate antes de alcançar votesRoutes.
+    const count = await h.http().get(`${API}/occurrences/${occurrenceId}/votes`)
+      .set("Authorization", h.bearer(voter));
+    expect(count.status, JSON.stringify(count.body)).toBe(200);
     expect(count.body.data.vote_count).toBe(1);
 
     const removed = await h.http().delete(`${API}/occurrences/${occurrenceId}/votes/me`)
