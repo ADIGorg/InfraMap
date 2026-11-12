@@ -1,31 +1,23 @@
+// src/infrastructure/supabase/admin-client.ts
 
-import {
-  createClient,
-  type SupabaseClient,
-} from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+
+import { env } from "../../config/env.js";
 
 /**
- * Cria um cliente administrativo do Supabase.
+ * Cliente administrativo (service_role).
  *
- * A chave secreta nunca deve ser enviada ao
- * frontend, mobile ou incluída no Git.
+ * Usar APENAS em operações que exigem bypass de RLS:
+ *  - Upload/move de fotos no bucket `occurrence-photos`
+ *  - Auth admin (createUser, updateUserById, signOut)
+ *  - `account_deactivation_jobs` (service_role-only table)
+ *  - `provision_administrator` (via app_metadata)
  *
- * A criação é feita sob demanda, evitando
- * exigir a chave ao executar testes unitários.
+ * NUNCA expor no frontend/mobile. NUNCA logar.
+ * `env.ts` já validou `SUPABASE_SECRET_KEY` no boot — fail-fast coberto.
  */
 export function createSupabaseAdminClient(): SupabaseClient {
-  const url = process.env.SUPABASE_URL?.trim();
-
-  const secretKey =
-    process.env.SUPABASE_SECRET_KEY?.trim();
-
-  if (!url || !secretKey) {
-    throw new Error(
-      "Configure SUPABASE_URL e SUPABASE_SECRET_KEY para operações administrativas."
-    );
-  }
-
-  return createClient(url, secretKey, {
+  return createClient(env.supabase.url, env.supabase.secretKey, {
     auth: {
       autoRefreshToken: false,
       persistSession: false,

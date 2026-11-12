@@ -2,18 +2,24 @@ openapi: 3.1.0
 
 info:
   title: InfraMap API
-  version: 1.0.0
-  license:                               
+  version: 1.1.0
+  license:
     name: UNLICENSED
     identifier: UNLICENSED
   description: |
-    API REST do InfraMap, responsável pela autenticação,
-    identificação de usuários, gerenciamento de perfis,
-    consulta de categorias e integração com o Supabase.
+    API REST do InfraMap — autenticação via Supabase Auth, identidade
+    de cidadãos e administradores, gerenciamento de perfil, registro e
+    acompanhamento de ocorrências de infraestrutura urbana, análise
+    assistida por IA, moderação administrativa, votos comunitários e
+    notificações.
 
-    A API utiliza Supabase Auth para validar tokens JWT
-    e PostgreSQL com Row Level Security (RLS) para
-    controlar o acesso aos dados.
+    Todas as operações de leitura e escrita de ocorrências passam por
+    RPCs ou views do PostgreSQL com `security definer` / `security invoker`,
+    respeitando Row Level Security (RLS). A API não expõe SELECT direto
+    em `occurrences` para `anon`/`authenticated`.
+
+    O endpoint DELETE /identity/me anonimiza permanentemente os dados
+    de contato do usuário (RN058) — o autor deve ser avisado no cliente.
 
 servers:
   - url: http://localhost:3000/api/v1
@@ -22,29 +28,33 @@ servers:
 tags:
   - name: Health
     description: Verificação de disponibilidade da API.
+  - name: Categories
+    description: Consulta pública às categorias de infraestrutura.
   - name: Identity
     description: Identificação e gerenciamento de perfis de usuários.
   - name: App
-    description: Endpoints destinados ao aplicativo cidadão.
+    description: Endpoints destinados ao aplicativo cidadão autenticado.
   - name: Admin
     description: Endpoints destinados ao painel administrativo.
-  - name: Categories
-    description: Consulta pública às categorias de infraestrutura.
   - name: Notifications
     description: Notificações do cidadão autenticado.
+  - name: Public
+    description: Consultas anônimas ao mapa público de ocorrências.
+  - name: Occurrences
+    description: Registro e acompanhamento de ocorrências pelo cidadão.
+  - name: Moderation
+    description: Análise e gerenciamento de ocorrências pelo administrador.
+  - name: Photos
+    description: Acesso a URLs assinadas das evidências fotográficas.
 
 paths:
   # ========================================
   # HEALTH
   # ========================================
-
   /health:
     get:
       tags: [Health]
       summary: Verificar disponibilidade da API
-      description: |
-        Verifica se a API está funcionando.
-        Não exige autenticação.
       operationId: getHealth
       security: []
       responses:
@@ -52,931 +62,904 @@ paths:
           description: API funcionando.
           content:
             application/json:
-              schema:
-                $ref: "#/components/schemas/HealthResponse"
-              example:
-                status: ok
-                message: InfraMap API funcionando!
-                timestamp: "2026-11-04T14:00:00.000Z"
-        "429":
-          $ref: "#/components/responses/TooManyRequests"
-        "500":
-          $ref: "#/components/responses/InternalServerError"
+              schema: { $ref: "#/components/schemas/HealthResponse" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+        "500": { $ref: "#/components/responses/InternalServerError" }
 
   # ========================================
   # CATEGORIES
   # ========================================
-
   /categories:
     get:
       tags: [Categories]
       summary: Listar categorias ativas
-      description: |
-        Retorna as categorias ativas de infraestrutura urbana,
-        ordenadas pelo código.
-
-        Endpoint público: não exige autenticação.
       operationId: listActiveCategories
       security: []
       responses:
         "200":
-          description: Categorias ativas retornadas com sucesso.
+          description: Categorias ativas retornadas.
           content:
             application/json:
-              schema:
-                $ref: "#/components/schemas/CategoriesListResponse"
-        "429":
-          $ref: "#/components/responses/TooManyRequests"
-        "500":
-          $ref: "#/components/responses/InternalServerError"
+              schema: { $ref: "#/components/schemas/CategoriesListResponse" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+        "500": { $ref: "#/components/responses/InternalServerError" }
 
   # ========================================
   # IDENTITY — ROTAS PROVISÓRIAS
   # ========================================
-
   /identity/users:
     post:
       tags: [Identity]
-      summary: Validar dados para criação de usuário
+      summary: Validar dados para criação de usuário (provisório)
       description: |
-        Endpoint provisório que valida os dados recebidos
-        utilizando Zod.
-
-        IMPORTANTE: esta operação não cria usuários no
-        Supabase Auth nem persiste informações no banco.
-
-        A resposta confirma somente a validação, sem devolver
-        os dados enviados ou a senha.
-
-        Requer autenticação e perfil ADMIN.
+        Endpoint provisório. Valida o body com Zod mas **não cria** usuário
+        em `auth.users`. A implementação definitiva pertence a um ticket
+        separado (ARC-01). Requer ADMIN.
       operationId: validateUserCreation
-      security:
-        - bearerAuth: []
+      security: [{ bearerAuth: [] }]
       requestBody:
         required: true
         content:
           application/json:
-            schema:
-              $ref: "#/components/schemas/CreateUserRequest"
-            example:
-              name: Maria Silva
-              email: maria@example.com
-              password: senha123
-              role: CITIZEN
+            schema: { $ref: "#/components/schemas/CreateUserRequest" }
       responses:
         "201":
           description: Dados validados. Nenhum usuário foi criado.
           content:
             application/json:
-              schema:
-                $ref: "#/components/schemas/UserValidationResponse"
-              example:
-                message: Dados validados. Nenhum usuário foi criado.
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "403":
-          $ref: "#/components/responses/Forbidden"
-        "413":
-          $ref: "#/components/responses/PayloadTooLarge"
-        "429":
-          $ref: "#/components/responses/TooManyRequests"
-        "500":
-          $ref: "#/components/responses/InternalServerError"
+              schema: { $ref: "#/components/schemas/UserValidationResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+        "500": { $ref: "#/components/responses/InternalServerError" }
     get:
       tags: [Identity]
-      summary: Validar parâmetros de consulta de usuários
-      description: |
-        Valida os parâmetros de paginação utilizando Zod.
-
-        Endpoint provisório: não realiza consulta de usuários
-        no banco de dados.
-
-        Apenas retorna os parâmetros validados.
-
-        Requer autenticação.
+      summary: Validar parâmetros de consulta de usuários (provisório)
       operationId: validateUsersQuery
-      security:
-        - bearerAuth: []
+      security: [{ bearerAuth: [] }]
       parameters:
-        - name: page
-          in: query
-          required: false
-          description: Número da página.
-          schema:
-            type: integer
-            minimum: 1
-            default: 1
-          example: 1
-        - name: limit
-          in: query
-          required: false
-          description: Quantidade máxima de registros por página.
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 100
-            default: 20
-          example: 20
+        - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
       responses:
         "200":
           description: Parâmetros validados.
           content:
             application/json:
-              schema:
-                $ref: "#/components/schemas/UsersQueryResponse"
-              example:
-                message: Parâmetros validados com sucesso.
-                data:
-                  page: 1
-                  limit: 20
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "429":
-          $ref: "#/components/responses/TooManyRequests"
-        "500":
-          $ref: "#/components/responses/InternalServerError"
+              schema: { $ref: "#/components/schemas/UsersQueryResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
 
   /identity/users/{id}:
     get:
       tags: [Identity]
-      summary: Validar identificador de usuário
-      description: |
-        Valida se o identificador informado é um UUID válido.
-
-        Endpoint provisório: ainda não consulta os dados
-        do usuário no banco de dados.
-
-        Requer autenticação.
+      summary: Validar identificador de usuário (provisório)
       operationId: validateUserId
-      security:
-        - bearerAuth: []
+      security: [{ bearerAuth: [] }]
       parameters:
         - name: id
           in: path
           required: true
-          description: UUID do usuário.
-          schema:
-            type: string
-            format: uuid
-          example: 181227d2-89d7-4ceb-8dff-85b623aeee5b
+          schema: { type: string, format: uuid }
       responses:
         "200":
           description: Identificador válido.
           content:
             application/json:
-              schema:
-                $ref: "#/components/schemas/UserLookupResponse"
-              example:
-                message: "Buscando usuário 181227d2-89d7-4ceb-8dff-85b623aeee5b"
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "429":
-          $ref: "#/components/responses/TooManyRequests"
-        "500":
-          $ref: "#/components/responses/InternalServerError"
+              schema: { $ref: "#/components/schemas/MessageResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
 
   # ========================================
   # ID-01 — PERFIL DO PRÓPRIO USUÁRIO
   # ========================================
-
   /identity/me:
     get:
       tags: [Identity]
       summary: Consultar o próprio perfil
       description: |
-        Retorna os dados cadastrais do usuário autenticado.
-
-        Requer token JWT válido e conta ativa.
-
-        O usuário pode consultar somente o próprio perfil.
-
-        Os dados cadastrais são consultados na tabela
-        public.profiles, utilizando o JWT do usuário e
-        respeitando as políticas RLS do Supabase.
-
-        O e-mail é obtido do Supabase Auth.
-
-        Contas inativas ou sem perfil de autorização
-        válido não podem executar esta operação.
+        Retorna dados cadastrais de `public.profiles` + e-mail de
+        `auth.users`. Requer JWT válido e conta ativa.
       operationId: getMyProfile
-      security:
-        - bearerAuth: []
+      security: [{ bearerAuth: [] }]
       responses:
         "200":
-          description: Perfil consultado com sucesso.
+          description: Perfil consultado.
           content:
             application/json:
-              schema:
-                $ref: "#/components/schemas/MyProfileResponse"
-              example:
-                message: Usuário autenticado.
-                data:
-                  id: 181227d2-89d7-4ceb-8dff-85b623aeee5b
-                  name: Maria Silva
-                  phone: "(75) 99999-9999"
-                  created_at: "2026-11-01T10:00:00.000Z"
-                  updated_at: "2026-11-01T10:00:00.000Z"
-                  email: maria@example.com
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "403":
-          $ref: "#/components/responses/Forbidden"
-        "404":
-          $ref: "#/components/responses/NotFound"
-        "429":
-          $ref: "#/components/responses/TooManyRequests"
-        "500":
-          $ref: "#/components/responses/InternalServerError"
+              schema: { $ref: "#/components/schemas/MyProfileResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
     patch:
       tags: [Identity]
       summary: Atualizar o próprio perfil
       description: |
-        Permite atualizar os dados cadastrais do
-        usuário autenticado.
-
-        Requer token JWT válido e conta ativa.
-
-        Somente os campos name e phone são permitidos.
-
-        A operação não permite modificar:
-        - id
-        - email
-        - role
-        - admin_level
-        - is_active
-
-        A atualização ocorre exclusivamente no registro
-        associado ao identificador do usuário autenticado.
-
-        A API utiliza o JWT do usuário para acessar o
-        Supabase e respeita as políticas RLS.
-
-        O campo name deve conter entre 3 e 150 caracteres.
-
-        O campo phone é opcional e deve conter entre
-        8 e 15 dígitos numéricos, considerando sua
-        formatação.
-
-        Para remover um telefone cadastrado, envie null.
-
-        Deve ser informado pelo menos um campo válido.
+        Atualiza somente `name` e `phone`. `phone` aceita `null` para
+        remoção. Pelo menos um campo deve ser enviado. Campos como
+        `id`, `email`, `role`, `admin_level` e `is_active` são rejeitados.
       operationId: updateMyProfile
-      security:
-        - bearerAuth: []
+      security: [{ bearerAuth: [] }]
       requestBody:
         required: true
         content:
           application/json:
-            schema:
-              $ref: "#/components/schemas/UpdateMyProfileRequest"
-            example:
-              name: Maria Souza
-              phone: "(75) 98888-8888"
+            schema: { $ref: "#/components/schemas/UpdateMyProfileRequest" }
       responses:
         "200":
-          description: Perfil atualizado com sucesso.
+          description: Perfil atualizado.
           content:
             application/json:
-              schema:
-                $ref: "#/components/schemas/MyProfileResponse"
-              example:
-                message: Perfil atualizado com sucesso.
-                data:
-                  id: 181227d2-89d7-4ceb-8dff-85b623aeee5b
-                  name: Maria Souza
-                  phone: "(75) 98888-8888"
-                  created_at: "2026-11-01T10:00:00.000Z"
-                  updated_at: "2026-11-08T18:00:00.000Z"
-                  email: maria@example.com
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "403":
-          $ref: "#/components/responses/Forbidden"
-        "404":
-          $ref: "#/components/responses/NotFound"
-        "413":
-          $ref: "#/components/responses/PayloadTooLarge"
-        "429":
-          $ref: "#/components/responses/TooManyRequests"
-        "500":
-          $ref: "#/components/responses/InternalServerError"
+              schema: { $ref: "#/components/schemas/MyProfileResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
     delete:
       tags: [Identity]
       summary: Desativar e anonimizar a própria conta
       description: |
-        Permite que um cidadão autenticado, com conta ativa,
-        solicite a desativação da própria conta.
-
-        A operação tenta revogar as sessões no Supabase Auth,
-        desativa o acesso (user_roles.is_active = false),
-        substitui o nome por "Usuário excluído", remove o
-        telefone cadastrado e anonimiza os dados pessoais
-        de autenticação no Supabase Auth.
-
-        As ocorrências, fotos e o histórico são preservados.
-
-        Se a anonimização do Auth falhar após a desativação
-        no banco, a conta permanece desativada e a limpeza
-        pendente poderá ser retomada administrativamente.
-
-        Não recebe identificador de usuário no corpo:
-        a operação utiliza a identidade do próprio JWT.
+        Revoga sessões, desativa `user_roles`, substitui `name` por
+        "Usuário excluído", remove `phone` e agenda limpeza assíncrona
+        de `auth.users` (email anonimizado). Ocorrências e histórico
+        permanecem. **Ação irreversível.**
       operationId: deactivateMyAccount
-      security:
-        - bearerAuth: []
+      security: [{ bearerAuth: [] }]
       responses:
         "204":
-          description: Conta desativada e anonimizada com sucesso. Resposta sem corpo.
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "403":
-          $ref: "#/components/responses/Forbidden"
-        "429":
-          $ref: "#/components/responses/TooManyRequests"
+          description: Conta desativada e anonimizada.
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
         "503":
-          description: |
-            Não foi possível revogar as sessões ou a conta
-            foi desativada e a anonimização do Auth está pendente.
+          description: Falha na revogação de sessões ou limpeza de Auth pendente.
           content:
             application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-              examples:
-                sessionRevocationFailed:
-                  summary: Falha ao encerrar sessões
-                  value:
-                    error:
-                      code: SESSION_REVOCATION_FAILED
-                      message: Não foi possível encerrar as sessões. A conta não foi desativada.
-                authCleanupPending:
-                  summary: Conta desativada com limpeza pendente
-                  value:
-                    error:
-                      code: ACCOUNT_DEACTIVATED_AUTH_PENDING
-                      message: Conta desativada. A limpeza dos dados de autenticação está pendente.
-        "500":
-          $ref: "#/components/responses/InternalServerError"
-
-  # ========================================
-  # IDENTITY — VERIFICAÇÃO ADMINISTRATIVA
-  # ========================================
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
 
   /identity/admin-check:
     get:
       tags: [Identity]
       summary: Verificar acesso administrativo
-      description: |
-        Verifica se o usuário autenticado possui
-        perfil ADMIN e conta ativa.
-
-        Requer autenticação.
       operationId: checkAdminAccess
-      security:
-        - bearerAuth: []
+      security: [{ bearerAuth: [] }]
       responses:
         "200":
-          description: Acesso administrativo autorizado.
+          description: Acesso autorizado.
           content:
             application/json:
-              schema:
-                $ref: "#/components/schemas/MessageResponse"
-              example:
-                message: Acesso administrativo autorizado.
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "403":
-          $ref: "#/components/responses/Forbidden"
-        "429":
-          $ref: "#/components/responses/TooManyRequests"
-        "500":
-          $ref: "#/components/responses/InternalServerError"
+              schema: { $ref: "#/components/schemas/MessageResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
 
   # ========================================
   # APP — IDENTIDADE DO CIDADÃO
   # ========================================
-
   /app/me:
     get:
       tags: [App]
       summary: Identificar cidadão autenticado
-      description: |
-        Retorna o identificador, o perfil e a situação
-        da conta do cidadão autenticado.
-
-        Requer token JWT válido, perfil CITIZEN
-        e conta ativa.
       operationId: getCitizenIdentity
-      security:
-        - bearerAuth: []
+      security: [{ bearerAuth: [] }]
       responses:
         "200":
-          description: Identidade do cidadão retornada.
+          description: Identidade do cidadão.
           content:
             application/json:
-              schema:
-                $ref: "#/components/schemas/IdentityResponse"
-              example:
-                id: 181227d2-89d7-4ceb-8dff-85b623aeee5b
-                role: CITIZEN
-                is_active: true
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "403":
-          $ref: "#/components/responses/Forbidden"
-        "429":
-          $ref: "#/components/responses/TooManyRequests"
-        "500":
-          $ref: "#/components/responses/InternalServerError"
+              schema: { $ref: "#/components/schemas/IdentityResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
 
   # ========================================
   # ADMIN — IDENTIDADE DO ADMINISTRADOR
   # ========================================
-
   /admin/me:
     get:
       tags: [Admin]
       summary: Identificar administrador autenticado
-      description: |
-        Retorna o identificador, o perfil e a situação
-        da conta do administrador autenticado.
-
-        Requer token JWT válido, perfil ADMIN
-        e conta ativa.
       operationId: getAdminIdentity
-      security:
-        - bearerAuth: []
+      security: [{ bearerAuth: [] }]
       responses:
         "200":
-          description: Identidade do administrador retornada.
+          description: Identidade do administrador.
           content:
             application/json:
-              schema:
-                $ref: "#/components/schemas/IdentityResponse"
-              example:
-                id: 181227d2-89d7-4ceb-8dff-85b623aeee5b
-                role: ADMIN
-                is_active: true
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "403":
-          $ref: "#/components/responses/Forbidden"
-        "429":
-          $ref: "#/components/responses/TooManyRequests"
-        "500":
-          $ref: "#/components/responses/InternalServerError"
+              schema: { $ref: "#/components/schemas/IdentityResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
 
   # ========================================
-  # VOTES — IMPACTO COMUNITÁRIO
+  # OCCURRENCES — CIDADÃO
   # ========================================
-
-  /occurrences/{id}/votes:
-    get:
-      tags: [App]
-      summary: Consulta a contagem de votos de uma ocorrência pública
-      security: []
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-      responses:
-        "200":
-          description: Contagem pública de votos
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/VoteCountResponse"
-        "400":
-          description: Identificador inválido
-        "404":
-          description: Ocorrência pública não encontrada
+  /occurrences/finalize:
     post:
-      tags: [App]
-      summary: Registra um voto do cidadão ativo
-      security:
-        - bearerAuth: []
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
+      tags: [Occurrences]
+      summary: Registrar nova ocorrência
+      description: |
+        Consome uma análise de IA `COMPLETED` (RN063/RN064) e cria a
+        ocorrência em status `RECEIVED` (RN026). Categoria e descrição
+        precisam ser coerentes com `categorySource`/`descriptionSource`
+        (RN068). 1 a 3 fotos JPEG/PNG com até 5 MB cada (RN010).
+      operationId: finalizeOccurrence
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/FinalizeOccurrenceRequest" }
       responses:
         "201":
-          description: Voto registrado e contagem atualizada
+          description: Ocorrência registrada.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/FinalizeOccurrenceResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409":
+          description: Análise já consumida, não `COMPLETED` ou pertence a outro usuário.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+        "500":
+          description: |
+            Falha ao persistir ou ao mover fotos do bucket. Quando o RPC
+            commita mas o move falha, a mensagem contém o `occurrenceId`
+            para recuperação manual.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /occurrences/mine:
+    get:
+      tags: [Occurrences]
+      summary: Listar ocorrências do próprio cidadão
+      description: |
+        Lista paginada das ocorrências do autor (RN045), incluindo
+        `RESOLVED` e `REJECTED`. A localização exata é exposta ao autor
+        (RN020). Filtros de status/bbox **não são aplicados** nesta versão.
+      operationId: listMyOccurrences
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: "#/components/parameters/PageQuery" }
+        - { $ref: "#/components/parameters/PageSizeQuery" }
+        - { $ref: "#/components/parameters/SortQuery" }
+      responses:
+        "200":
+          description: Lista paginada.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MyOccurrenceListResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /occurrences/mine/{id}:
+    get:
+      tags: [Occurrences]
+      summary: Detalhe de ocorrência própria
+      operationId: getMyOccurrence
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: "#/components/parameters/OccurrenceIdPath" }
+      responses:
+        "200":
+          description: Detalhe com URLs assinadas das fotos.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/VoteCountResponse"
-        "400":
-          description: Identificador inválido
-        "401":
-          description: Autenticação necessária
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    allOf:
+                      - $ref: "#/components/schemas/MyOccurrenceDetail"
+                      - type: object
+                        required: [photoUrls]
+                        properties:
+                          photoUrls:
+                            type: array
+                            items: { $ref: "#/components/schemas/OccurrencePhotoWithUrl" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
         "403":
-          description: Acesso negado ou voto na própria ocorrência
-        "404":
-          description: Ocorrência não encontrada
+          description: Não é o autor.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /occurrences/{id}/history:
+    get:
+      tags: [Occurrences]
+      summary: Histórico da ocorrência
+      description: |
+        Eventos em ordem cronológica ascendente. O autor vê apenas
+        `CITIZEN_RESPONSE` em observações; o admin vê `INTERNAL` também
+        (RN044). Autorização decidida no use case.
+      operationId: getOccurrenceHistory
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: "#/components/parameters/OccurrenceIdPath" }
+      responses:
+        "200":
+          description: Histórico retornado.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/HistoryListResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  # ========================================
+  # OCCURRENCES — PÚBLICO
+  # ========================================
+  /occurrences/public:
+    get:
+      tags: [Public]
+      summary: Listar ocorrências no mapa público
+      description: |
+        Retorna somente `CONFIRMED` e `IN_SERVICE` (RN022), com
+        localização aproximada (~110 m) e sem fotos ou dados do autor.
+        Cacheável e seguro para anônimos.
+      operationId: listPublicOccurrences
+      security: []
+      parameters:
+        - { $ref: "#/components/parameters/PageQuery" }
+        - { $ref: "#/components/parameters/PageSizeQuery" }
+        - { $ref: "#/components/parameters/SortQuery" }
+        - { name: categoryId, in: query, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: Lista pública paginada.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PublicOccurrenceListResponse" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+
+  /occurrences/public/{id}:
+    get:
+      tags: [Public]
+      summary: Detalhe público de ocorrência
+      operationId: getPublicOccurrence
+      security: []
+      parameters:
+        - { $ref: "#/components/parameters/OccurrenceIdPath" }
+      responses:
+        "200":
+          description: Detalhe público com URLs assinadas das fotos.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    allOf:
+                      - $ref: "#/components/schemas/PublicOccurrence"
+                      - type: object
+                        properties:
+                          photoUrls:
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                mimeType: { type: string }
+                                sizeBytes: { type: integer }
+                                position: { type: integer }
+                                url: { type: string, format: uri }
+                                expiresAt: { type: string, format: date-time }
+                                expiresInSeconds: { type: integer }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  # ========================================
+  # OCCURRENCES — ADMIN
+  # ========================================
+  /admin/occurrences:
+    get:
+      tags: [Admin]
+      summary: Listar ocorrências no painel administrativo
+      description: |
+        Admin ativo. Filtros: `status`, `category` (UUID ou CATxx),
+        `priority`, `min_votes`, `sort` (`created_at` | `priority` |
+        `status_updated_at` | `votes`), `order` (`asc` | `desc`).
+        Padrão: `created_at desc` (RN053).
+      operationId: adminListOccurrences
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: "#/components/parameters/PageQuery" }
+        - { $ref: "#/components/parameters/PageSizeQuery" }
+        - { $ref: "#/components/parameters/SortQuery" }
+        - name: status
+          in: query
+          schema: { type: array, items: { $ref: "#/components/schemas/OccurrenceStatus" } }
+          style: form
+          explode: true
+        - name: category
+          in: query
+          schema: { type: array, items: { type: string } }
+          style: form
+          explode: true
+        - name: priority
+          in: query
+          schema: { type: array, items: { $ref: "#/components/schemas/OccurrencePriority" } }
+          style: form
+          explode: true
+        - name: min_votes
+          in: query
+          schema: { type: integer, minimum: 0 }
+      responses:
+        "200":
+          description: Lista paginada.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminOccurrenceListResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /admin/occurrences/{id}:
+    get:
+      tags: [Admin]
+      summary: Detalhe de ocorrência (visão administrativa)
+      operationId: adminGetOccurrence
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: "#/components/parameters/OccurrenceIdPath" }
+      responses:
+        "200":
+          description: Detalhe com campos internos.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    allOf:
+                      - $ref: "#/components/schemas/AdminOccurrenceDetail"
+                      - type: object
+                        required: [photoUrls]
+                        properties:
+                          photoUrls:
+                            type: array
+                            items: { $ref: "#/components/schemas/OccurrencePhotoWithUrl" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  # ========================================
+  # MODERATION — ADMIN
+  # ========================================
+  /admin/occurrences/{id}/start-analysis:
+    patch:
+      tags: [Moderation]
+      summary: Iniciar análise (RECEIVED → UNDER_ANALYSIS)
+      operationId: startAnalysis
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: "#/components/parameters/OccurrenceIdPath" }
+      responses:
+        "200":
+          description: Status alterado.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MessageResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
         "409":
-          description: Voto duplicado ou ocorrência inelegível
+          description: Transição inválida (não está RECEIVED).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /admin/occurrences/{id}/confirm:
+    post:
+      tags: [Moderation]
+      summary: Confirmar ocorrência (UNDER_ANALYSIS → CONFIRMED)
+      operationId: confirmOccurrence
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: "#/components/parameters/OccurrenceIdPath" }
+      responses:
+        "200":
+          description: Ocorrência confirmada.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MessageResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: Transição inválida.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /admin/occurrences/{id}/reject:
+    post:
+      tags: [Moderation]
+      summary: Rejeitar ocorrência (UNDER_ANALYSIS → REJECTED)
+      description: Justificativa obrigatória (RN037), mínimo 10 caracteres.
+      operationId: rejectOccurrence
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: "#/components/parameters/OccurrenceIdPath" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RejectOccurrenceRequest" }
+      responses:
+        "200":
+          description: Ocorrência rejeitada.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MessageResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: Transição inválida.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /admin/occurrences/{id}/priority:
+    patch:
+      tags: [Moderation]
+      summary: Definir ou alterar prioridade (RN036)
+      description: |
+        Permitido em `CONFIRMED`, `IN_SERVICE` e `RESOLVED` (o admin
+        pode corrigir após a confirmação). Rejeita valor idêntico.
+      operationId: setOccurrencePriority
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: "#/components/parameters/OccurrenceIdPath" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SetPriorityRequest" }
+      responses:
+        "200":
+          description: Prioridade definida.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MessageResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: Ocorrência não está elegível.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /admin/occurrences/{id}/start-service:
+    post:
+      tags: [Moderation]
+      summary: Iniciar atendimento (CONFIRMED → IN_SERVICE, RN061)
+      description: |
+        Exige prioridade previamente definida (RN061) e registro da ação
+        concreta. Sem priority → 409.
+      operationId: startService
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: "#/components/parameters/OccurrenceIdPath" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/StartServiceRequest" }
+      responses:
+        "200":
+          description: Atendimento iniciado.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MessageResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: Transição inválida ou prioridade ausente.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /admin/occurrences/{id}/resolve:
+    post:
+      tags: [Moderation]
+      summary: Resolver ocorrência (IN_SERVICE → RESOLVED, RN031)
+      operationId: resolveOccurrence
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: "#/components/parameters/OccurrenceIdPath" }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ResolveOccurrenceRequest" }
+      responses:
+        "200":
+          description: Ocorrência resolvida.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MessageResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: Transição inválida.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /admin/occurrences/{id}/observations:
+    post:
+      tags: [Moderation]
+      summary: Registrar observação administrativa (RN043/RN044)
+      description: |
+        `INTERNAL` fica visível apenas a admins; `CITIZEN_RESPONSE`
+        dispara uma notificação automática ao autor via trigger.
+      operationId: createObservation
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: "#/components/parameters/OccurrenceIdPath" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateObservationRequest" }
+      responses:
+        "201":
+          description: Observação registrada.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ObservationResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /admin/occurrences/{id}/location:
+    patch:
+      tags: [Moderation]
+      summary: Ajustar localização administrativa (RN021)
+      description: |
+        Altera `location_adjusted`; `location_original` permanece
+        imutável (trigger). Rejeita ocorrências terminais
+        (`RESOLVED`/`REJECTED`). Latitude antes de longitude na API;
+        internamente a RPC recebe `p_new_lon`/`p_new_lat`.
+      operationId: adjustLocation
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: "#/components/parameters/OccurrenceIdPath" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AdjustLocationRequest" }
+      responses:
+        "200":
+          description: Localização ajustada.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MessageResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: Ocorrência terminal.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /admin/occurrences/{id}/classification:
+    patch:
+      tags: [Moderation]
+      summary: Corrigir categoria e/ou descrição (RN025/RN068)
+      description: |
+        Marca `field_source='ADMIN_CORRECTED'` no histórico. Pelo menos
+        um dos campos deve ser enviado. Só permitido em `UNDER_ANALYSIS`,
+        `CONFIRMED`, `IN_SERVICE` ou `RESOLVED`.
+      operationId: correctClassification
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: "#/components/parameters/OccurrenceIdPath" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CorrectClassificationRequest" }
+      responses:
+        "200":
+          description: Classificação corrigida.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MessageResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: Status incompatível ou nenhuma alteração efetiva.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  # ========================================
+  # VOTES
+  # ========================================
+  /occurrences/{id}/votes:
+    get:
+      tags: [Public]
+      summary: Contagem pública de votos
+      operationId: getVoteCount
+      security: []
+      parameters:
+        - { $ref: "#/components/parameters/OccurrenceIdPath" }
+      responses:
+        "200":
+          description: Contagem atual.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/VoteCountResponse" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    post:
+      tags: [App]
+      summary: Votar em ocorrência pública (RN059)
+      description: |
+        Apenas cidadão ativo, em `CONFIRMED`/`IN_SERVICE`, sem auto-voto.
+        Segundo voto → 409.
+      operationId: addVote
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: "#/components/parameters/OccurrenceIdPath" }
+      responses:
+        "201":
+          description: Voto registrado.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/VoteCountResponse" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: Voto duplicado ou ocorrência inelegível.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
 
   /occurrences/{id}/votes/me:
     delete:
       tags: [App]
-      summary: Retira o voto do próprio cidadão
-      security:
-        - bearerAuth: []
+      summary: Retirar o próprio voto
+      operationId: removeVote
+      security: [{ bearerAuth: [] }]
       parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
+        - { $ref: "#/components/parameters/OccurrenceIdPath" }
       responses:
         "200":
-          description: Voto retirado e contagem atualizada
+          description: Voto retirado.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/VoteCountResponse" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404":
+          description: Voto não encontrado.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  # ========================================
+  # PHOTOS
+  # ========================================
+  /occurrences/public/{id}/photos/{photoId}:
+    get:
+      tags: [Photos]
+      summary: URL assinada de foto pública
+      description: |
+        Acesso anônimo. Retorna URL assinada (TTL 5 min) para fotos de
+        ocorrências `CONFIRMED`/`IN_SERVICE`. Não expõe `storage_path`.
+      operationId: getPublicPhotoSignedUrl
+      security: []
+      parameters:
+        - { $ref: "#/components/parameters/OccurrenceIdPath" }
+        - { $ref: "#/components/parameters/PhotoIdPath" }
+      responses:
+        "200":
+          description: URL assinada.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/VoteCountResponse"
-        "400":
-          description: Identificador inválido
-        "401":
-          description: Autenticação necessária
-        "403":
-          description: Acesso negado
-        "404":
-          description: Ocorrência ou voto não encontrado
-        "409":
-          description: Ocorrência inelegível
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/SignedPhotoUrl" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /occurrences/mine/{id}/photos/{photoId}:
+    get:
+      tags: [Photos]
+      summary: URL assinada de foto própria
+      description: Somente o autor da ocorrência.
+      operationId: getMyPhotoSignedUrl
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: "#/components/parameters/OccurrenceIdPath" }
+        - { $ref: "#/components/parameters/PhotoIdPath" }
+      responses:
+        "200":
+          description: URL assinada.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/SignedPhotoUrl" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /admin/occurrences/{id}/photos/{photoId}:
+    get:
+      tags: [Photos]
+      summary: URL assinada de foto (admin)
+      description: Admin ativo pode acessar qualquer foto.
+      operationId: getAdminPhotoSignedUrl
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: "#/components/parameters/OccurrenceIdPath" }
+        - { $ref: "#/components/parameters/PhotoIdPath" }
+      responses:
+        "200":
+          description: URL assinada.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/SignedPhotoUrl" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
 
   # ========================================
   # AI-02 / AI-03 — ANÁLISE DE FOTOGRAFIAS
   # ========================================
-
   /ai-analyses:
     post:
       tags: [App]
       summary: Criar análise com fotografias
-      description: |
-        Permite que um cidadão autenticado e ativo crie uma análise
-        enviando de 1 a 3 fotografias JPEG ou PNG, com até 5 MB cada.
-
-        Os arquivos são armazenados no bucket privado occurrence-photos.
-        A análise é criada com status PENDING; o processamento por IA
-        ocorre posteriormente, em outra operação.
       operationId: createAiAnalysis
-      security:
-        - bearerAuth: []
+      security: [{ bearerAuth: [] }]
       requestBody:
         required: true
         content:
           multipart/form-data:
             schema:
               type: object
-              required:
-                - photos
+              required: [photos]
               properties:
                 photos:
                   type: array
-                  description: Fotografias da mesma ocorrência.
                   minItems: 1
                   maxItems: 3
-                  items:
-                    type: string
-                    format: binary
+                  items: { type: string, format: binary }
       responses:
         "201":
-          description: Análise criada com sucesso.
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                  - data
-                properties:
-                  data:
-                    type: object
-                    required:
-                      - id
-                      - status
-                      - photo_count
-                    properties:
-                      id:
-                        type: string
-                        format: uuid
-                      status:
-                        type: string
-                        enum: [PENDING]
-                      photo_count:
-                        type: integer
-                        minimum: 1
-                        maximum: 3
-              example:
-                data:
-                  id: 181227d2-89d7-4ceb-8dff-85b623aeee5b
-                  status: PENDING
-                  photo_count: 1
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "403":
-          $ref: "#/components/responses/Forbidden"
-        "413":
-          $ref: "#/components/responses/PayloadTooLarge"
-        "429":
-          $ref: "#/components/responses/TooManyRequests"
-        "503":
-          description: Falha no upload ou na criação da análise.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "500":
-          $ref: "#/components/responses/InternalServerError"
-
-  /ai-analyses/{id}/analyze:
-    post:
-      tags: [App]
-      summary: Solicitar processamento de uma análise por IA
-      description: |
-        Inicia o processamento das fotografias de uma análise pertencente
-        ao cidadão autenticado e ativo.
-
-        Aceita análises PENDING e FAILED, permitindo uma nova tentativa
-        quando o processamento anterior falhou. Retorna 202 Accepted;
-        o resultado deve ser consultado pelo GET /ai-analyses/{id}.
-
-        O resultado sugere categoria, descrição e confiança entre 0 e 1.
-        Se a confiança for inferior a 0,70, aplica-se a categoria CAT07.
-
-        Não cria ocorrência automaticamente. O cidadão deve revisar e
-        confirmar as sugestões antes de cadastrar a ocorrência.
-
-        No MVP, o processamento ocorre no próprio processo Node.js,
-        sem fila persistente. Uma interrupção do servidor pode deixar
-        a análise em PROCESSING até uma recuperação administrativa.
-      operationId: processAiAnalysis
-      security:
-        - bearerAuth: []
-      parameters:
-        - name: id
-          in: path
-          required: true
-          description: UUID da análise a processar.
-          schema:
-            type: string
-            format: uuid
-      responses:
-        "202":
-          description: Solicitação de processamento aceita.
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                  - data
-                properties:
-                  data:
-                    type: object
-                    required:
-                      - id
-                      - message
-                    properties:
-                      id:
-                        type: string
-                        format: uuid
-                      message:
-                        type: string
-              example:
-                data:
-                  id: 181227d2-89d7-4ceb-8dff-85b623aeee5b
-                  message: Análise recebida para processamento.
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "403":
-          $ref: "#/components/responses/Forbidden"
-        "404":
-          $ref: "#/components/responses/NotFound"
-        "409":
-          description: A análise não está elegível para processamento.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "429":
-          $ref: "#/components/responses/TooManyRequests"
-        "503":
-          description: Serviço de IA ou banco temporariamente indisponível.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "500":
-          $ref: "#/components/responses/InternalServerError"
-
-  /ai-analyses/{id}:
-    get:
-      tags: [App]
-      summary: Consultar a própria análise de fotografias
-      description: |
-        Retorna o estado e o resultado persistido da análise do cidadão
-        autenticado e ativo. Análises de outros usuários não são expostas.
-
-        A categoria e a descrição retornadas são sugestões da IA:
-        o cidadão deve revisá-las antes de criar uma ocorrência.
-      operationId: getAiAnalysis
-      security:
-        - bearerAuth: []
-      parameters:
-        - name: id
-          in: path
-          required: true
-          description: UUID da análise a consultar.
-          schema:
-            type: string
-            format: uuid
-      responses:
-        "200":
-          description: Análise encontrada.
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                  - data
-                properties:
-                  data:
-                    $ref: "#/components/schemas/AiAnalysisDetails"
-              example:
-                data:
-                  id: 181227d2-89d7-4ceb-8dff-85b623aeee5b
-                  status: COMPLETED
-                  category_code: CAT03
-                  suggested_description: Buraco identificado na via pública.
-                  confidence: 0.92
-                  model_name: mock-ai
-                  prompt_version: v1
-                  error_code: null
-                  photo_count: 1
-                  created_at: "2026-11-09T15:00:00.000Z"
-                  completed_at: "2026-11-09T15:00:05.000Z"
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "403":
-          $ref: "#/components/responses/Forbidden"
-        "404":
-          $ref: "#/components/responses/NotFound"
-        "429":
-          $ref: "#/components/responses/TooManyRequests"
-        "503":
-          description: Banco temporariamente indisponível.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "500":
-          $ref: "#/components/responses/InternalServerError"
-
-  # ========================================
-  # NOTIFICAÇÕES — CIDADÃO AUTENTICADO
-  # ========================================
-
-  /notifications:
-    get:
-      tags: [Notifications]
-      summary: Lista as notificações do cidadão autenticado
-      description: |
-        Ordena da mais recente para a mais antiga. Use esta rota também após
-        reconectar o aplicativo para recuperar notificações persistidas.
-
-        Para receber novas notificações, assine eventos INSERT de Postgres Changes
-        na tabela public.notifications com JWT e filtro user_id=eq.<id do usuário>.
-        A política RLS limita a entrega ao destinatário. Os eventos são publicados
-        após o commit e o REST permanece como fonte de verdade.
-      security:
-        - bearerAuth: []
-      parameters:
-        - name: page
-          in: query
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 21474836
-            default: 1
-        - name: limit
-          in: query
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 100
-            default: 20
-      responses:
-        "200":
-          description: Notificações paginadas
-          content:
-            application/json:
-              schema:
-                type: object
-                required: [data, pagination]
-                properties:
-                  data:
-                    type: array
-                    items:
-                      $ref: "#/components/schemas/Notification"
-                  pagination:
-                    type: object
-                    required: [page, limit, total, total_pages]
-                    properties:
-                      page:
-                        type: integer
-                      limit:
-                        type: integer
-                      total:
-                        type: integer
-                      total_pages:
-                        type: integer
-        "400":
-          description: Paginação inválida
-        "401":
-          description: Token ausente ou inválido
-        "403":
-          description: Conta inativa ou papel incompatível
-
-  /notifications/{id}/read:
-    patch:
-      tags: [Notifications]
-      summary: Marca uma notificação como lida
-      security:
-        - bearerAuth: []
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-      responses:
-        "204":
-          description: Notificação lida, inclusive se já estava lida
-        "400":
-          description: Identificador inválido
-        "401":
-          description: Token ausente ou inválido
-        "403":
-          description: Conta inativa ou papel incompatível
-        "404":
-          description: Notificação não encontrada para este cidadão
-
-  /notifications/read-all:
-    patch:
-      tags: [Notifications]
-      summary: Marca todas as notificações do cidadão como lidas
-      security:
-        - bearerAuth: []
-      responses:
-        "204":
-          description: Operação concluída
-        "401":
-          description: Token ausente ou inválido
-        "403":
-          description: Conta inativa ou papel incompatível
-
-  # ========================================
-  # ADMIN — DASHBOARD
-  # ========================================
-
-  /admin/dashboard:
-    get:
-      tags: [Admin]
-      summary: Consulta indicadores administrativos
-      description: |
-        Exige ADMIN ativo (MASTER ou OPERATIONAL). Considera todas as ocorrências.
-        A prioridade HIGH é contada em todos os status. A média usa apenas
-        RESOLVED com resolved_at e representa dias decorridos de 24 horas,
-        incluindo frações. Sem resoluções elegíveis, a média é null.
-        As contagens sempre incluem os seis status, mesmo quando são zero.
-      security:
-        - bearerAuth: []
-      responses:
-        "200":
-          description: Indicadores calculados em uma consulta no banco
+          description: Análise criada.
           content:
             application/json:
               schema:
@@ -985,116 +968,207 @@ paths:
                 properties:
                   data:
                     type: object
-                    required: [counts_by_status, high_priority_total, average_resolution_days]
+                    required: [id, status, photo_count]
                     properties:
-                      counts_by_status:
-                        type: object
-                        required: [RECEIVED, UNDER_ANALYSIS, CONFIRMED, IN_SERVICE, RESOLVED, REJECTED]
-                        properties:
-                          RECEIVED:
-                            type: integer
-                            minimum: 0
-                          UNDER_ANALYSIS:
-                            type: integer
-                            minimum: 0
-                          CONFIRMED:
-                            type: integer
-                            minimum: 0
-                          IN_SERVICE:
-                            type: integer
-                            minimum: 0
-                          RESOLVED:
-                            type: integer
-                            minimum: 0
-                          REJECTED:
-                            type: integer
-                            minimum: 0
-                      high_priority_total:
-                        type: integer
-                        minimum: 0
-                      average_resolution_days:
-                        type: [number, "null"]
-        "401":
-          description: Token ausente ou inválido
-        "403":
-          description: Conta inativa ou usuário sem papel ADMIN
-        "500":
-          description: Falha ao consultar indicadores
+                      id: { type: string, format: uuid }
+                      status: { type: string, enum: [PENDING] }
+                      photo_count: { type: integer, minimum: 1, maximum: 3 }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+
+  /ai-analyses/{id}/analyze:
+    post:
+      tags: [App]
+      summary: Solicitar processamento de IA
+      operationId: processAiAnalysis
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "202":
+          description: Processamento aceito (assíncrono).
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      id: { type: string, format: uuid }
+                      message: { type: string }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: Análise não elegível.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /ai-analyses/{id}:
+    get:
+      tags: [App]
+      summary: Consultar a própria análise
+      operationId: getAiAnalysis
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: Análise encontrada.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/AiAnalysisDetails" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  # ========================================
+  # NOTIFICATIONS
+  # ========================================
+  /notifications:
+    get:
+      tags: [Notifications]
+      summary: Listar notificações do cidadão
+      operationId: listNotifications
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: "#/components/parameters/PageQuery" }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+      responses:
+        "200":
+          description: Notificações paginadas.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, pagination]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/Notification" }
+                  pagination:
+                    type: object
+                    properties:
+                      page: { type: integer }
+                      limit: { type: integer }
+                      total: { type: integer }
+                      total_pages: { type: integer }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /notifications/{id}/read:
+    patch:
+      tags: [Notifications]
+      summary: Marcar uma notificação como lida
+      operationId: markNotificationRead
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "204": { description: Notificação marcada como lida. }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /notifications/read-all:
+    patch:
+      tags: [Notifications]
+      summary: Marcar todas as notificações como lidas
+      operationId: markAllNotificationsRead
+      security: [{ bearerAuth: [] }]
+      responses:
+        "204": { description: Operação concluída. }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  # ========================================
+  # ADMIN — DASHBOARD
+  # ========================================
+  /admin/dashboard:
+    get:
+      tags: [Admin]
+      summary: Consultar indicadores administrativos
+      description: |
+        Exige ADMIN ativo. Inclui contagens por status (sempre os seis,
+        mesmo zero), total HIGH, média de resolução em dias corridos
+        fracionários, e alertas de SLA violado (RN055/RN057).
+      operationId: getAdminDashboard
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Indicadores calculados em uma única consulta.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminDashboardResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "500": { $ref: "#/components/responses/InternalServerError" }
 
   # ========================================
   # ADMIN — ADMINISTRADORES (MASTER)
   # ========================================
-
   /admin/admins:
     get:
       tags: [Admin]
-      summary: Lista administradores ativos e inativos
-      security:
-        - bearerAuth: []
+      summary: Listar administradores
+      operationId: listAdministrators
+      security: [{ bearerAuth: [] }]
       responses:
         "200":
-          description: Lista de administradores no campo data
-        "401":
-          description: Autenticação necessária
-        "403":
-          description: Exige Master ativo
+          description: Lista no campo data.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: string, format: uuid }
+                        name: { type: string }
+                        admin_level: { $ref: "#/components/schemas/AdminLevel" }
+                        is_active: { type: boolean }
+                        created_by: { type: [string, "null"], format: uuid }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
     post:
       tags: [Admin]
-      summary: Provisiona um administrador com e-mail confirmado
-      description: Exige Master ativo. O provisionamento é direto e não envia convite.
-      security:
-        - bearerAuth: []
+      summary: Provisionar administrador (Master)
+      operationId: createAdministrator
+      security: [{ bearerAuth: [] }]
       requestBody:
         required: true
         content:
           application/json:
-            schema:
-              type: object
-              additionalProperties: false
-              required: [name, email, password, admin_level]
-              properties:
-                name:
-                  type: string
-                  minLength: 1
-                  maxLength: 150
-                email:
-                  type: string
-                  format: email
-                  maxLength: 254
-                password:
-                  type: string
-                  format: password
-                  minLength: 8
-                  maxLength: 72
-                  writeOnly: true
-                admin_level:
-                  type: string
-                  enum: [MASTER, OPERATIONAL]
+            schema: { $ref: "#/components/schemas/CreateAdminRequest" }
       responses:
         "201":
-          description: Administrador criado, sem senha na resposta
-        "400":
-          description: Dados inválidos
-        "401":
-          description: Autenticação necessária
-        "403":
-          description: Exige Master ativo
+          description: Administrador criado (sem senha na resposta).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdministratorResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
         "409":
-          description: E-mail já cadastrado
+          description: E-mail já cadastrado.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
 
   /admin/admins/{id}:
     patch:
       tags: [Admin]
-      summary: Atualiza nível ou situação de um administrador
-      security:
-        - bearerAuth: []
+      summary: Atualizar nível ou situação de administrador
+      operationId: updateAdministrator
+      security: [{ bearerAuth: [] }]
       parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
       requestBody:
         required: true
         content:
@@ -1104,47 +1178,51 @@ paths:
               additionalProperties: false
               minProperties: 1
               properties:
-                admin_level:
-                  type: string
-                  enum: [MASTER, OPERATIONAL]
-                is_active:
-                  type: boolean
+                admin_level: { $ref: "#/components/schemas/AdminLevel" }
+                is_active: { type: boolean }
       responses:
         "200":
-          description: Administrador atualizado
-        "400":
-          description: Dados inválidos
-        "401":
-          description: Autenticação necessária
-        "403":
-          description: Exige Master ativo
-        "404":
-          description: Administrador não encontrado
+          description: Administrador atualizado.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdministratorResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
         "409":
-          description: Último Master ativo deve ser preservado
+          description: Tentativa de rebaixar o último Master ativo.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
 
   # ========================================
   # ADMIN — ÓRGÃOS (AGENCIES)
   # ========================================
-
   /admin/agencies:
     get:
       tags: [Admin]
-      summary: Lista órgãos ativos e inativos para administradores ativos
-      security:
-        - bearerAuth: []
+      summary: Listar órgãos
+      operationId: listAgencies
+      security: [{ bearerAuth: [] }]
       responses:
         "200":
-          description: Catálogo no campo data
-        "401":
-          description: Autenticação necessária
-        "403":
-          description: Exige administrador ativo
+          description: Catálogo no campo data.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/AgencyResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
     post:
       tags: [Admin]
-      summary: Cadastra um órgão como Master ativo
-      security:
-        - bearerAuth: []
+      summary: Cadastrar órgão (Master)
+      operationId: createAgency
+      security: [{ bearerAuth: [] }]
       requestBody:
         required: true
         content:
@@ -1155,50 +1233,47 @@ paths:
                 - required: [name, email]
       responses:
         "201":
-          description: Órgão cadastrado no campo data
-        "400":
-          description: Dados inválidos
-        "401":
-          description: Autenticação necessária
-        "403":
-          description: Exige Master ativo
+          description: Órgão cadastrado.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/AgencyResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
 
   /admin/agencies/{id}:
     patch:
       tags: [Admin]
-      summary: Edita ou desativa um órgão como Master ativo
-      description: A desativação bloqueia novos encaminhamentos e preserva os anteriores.
-      security:
-        - bearerAuth: []
+      summary: Editar ou desativar órgão (Master)
+      operationId: updateAgency
+      security: [{ bearerAuth: [] }]
       parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
       requestBody:
         required: true
         content:
           application/json:
-            schema:
-              $ref: "#/components/schemas/AgencyChanges"
+            schema: { $ref: "#/components/schemas/AgencyChanges" }
       responses:
         "200":
-          description: Órgão atualizado no campo data
-        "400":
-          description: Dados ou identificador inválidos
-        "401":
-          description: Autenticação necessária
-        "403":
-          description: Exige Master ativo
-        "404":
-          description: Órgão não encontrado
+          description: Órgão atualizado.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/AgencyResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
 
 # ==========================================
-# COMPONENTES REUTILIZÁVEIS
+# COMPONENTES
 # ==========================================
-
 components:
   securitySchemes:
     bearerAuth:
@@ -1206,73 +1281,403 @@ components:
       scheme: bearer
       bearerFormat: JWT
       description: |
-        Informe o Access Token JWT emitido pelo Supabase Auth.
+        Access Token JWT do Supabase Auth. Enviado como
+        `Authorization: Bearer <token>`. Validado por
+        `supabase.auth.getUser(token)`.
 
-        Formato:
-        Bearer <access_token>
-
-        O token é validado pela API utilizando
-        supabase.auth.getUser(token).
+  parameters:
+    PageQuery:
+      name: page
+      in: query
+      schema: { type: integer, minimum: 1, default: 1 }
+    PageSizeQuery:
+      name: pageSize
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+    SortQuery:
+      name: sort
+      in: query
+      schema: { type: string, enum: [recent, oldest, most_liked], default: recent }
+    OccurrenceIdPath:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    PhotoIdPath:
+      name: photoId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
 
   schemas:
-    # ======================================
-    # ADMIN — ÓRGÃOS / AGENCIES
-    # ======================================
+    # ─────────────────────────────────────
+    # Enums
+    # ─────────────────────────────────────
+    OccurrenceStatus:
+      type: string
+      enum: [RECEIVED, UNDER_ANALYSIS, CONFIRMED, IN_SERVICE, RESOLVED, REJECTED]
+    OccurrencePriority:
+      type: string
+      enum: [LOW, MEDIUM, HIGH]
+    DataSource:
+      type: string
+      enum: [AI_CONFIRMED, AI_EDITED, USER_MANUAL]
+    AdminLevel:
+      type: string
+      enum: [MASTER, OPERATIONAL]
+    ObservationVisibility:
+      type: string
+      enum: [INTERNAL, CITIZEN_RESPONSE]
 
-    AgencyChanges:
+    # ─────────────────────────────────────
+    # Primitivos
+    # ─────────────────────────────────────
+    GeoPoint:
       type: object
-      minProperties: 1
+      required: [lat, lng]
+      properties:
+        lat: { type: number, minimum: -90, maximum: 90 }
+        lng: { type: number, minimum: -180, maximum: 180 }
+
+    CategorySummary:
+      type: object
+      required: [id, code, name]
+      properties:
+        id: { type: string, format: uuid }
+        code: { type: string, example: CAT01 }
+        name: { type: string }
+
+    Category:
+      type: object
+      required: [id, code, name, description]
+      properties:
+        id: { type: string, format: uuid }
+        code: { type: string, example: CAT01 }
+        name: { type: string, example: Saneamento e Drenagem }
+        description: { type: [string, "null"] }
+
+    CategoriesListResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/Category" }
+
+    Pagination:
+      type: object
+      required: [page, pageSize, total, totalPages]
+      properties:
+        page: { type: integer, minimum: 1 }
+        pageSize: { type: integer, minimum: 1, maximum: 100 }
+        total: { type: integer, minimum: 0 }
+        totalPages: { type: integer, minimum: 0 }
+
+    # ─────────────────────────────────────
+    # Occurrences
+    # ─────────────────────────────────────
+    OccurrencePhoto:
+      type: object
+      required: [storagePath, mimeType, sizeBytes, position]
+      properties:
+        storagePath: { type: string }
+        mimeType: { type: string, enum: [image/jpeg, image/png] }
+        sizeBytes: { type: integer, minimum: 1, maximum: 5242880 }
+        position: { type: integer, minimum: 1, maximum: 3 }
+
+    PublicOccurrence:
+      type: object
+      required: [id, category, description, status, location, votesCount, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        category: { $ref: "#/components/schemas/CategorySummary" }
+        description: { type: string, maxLength: 500 }
+        status: { $ref: "#/components/schemas/OccurrenceStatus" }
+        location:
+          allOf:
+            - $ref: "#/components/schemas/GeoPoint"
+          description: Aproximada (~110 m)
+        votesCount: { type: integer, minimum: 0 }
+        createdAt: { type: string, format: date-time }
+
+    PublicOccurrenceListResponse:
+      type: object
+      required: [data, pagination]
+      properties:
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/PublicOccurrence" }
+        pagination: { $ref: "#/components/schemas/Pagination" }
+
+    MyOccurrence:
+      type: object
+      required: [id, category, description, status, priority, location, photosCount, votesCount, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        category: { $ref: "#/components/schemas/CategorySummary" }
+        description: { type: string, maxLength: 500 }
+        status: { $ref: "#/components/schemas/OccurrenceStatus" }
+        priority:
+          oneOf:
+            - { $ref: "#/components/schemas/OccurrencePriority" }
+            - { type: "null" }
+        location:
+          allOf:
+            - $ref: "#/components/schemas/GeoPoint"
+          description: Exata (é a do autor — RN020)
+        photosCount: { type: integer, minimum: 0 }
+        votesCount: { type: integer, minimum: 0 }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        resolvedAt:
+          oneOf:
+            - { type: string, format: date-time }
+            - { type: "null" }
+
+    MyOccurrenceDetail:
+      allOf:
+        - $ref: "#/components/schemas/MyOccurrence"
+        - type: object
+          properties:
+            photos:
+              type: array
+              items: { $ref: "#/components/schemas/OccurrencePhoto" }
+
+    MyOccurrenceListResponse:
+      type: object
+      required: [data, pagination]
+      properties:
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/MyOccurrence" }
+        pagination: { $ref: "#/components/schemas/Pagination" }
+
+    AdminOccurrence:
+      allOf:
+        - $ref: "#/components/schemas/MyOccurrence"
+        - type: object
+          required: [author]
+          properties:
+            author:
+              type: object
+              required: [id, name]
+              properties:
+                id: { type: string, format: uuid }
+                name: { type: string }
+
+    AdminOccurrenceDetail:
+      allOf:
+        - $ref: "#/components/schemas/AdminOccurrence"
+        - type: object
+          properties:
+            photos:
+              type: array
+              items: { $ref: "#/components/schemas/OccurrencePhoto" }
+            locationOriginal: { $ref: "#/components/schemas/GeoPoint" }
+            locationAdjusted:
+              oneOf:
+                - { $ref: "#/components/schemas/GeoPoint" }
+                - { type: "null" }
+            categorySource: { $ref: "#/components/schemas/DataSource" }
+            descriptionSource: { $ref: "#/components/schemas/DataSource" }
+
+    AdminOccurrenceListResponse:
+      type: object
+      required: [data, pagination]
+      properties:
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/AdminOccurrence" }
+        pagination: { $ref: "#/components/schemas/Pagination" }
+
+    HistoryEvent:
+      type: object
+      required: [id, action, actorType, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        actorId:
+          oneOf:
+            - { type: string, format: uuid }
+            - { type: "null" }
+        action: { type: string }
+        actorType: { type: string, enum: [USER, SYSTEM] }
+        previousData: { type: [object, "null"] }
+        newData: { type: [object, "null"] }
+        details: { type: [object, "null"] }
+        createdAt: { type: string, format: date-time }
+
+    HistoryListResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/HistoryEvent" }
+
+    FinalizeOccurrenceRequest:
+      type: object
+      required: [aiAnalysisId, categoryId, description, location, categorySource, descriptionSource, photos]
       additionalProperties: false
       properties:
-        name:
-          type: string
-          minLength: 1
-          maxLength: 150
-        email:
-          type: string
-          format: email
-          maxLength: 150
-        phone:
-          type: [string, "null"]
-          minLength: 1
-          maxLength: 20
-        description:
-          type: [string, "null"]
-        is_active:
-          type: boolean
+        aiAnalysisId: { type: string, format: uuid }
+        categoryId: { type: string, format: uuid }
+        description: { type: string, minLength: 1, maxLength: 500 }
+        location: { $ref: "#/components/schemas/GeoPoint" }
+        categorySource: { $ref: "#/components/schemas/DataSource" }
+        descriptionSource: { $ref: "#/components/schemas/DataSource" }
+        photos:
+          type: array
+          minItems: 1
+          maxItems: 3
+          items:
+            type: object
+            required: [storagePath, mimeType, sizeBytes]
+            additionalProperties: false
+            properties:
+              storagePath: { type: string, minLength: 1 }
+              mimeType: { type: string, enum: [image/jpeg, image/png] }
+              sizeBytes: { type: integer, minimum: 1, maximum: 5242880 }
 
-    # ======================================
-    # NOTIFICAÇÕES
-    # ======================================
-
-    Notification:
+    FinalizeOccurrenceResponse:
       type: object
-      required: [id, occurrence_id, title, message, type, read_at, created_at]
+      required: [message, data]
       properties:
-        id:
-          type: string
-          format: uuid
-        occurrence_id:
-          type: [string, "null"]
-          format: uuid
-        title:
-          type: string
-        message:
-          type: string
-        type:
-          type: string
-          enum: [OCCURRENCE_STATUS_CHANGED, CITIZEN_RESPONSE]
-        read_at:
-          type: [string, "null"]
-          format: date-time
-        created_at:
-          type: string
-          format: date-time
+        message: { type: string, example: Ocorrência registrada com sucesso. }
+        data:
+          type: object
+          required: [id, status, summary]
+          properties:
+            id: { type: string, format: uuid }
+            status: { type: string, enum: [RECEIVED] }
+            summary:
+              type: object
+              required: [categoryId, descriptionLength, photosCount]
+              properties:
+                categoryId: { type: string, format: uuid }
+                descriptionLength: { type: integer, minimum: 1, maximum: 500 }
+                photosCount: { type: integer, minimum: 1, maximum: 3 }
 
-    # ======================================
-    # VOTES
-    # ======================================
+    # ─────────────────────────────────────
+    # Photos
+    # ─────────────────────────────────────
+    SignedPhotoUrl:
+      type: object
+      required: [url, expiresAt, expiresInSeconds]
+      properties:
+        url: { type: string, format: uri }
+        expiresAt: { type: string, format: date-time }
+        expiresInSeconds: { type: integer, minimum: 1 }
 
+    OccurrencePhotoWithUrl:
+      allOf:
+        - $ref: "#/components/schemas/OccurrencePhoto"
+        - type: object
+          required: [url, expiresAt, expiresInSeconds]
+          properties:
+            url: { type: string, format: uri }
+            expiresAt: { type: string, format: date-time }
+            expiresInSeconds: { type: integer, minimum: 1 }
+
+    # ─────────────────────────────────────
+    # Moderation requests
+    # ─────────────────────────────────────
+    RejectOccurrenceRequest:
+      type: object
+      required: [justification]
+      additionalProperties: false
+      properties:
+        justification: { type: string, minLength: 10, maxLength: 2000 }
+
+    SetPriorityRequest:
+      type: object
+      required: [priority]
+      additionalProperties: false
+      properties:
+        priority: { $ref: "#/components/schemas/OccurrencePriority" }
+
+    StartServiceRequest:
+      type: object
+      required: [actionNotes]
+      additionalProperties: false
+      properties:
+        actionNotes: { type: string, minLength: 10, maxLength: 2000 }
+
+    ResolveOccurrenceRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        resolutionNotes: { type: string, maxLength: 2000 }
+
+    CreateObservationRequest:
+      type: object
+      required: [content, visibility]
+      additionalProperties: false
+      properties:
+        content: { type: string, minLength: 5, maxLength: 2000 }
+        visibility: { $ref: "#/components/schemas/ObservationVisibility" }
+
+    ObservationResponse:
+      type: object
+      required: [message, data]
+      properties:
+        message: { type: string }
+        data:
+          type: object
+          required: [observationId]
+          properties:
+            observationId: { type: string, format: uuid }
+
+    AdjustLocationRequest:
+      type: object
+      required: [lat, lng]
+      additionalProperties: false
+      properties:
+        lat: { type: number, minimum: -90, maximum: 90 }
+        lng: { type: number, minimum: -180, maximum: 180 }
+
+    CorrectClassificationRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        categoryId: { type: string, format: uuid }
+        description: { type: string, minLength: 1, maxLength: 500 }
+
+    # ─────────────────────────────────────
+    # Admin dashboard
+    # ─────────────────────────────────────
+    AdminDashboardResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          required: [counts_by_status, high_priority_total, average_resolution_days, sla_breaches]
+          properties:
+            counts_by_status:
+              type: object
+              required: [RECEIVED, UNDER_ANALYSIS, CONFIRMED, IN_SERVICE, RESOLVED, REJECTED]
+              properties:
+                RECEIVED: { type: integer, minimum: 0 }
+                UNDER_ANALYSIS: { type: integer, minimum: 0 }
+                CONFIRMED: { type: integer, minimum: 0 }
+                IN_SERVICE: { type: integer, minimum: 0 }
+                RESOLVED: { type: integer, minimum: 0 }
+                REJECTED: { type: integer, minimum: 0 }
+            high_priority_total: { type: integer, minimum: 0 }
+            average_resolution_days:
+              oneOf:
+                - { type: number, minimum: 0 }
+                - { type: "null" }
+            sla_breaches:
+              type: object
+              required: [received_over_48h, under_analysis_over_5d]
+              properties:
+                received_over_48h: { type: integer, minimum: 0 }
+                under_analysis_over_5d: { type: integer, minimum: 0 }
+
+    # ─────────────────────────────────────
+    # Votes / Notifications
+    # ─────────────────────────────────────
     VoteCountResponse:
       type: object
       required: [data]
@@ -1281,448 +1686,248 @@ components:
           type: object
           required: [occurrence_id, vote_count]
           properties:
-            occurrence_id:
-              type: string
-              format: uuid
-            vote_count:
-              type: integer
-              minimum: 0
+            occurrence_id: { type: string, format: uuid }
+            vote_count: { type: integer, minimum: 0 }
 
-    # ======================================
-    # API1-48 — DETALHES DA ANÁLISE DE IA
-    # ======================================
+    Notification:
+      type: object
+      required: [id, occurrence_id, title, message, type, read_at, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        occurrence_id:
+          oneOf:
+            - { type: string, format: uuid }
+            - { type: "null" }
+        title: { type: string }
+        message: { type: string }
+        type: { type: string, enum: [OCCURRENCE_STATUS_CHANGED, CITIZEN_RESPONSE] }
+        read_at:
+          oneOf:
+            - { type: string, format: date-time }
+            - { type: "null" }
+        created_at: { type: string, format: date-time }
 
+    # ─────────────────────────────────────
+    # AI
+    # ─────────────────────────────────────
     AiAnalysisDetails:
       type: object
-      required:
-        - id
-        - status
-        - category_code
-        - suggested_description
-        - confidence
-        - model_name
-        - prompt_version
-        - error_code
-        - photo_count
-        - created_at
-        - completed_at
+      required: [id, status, photo_count, created_at]
       properties:
-        id:
-          type: string
-          format: uuid
+        id: { type: string, format: uuid }
         status:
           type: string
           enum: [UPLOADING, PENDING, PROCESSING, COMPLETED, FAILED, CANCELLED, CONSUMED]
         category_code:
-          type: [string, "null"]
-          enum: [CAT01, CAT02, CAT03, CAT04, CAT05, CAT06, CAT07, null]
-        suggested_description:
-          type: [string, "null"]
-          maxLength: 500
+          oneOf:
+            - type: string
+              enum: [CAT01, CAT02, CAT03, CAT04, CAT05, CAT06, CAT07]
+            - type: "null"
+        suggested_description: { type: [string, "null"], maxLength: 500 }
         confidence:
-          type: [number, "null"]
-          minimum: 0
-          maximum: 1
-        model_name:
-          type: [string, "null"]
-        prompt_version:
-          type: [string, "null"]
-        error_code:
-          type: [string, "null"]
-        photo_count:
-          type: integer
-          minimum: 1
-          maximum: 3
-        created_at:
-          type: string
-          format: date-time
+          oneOf:
+            - { type: number, minimum: 0, maximum: 1 }
+            - { type: "null" }
+        model_name: { type: [string, "null"] }
+        prompt_version: { type: [string, "null"] }
+        error_code: { type: [string, "null"] }
+        photo_count: { type: integer, minimum: 0, maximum: 3 }
+        created_at: { type: string, format: date-time }
         completed_at:
-          type: [string, "null"]
-          format: date-time
+          oneOf:
+            - { type: string, format: date-time }
+            - { type: "null" }
 
-    # ======================================
-    # CAT-01 — CATEGORIAS
-    # ======================================
-
-    Category:
-      type: object
-      required:
-        - id
-        - code
-        - name
-        - description
-      properties:
-        id:
-          type: string
-          format: uuid
-          description: Identificador único da categoria.
-        code:
-          type: string
-          description: Código único da categoria.
-          example: CAT01
-        name:
-          type: string
-          description: Nome da categoria.
-          example: Saneamento e Drenagem
-        description:
-          type: [string, "null"]
-          description: Descrição opcional da categoria.
-
-    CategoriesListResponse:
-      type: object
-      required:
-        - data
-      properties:
-        data:
-          type: array
-          items:
-            $ref: "#/components/schemas/Category"
-
-    # ======================================
-    # HEALTH
-    # ======================================
-
-    HealthResponse:
-      type: object
-      required:
-        - status
-        - message
-        - timestamp
-      properties:
-        status:
-          type: string
-          example: ok
-        message:
-          type: string
-          example: InfraMap API funcionando!
-        timestamp:
-          type: string
-          format: date-time
-
-    # ======================================
-    # ID-01 — PERFIL CADASTRAL
-    # ======================================
-
+    # ─────────────────────────────────────
+    # Identity
+    # ─────────────────────────────────────
     AccountProfile:
       type: object
-      description: |
-        Dados cadastrais do usuário autenticado.
-
-        As propriedades de autorização são mantidas
-        separadamente na tabela user_roles.
-
-        O e-mail é obtido do Supabase Auth.
-      required:
-        - id
-        - name
-        - phone
-        - created_at
-        - updated_at
-        - email
+      required: [id, name, phone, created_at, updated_at, email]
       properties:
-        id:
-          type: string
-          format: uuid
-          readOnly: true
-          description: Identificador único do usuário.
-        name:
-          type: string
-          readOnly: true
-          description: Nome cadastrado do usuário.
-          example: Maria Silva
+        id: { type: string, format: uuid, readOnly: true }
+        name: { type: string, readOnly: true }
         phone:
-          type: [string, "null"]
-          readOnly: true
-          description: Telefone cadastrado do usuário.
-          example: "(75) 99999-9999"
-        created_at:
-          type: string
-          format: date-time
-          readOnly: true
-          description: Data de criação do perfil.
-        updated_at:
-          type: string
-          format: date-time
-          readOnly: true
-          description: Data da última atualização do perfil.
+          oneOf:
+            - { type: string }
+            - { type: "null" }
+        created_at: { type: string, format: date-time, readOnly: true }
+        updated_at: { type: string, format: date-time, readOnly: true }
         email:
-          type: [string, "null"]
-          format: email
-          readOnly: true
-          description: |
-            E-mail autenticado pelo Supabase Auth.
-            Não pode ser alterado por este endpoint.
-          example: maria@example.com
+          oneOf:
+            - { type: string, format: email }
+            - { type: "null" }
 
     MyProfileResponse:
       type: object
-      description: Resposta de consulta ou atualização do perfil.
-      required:
-        - message
-        - data
+      required: [message, data]
       properties:
-        message:
-          type: string
-          description: Mensagem do resultado da operação.
-          example: Usuário autenticado.
-        data:
-          $ref: "#/components/schemas/AccountProfile"
+        message: { type: string }
+        data: { $ref: "#/components/schemas/AccountProfile" }
 
     UpdateMyProfileRequest:
       type: object
-      description: |
-        Dados permitidos para atualização do próprio perfil.
-
-        Pelo menos um campo deve ser informado.
-
-        Campos administrativos e informações de
-        autenticação não são permitidos.
       additionalProperties: false
       minProperties: 1
       properties:
-        name:
-          type: string
-          minLength: 3
-          maxLength: 150
-          description: |
-            Nome do usuário.
-            Deve conter entre 3 e 150 caracteres.
-          example: Maria Souza
+        name: { type: string, minLength: 3, maxLength: 150 }
         phone:
-          type: [string, "null"]
-          minLength: 8
-          maxLength: 20
-          pattern: '^\+?[0-9 ()-]+$'
-          description: |
-            Telefone do usuário.
-
-            Pode conter números, espaços,
-            parênteses, hífens e sinal de +.
-
-            Deve possuir entre 8 e 15 dígitos
-            numéricos, desconsiderando a formatação.
-
-            Envie null para remover o telefone.
-          example: "(75) 98888-8888"
-
-    # ======================================
-    # IDENTITY — VALIDAÇÃO DE CADASTRO
-    # ======================================
+          oneOf:
+            - type: string
+              minLength: 8
+              maxLength: 20
+              pattern: '^\+?[0-9 ()-]+$'
+            - type: "null"
 
     CreateUserRequest:
       type: object
-      required:
-        - name
-        - email
-        - password
+      required: [name, email, password]
       properties:
-        name:
-          type: string
-          minLength: 3
-          maxLength: 150
-          description: Nome do usuário.
-          example: Maria Silva
-        email:
-          type: string
-          format: email
-          description: E-mail do usuário.
-          example: maria@example.com
-        password:
-          type: string
-          format: password
-          minLength: 6
-          writeOnly: true
-          description: Senha com pelo menos 6 caracteres.
-          example: senha123
-        role:
-          type: string
-          enum: [CITIZEN, ADMIN]
-          default: CITIZEN
-          description: Perfil inicial do usuário.
+        name: { type: string, minLength: 3, maxLength: 150 }
+        email: { type: string, format: email }
+        password: { type: string, format: password, minLength: 6, writeOnly: true }
+        role: { type: string, enum: [CITIZEN, ADMIN], default: CITIZEN }
 
     UserValidationResponse:
       type: object
-      required:
-        - message
+      required: [message]
       properties:
-        message:
-          type: string
-          example: Dados validados. Nenhum usuário foi criado.
+        message: { type: string }
 
     UsersQueryResponse:
       type: object
       properties:
-        message:
-          type: string
+        message: { type: string }
         data:
           type: object
           properties:
-            page:
-              type: integer
-              example: 1
-            limit:
-              type: integer
-              example: 20
-
-    UserLookupResponse:
-      type: object
-      properties:
-        message:
-          type: string
-          example: Buscando usuário.
-
-    # ======================================
-    # IDENTIDADE AUTENTICADA
-    # ======================================
-
-    AuthenticatedUserResponse:
-      type: object
-      properties:
-        message:
-          type: string
-          example: Usuário autenticado.
-        data:
-          type: object
-          properties:
-            id:
-              type: string
-              format: uuid
-            email:
-              type: [string, "null"]
-              format: email
+            page: { type: integer }
+            limit: { type: integer }
 
     IdentityResponse:
       type: object
-      required:
-        - id
-        - role
-        - is_active
+      required: [id, role, is_active]
       properties:
-        id:
-          type: string
-          format: uuid
-          description: Identificador do usuário.
-        role:
-          type: string
-          enum: [CITIZEN, ADMIN]
-          description: Perfil cadastrado para o usuário.
-        is_active:
-          type: boolean
-          description: Situação da conta.
+        id: { type: string, format: uuid }
+        role: { type: string, enum: [CITIZEN, ADMIN] }
+        is_active: { type: boolean }
 
-    # ======================================
-    # RESPOSTAS GENÉRICAS
-    # ======================================
+    # ─────────────────────────────────────
+    # Admins & Agencies
+    # ─────────────────────────────────────
+    CreateAdminRequest:
+      type: object
+      required: [name, email, password, admin_level]
+      additionalProperties: false
+      properties:
+        name: { type: string, minLength: 1, maxLength: 150 }
+        email: { type: string, format: email, maxLength: 254 }
+        password: { type: string, format: password, minLength: 8, maxLength: 72, writeOnly: true }
+        admin_level: { $ref: "#/components/schemas/AdminLevel" }
+
+    AdministratorResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          properties:
+            id: { type: string, format: uuid }
+            name: { type: string }
+            admin_level: { $ref: "#/components/schemas/AdminLevel" }
+            is_active: { type: boolean }
+            created_by: { type: [string, "null"], format: uuid }
+
+    AgencyChanges:
+      type: object
+      minProperties: 1
+      additionalProperties: false
+      properties:
+        name: { type: string, minLength: 1, maxLength: 150 }
+        email: { type: string, format: email, maxLength: 150 }
+        phone:
+          oneOf:
+            - { type: string, minLength: 1, maxLength: 20 }
+            - { type: "null" }
+        description:
+          oneOf:
+            - { type: string }
+            - { type: "null" }
+        is_active: { type: boolean }
+
+    AgencyResponse:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        email: { type: string, format: email }
+        phone: { type: [string, "null"] }
+        description: { type: [string, "null"] }
+        is_active: { type: boolean }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    # ─────────────────────────────────────
+    # Genéricos
+    # ─────────────────────────────────────
+    HealthResponse:
+      type: object
+      required: [status, message, timestamp]
+      properties:
+        status: { type: string, example: ok }
+        message: { type: string }
+        timestamp: { type: string, format: date-time }
 
     MessageResponse:
       type: object
+      required: [message]
       properties:
-        message:
-          type: string
+        message: { type: string }
 
     ErrorResponse:
       type: object
-      required:
-        - error
+      required: [error]
       properties:
         error:
           type: object
-          required:
-            - code
-            - message
+          required: [code, message]
           properties:
-            code:
-              type: string
-            message:
-              type: string
-
-  # ========================================
-  # RESPOSTAS DE ERRO
-  # ========================================
+            code: { type: string }
+            message: { type: string }
 
   responses:
     BadRequest:
-      description: |
-        Requisição inválida ou dados não passaram
-        pela validação.
+      description: Requisição inválida ou dados não passaram pela validação.
       content:
         application/json:
-          schema:
-            $ref: "#/components/schemas/ErrorResponse"
-          example:
-            error:
-              code: BAD_REQUEST
-              message: "Erro de validação: dados inválidos."
-
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
     Unauthorized:
-      description: |
-        Token JWT ausente, inválido ou expirado.
+      description: Token JWT ausente, inválido ou expirado.
       content:
         application/json:
-          schema:
-            $ref: "#/components/schemas/ErrorResponse"
-          example:
-            error:
-              code: UNAUTHORIZED
-              message: Token inválido ou expirado.
-
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
     Forbidden:
-      description: |
-        Usuário sem permissão, com perfil de autorização
-        inexistente ou com conta inativa.
+      description: Sem permissão, perfil inexistente ou conta inativa.
       content:
         application/json:
-          schema:
-            $ref: "#/components/schemas/ErrorResponse"
-          example:
-            error:
-              code: FORBIDDEN
-              message: Você não possui permissão para esta operação.
-
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
     NotFound:
-      description: |
-        Rota ou recurso não encontrado.
-
-        No gerenciamento de perfil, também pode indicar
-        ausência do perfil cadastral do usuário.
+      description: Rota ou recurso não encontrado.
       content:
         application/json:
-          schema:
-            $ref: "#/components/schemas/ErrorResponse"
-          example:
-            error:
-              code: NOT_FOUND
-              message: Perfil cadastral não encontrado.
-
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
     PayloadTooLarge:
-      description: Corpo JSON excede 100 KB ou uma fotografia excede 5 MB.
+      description: Corpo JSON > 100 KB ou fotografia > 5 MB.
       content:
         application/json:
-          schema:
-            $ref: "#/components/schemas/ErrorResponse"
-          example:
-            error:
-              code: PAYLOAD_TOO_LARGE
-              message: O corpo da requisição excede o limite permitido.
-
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
     TooManyRequests:
       description: Limite de requisições excedido.
       content:
         application/json:
-          schema:
-            $ref: "#/components/schemas/ErrorResponse"
-          example:
-            error:
-              code: TOO_MANY_REQUESTS
-              message: Muitas requisições. Tente novamente mais tarde.
-
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
     InternalServerError:
       description: Erro interno inesperado.
       content:
         application/json:
-          schema:
-            $ref: "#/components/schemas/ErrorResponse"
-          example:
-            error:
-              code: INTERNAL_SERVER_ERROR
-              message: Ocorreu um erro interno no servidor.
+          schema: { $ref: "#/components/schemas/ErrorResponse" }

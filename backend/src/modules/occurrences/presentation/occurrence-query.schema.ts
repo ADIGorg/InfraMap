@@ -3,8 +3,10 @@ import { z } from 'zod';
 const commonQuery = {
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(20),
-  sort: z.enum(['recent', 'oldest', 'most_liked']).default('recent'),
-  categoryId: z.string().uuid().optional(),
+  sort: z.enum(["recent", "oldest", "most_liked"]).default("recent"),
+  // Zod 4: use z.uuid() top-level (não z.string().uuid()).
+  // A variante com .string() não respeita .optional() em Zod 4.6.7.
+  categoryId: z.uuid().optional(),
   minLat: z.coerce.number().min(-90).max(90).optional(),
   maxLat: z.coerce.number().min(-90).max(90).optional(),
   minLng: z.coerce.number().min(-180).max(180).optional(),

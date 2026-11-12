@@ -120,3 +120,5 @@ REVOKE ALL
 GRANT EXECUTE
   ON FUNCTION public.deactivate_my_account()
   TO authenticated;
+
+REVOKE EXECUTE ON FUNCTION public.deactivate_my_account() FROM PUBLIC;

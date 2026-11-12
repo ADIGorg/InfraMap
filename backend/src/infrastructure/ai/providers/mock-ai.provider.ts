@@ -1,33 +1,37 @@
+// src/infrastructure/ai/providers/mock-ai.provider.ts
+
+import {
+  FALLBACK_CATEGORY_CODE,
+  OCCURRENCE_PHOTOS_MAX,
+  OCCURRENCE_PHOTOS_MIN,
+} from "../../../config/constants.js";
 
 import type {
   AiAnalysisInput,
-  AiAnalysisResult,
   AiAnalysisProvider,
+  AiAnalysisResult,
 } from "../../../modules/ai-analysis/domain/providers/ai-analysis.provider.js";
 
 /**
  * API1-46 - AI-01
- *
- * Provedor simulado utilizado em
- * desenvolvimento e testes automatizados.
+ * Provedor simulado para desenvolvimento e testes automatizados.
  */
 export class MockAiProvider implements AiAnalysisProvider {
   async analyzeOccurrence(
-    input: AiAnalysisInput
+    input: AiAnalysisInput,
   ): Promise<AiAnalysisResult> {
     if (
-      input.photoPaths.length < 1 ||
-      input.photoPaths.length > 3
+      input.photoPaths.length < OCCURRENCE_PHOTOS_MIN ||
+      input.photoPaths.length > OCCURRENCE_PHOTOS_MAX
     ) {
       throw new Error(
-        "A análise exige de 1 a 3 fotografias."
+        `A análise exige de ${OCCURRENCE_PHOTOS_MIN} a ${OCCURRENCE_PHOTOS_MAX} fotografias.`,
       );
     }
 
     return {
-      categoryCode: "CAT07",
-      description:
-        "Ocorrência simulada para testes do InfraMap.",
+      categoryCode: FALLBACK_CATEGORY_CODE,
+      description: "Ocorrência simulada para testes do InfraMap.",
       confidence: 0.95,
       modelName: "mock-ai",
       promptVersion: "v1",

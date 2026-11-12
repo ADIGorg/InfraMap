@@ -1,29 +1,34 @@
-interface IOccurrenceModerationRepository {
-  getOccurrenceById(occurrenceId: string): Promise<{ status: string } | null>;
-  transitionStatus(
-    occurrenceId: string,
-    adminId: string,
-    status: 'REJECTED',
-    justification: string,
-  ): Promise<void>;
-}
+import {
+  BadRequestError,
+  ConflictError,
+  NotFoundError,
+} from "../../../../shared/errors/app-error.js";
+
+import type { IOccurrenceModerationRepository } from "../../domain/repositories/occurrence-moderation.repository.js";
 
 export class RejectOccurrenceUseCase {
   constructor(private readonly repository: IOccurrenceModerationRepository) {}
 
-  async execute(adminId: string, occurrenceId: string, justification: string): Promise<void> {
+  async execute(occurrenceId: string, justification: string): Promise<void> {
     if (!justification || justification.trim().length < 10) {
-      throw new Error('Rejeição exige justificativa com pelo menos 10 caracteres (RN037).');
+      throw new BadRequestError(
+        "Rejeição exige justificativa com pelo menos 10 caracteres (RN037).",
+      );
     }
 
     const occurrence = await this.repository.getOccurrenceById(occurrenceId);
-    
-    if (!occurrence) throw new Error('Ocorrência não encontrada.');
-    
-    if (occurrence.status !== 'UNDER_ANALYSIS') {
-      throw new Error(`Apenas ocorrências UNDER_ANALYSIS podem ser rejeitadas. Status atual: ${occurrence.status}`);
+    if (!occurrence) throw new NotFoundError("Ocorrência não encontrada.");
+
+    if (occurrence.status !== "UNDER_ANALYSIS") {
+      throw new ConflictError(
+        `Apenas ocorrências UNDER_ANALYSIS podem ser rejeitadas. Status atual: ${occurrence.status}.`,
+      );
     }
 
-    await this.repository.transitionStatus(occurrenceId, adminId, 'REJECTED', justification.trim());
+    await this.repository.transitionStatus(
+      occurrenceId,
+      "REJECTED",
+      justification.trim(),
+    );
   }
 }

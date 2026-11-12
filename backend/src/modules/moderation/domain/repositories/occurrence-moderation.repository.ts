@@ -1,12 +1,18 @@
 export type OccurrenceStatus =
-  | 'RECEIVED'
-  | 'UNDER_ANALYSIS'
-  | 'CONFIRMED'
-  | 'REJECTED'
-  | 'IN_SERVICE'   // ← antes era IN_PROGRESS
-  | 'RESOLVED';
+  | "RECEIVED"
+  | "UNDER_ANALYSIS"
+  | "CONFIRMED"
+  | "REJECTED"
+  | "IN_SERVICE"
+  | "RESOLVED";
 
-export type OccurrencePriority = 'LOW' | 'MEDIUM' | 'HIGH';
+export type OccurrencePriority = "LOW" | "MEDIUM" | "HIGH";
+export type ObservationVisibility = "INTERNAL" | "CITIZEN_RESPONSE";
+
+export interface GeoCoordinate {
+  lat: number;
+  lng: number;
+}
 
 export interface OccurrenceBasicInfo {
   id: string;
@@ -15,93 +21,60 @@ export interface OccurrenceBasicInfo {
   authorId: string;
 }
 
-export interface IOccurrenceModerationRepository {
-  getOccurrenceById(occurrenceId: string): Promise<OccurrenceBasicInfo | null>;
-
-  transitionStatus(
-    occurrenceId: string,
-    adminId: string,
-    newStatus: OccurrenceStatus,
-    justification?: string
-  ): Promise<string>;
-
-  // MOD-02
-  setPriority(
-    occurrenceId: string,
-    adminId: string,
-    priority: OccurrencePriority
-  ): Promise<string>;
-
-  startService(
-    occurrenceId: string,
-    adminId: string,
-    actionNotes: string
-  ): Promise<string>;
-
-  resolve(
-    occurrenceId: string,
-    adminId: string,
-    resolutionNotes?: string
-  ): Promise<string>;
-}
-export type ObservationVisibility = 'INTERNAL' | 'CITIZEN_RESPONSE';
-
 export interface HistoryEvent {
   id: string;
-  type: 'history' | 'observation';
+  type: "history" | "observation";
   action: string;
   actorId: string | null;
   createdAt: string;
   details: Record<string, unknown> | null;
   previousData?: Record<string, unknown> | null;
   newData?: Record<string, unknown> | null;
-  // Para observations
   content?: string | null;
   visibility?: ObservationVisibility;
 }
 
-// Estenda a interface IOccurrenceModerationRepository:
 export interface IOccurrenceModerationRepository {
-  // ... métodos do MOD-01 e MOD-02 ...
-
-  createObservation(
-    occurrenceId: string,
-    adminId: string,
-    content: string,
-    visibility: ObservationVisibility
-  ): Promise<string>;
-
-  /**
-   * Retorna todos os eventos da linha do tempo.
-   * A filtragem de visibilidade (INTERNAL só para admin) é feita aqui
-   * — o use case decide quem é o solicitante e passa o flag.
-   */
+  // Leitura
+  getOccurrenceById(occurrenceId: string): Promise<OccurrenceBasicInfo | null>;
   getHistory(
     occurrenceId: string,
-    includeInternalObservations: boolean
+    includeInternalObservations: boolean,
   ): Promise<HistoryEvent[]>;
-}
 
-export interface GeoCoordinate {
-  lat: number;
-  lng: number;
-}
+  // Transições (RPC transition_occurrence — usa auth.uid())
+  transitionStatus(
+    occurrenceId: string,
+    newStatus: OccurrenceStatus,
+    justification?: string,
+  ): Promise<void>;
 
-// Estenda a interface IOccurrenceModerationRepository:
-export interface IOccurrenceModerationRepository {
-  // ... métodos existentes (MOD-01 a MOD-03) ...
+  startService(occurrenceId: string, actionNotes: string): Promise<void>;
+  resolve(occurrenceId: string, resolutionNotes?: string): Promise<void>;
 
-  // MOD-04
+  // Prioridade (RPC update_occurrence_priority)
+  setPriority(
+    occurrenceId: string,
+    priority: OccurrencePriority,
+  ): Promise<void>;
+
+  // Observação (RPC create_observation — retorna UUID da observação)
+  createObservation(
+    occurrenceId: string,
+    content: string,
+    visibility: ObservationVisibility,
+  ): Promise<string>;
+
+  // Localização (RPC adjust_occurrence_location)
   adjustLocation(
     occurrenceId: string,
-    adminId: string,
-    newLocation: GeoCoordinate
-  ): Promise<string>;
+    newLocation: GeoCoordinate,
+  ): Promise<void>;
 
+  // Classificação (RPC correct_occurrence_classification)
   correctClassification(
     occurrenceId: string,
-    adminId: string,
-    newCategoryId?: string | null,
-    newDescription?: string | null
-  ): Promise<string>;
+    newCategoryId: string | null,
+    newDescription: string | null,
+  ): Promise<void>;
 }

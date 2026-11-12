@@ -1,6 +1,12 @@
-
 import { randomUUID } from "node:crypto";
 
+import {
+  MAX_PHOTO_SIZE_BYTES,
+  OCCURRENCE_PHOTO_EXTENSION_BY_MIME,
+  OCCURRENCE_PHOTOS_MAX,
+  OCCURRENCE_PHOTOS_MIN,
+  type OccurrencePhotoMime,
+} from "../../../../config/constants.js";
 
 import {
   AppError,
@@ -8,10 +14,7 @@ import {
   UnauthorizedError,
 } from "../../../../shared/errors/app-error.js";
 
-
-export const MAX_PHOTO_SIZE = 5 * 1024 * 1024;
-
-export type AiPhotoMime = "image/jpeg" | "image/png";
+export type AiPhotoMime = OccurrencePhotoMime;
 
 export interface AiPhotoUpload {
   buffer: Buffer;
@@ -22,13 +25,13 @@ export interface AiAnalysisRepository {
   uploadPhoto(
     path: string,
     buffer: Buffer,
-    mime: AiPhotoMime
+    mime: AiPhotoMime,
   ): Promise<void>;
 
   createAnalysis(
     userId: string,
     analysisId: string,
-    photoPaths: string[]
+    photoPaths: string[],
   ): Promise<void>;
 
   removePhotos(paths: string[]): Promise<void>;
@@ -40,7 +43,9 @@ export interface CreatedAiAnalysis {
   photoCount: number;
 }
 
-// Verifica os bytes reais do arquivo.
+// ============================================================
+// Magic bytes — valida que o conteúdo bate com o MIME
+// ============================================================
 function detectMime(buffer: Buffer): AiPhotoMime {
   const isJpeg =
     buffer.length >= 3 &&
@@ -48,10 +53,7 @@ function detectMime(buffer: Buffer): AiPhotoMime {
     buffer[1] === 0xd8 &&
     buffer[2] === 0xff;
 
-  const pngSignature = Buffer.from([
-    137, 80, 78, 71, 13, 10, 26, 10,
-  ]);
-
+  const pngSignature = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
   const isPng =
     buffer.length >= 8 &&
     buffer.subarray(0, 8).equals(pngSignature);
@@ -60,18 +62,16 @@ function detectMime(buffer: Buffer): AiPhotoMime {
   if (isPng) return "image/png";
 
   throw new BadRequestError(
-    "O arquivo deve ser uma imagem JPEG ou PNG válida."
+    "O arquivo deve ser uma imagem JPEG ou PNG válida.",
   );
 }
 
 export class CreateAiAnalysisUseCase {
-  constructor(
-    private readonly repository: AiAnalysisRepository
-  ) {}
+  constructor(private readonly repository: AiAnalysisRepository) {}
 
   async execute(
     userId: string,
-    photos: AiPhotoUpload[]
+    photos: AiPhotoUpload[],
   ): Promise<CreatedAiAnalysis> {
     if (!userId) {
       throw new UnauthorizedError();
@@ -79,88 +79,62 @@ export class CreateAiAnalysisUseCase {
 
     if (
       !Array.isArray(photos) ||
-      photos.length < 1 ||
-      photos.length > 3
+      photos.length < OCCURRENCE_PHOTOS_MIN ||
+      photos.length > OCCURRENCE_PHOTOS_MAX
     ) {
       throw new BadRequestError(
-        "Envie de 1 a 3 fotografias."
+        `Envie de ${OCCURRENCE_PHOTOS_MIN} a ${OCCURRENCE_PHOTOS_MAX} fotografias.`,
       );
     }
 
-    // Valida todas as fotos antes de fazer uploads.
+    // Valida tudo antes de qualquer upload
     const validated = photos.map((photo) => {
       if (!Buffer.isBuffer(photo.buffer)) {
-        throw new BadRequestError(
-          "Conteúdo da fotografia inválido."
-        );
+        throw new BadRequestError("Conteúdo da fotografia inválido.");
       }
 
-      if (photo.buffer.length > MAX_PHOTO_SIZE) {
+      if (photo.buffer.length > MAX_PHOTO_SIZE_BYTES) {
         throw new AppError(
           413,
           "PAYLOAD_TOO_LARGE",
-          "Cada fotografia deve ter no máximo 5 MB."
+          `Cada fotografia deve ter no máximo ${MAX_PHOTO_SIZE_BYTES / 1024 / 1024} MB.`,
         );
       }
 
       const mime = detectMime(photo.buffer);
 
-      // Também verifica se o MIME declarado
-      // corresponde aos bytes do arquivo.
       if (photo.mimetype !== mime) {
         throw new BadRequestError(
-          "O formato declarado não corresponde à imagem."
+          "O formato declarado não corresponde à imagem.",
         );
       }
 
-      return {
-        buffer: photo.buffer,
-        mime,
-      };
+      return { buffer: photo.buffer, mime };
     });
 
     const analysisId = randomUUID();
 
     const files = validated.map((photo, index) => {
-      const extension =
-        photo.mime === "image/jpeg" ? "jpg" : "png";
-
+      const extension = OCCURRENCE_PHOTO_EXTENSION_BY_MIME[photo.mime];
       return {
         ...photo,
-        path:
-          `temporary/${userId}/${analysisId}/` +
-          `photo-${index + 1}.${extension}`,
+        path: `temporary/${userId}/${analysisId}/photo-${index + 1}.${extension}`,
       };
     });
 
     const paths = files.map((file) => file.path);
 
     try {
-      // Envia as fotos ao bucket privado.
       for (const file of files) {
-        await this.repository.uploadPhoto(
-          file.path,
-          file.buffer,
-          file.mime
-        );
+        await this.repository.uploadPhoto(file.path, file.buffer, file.mime);
       }
-
-      // Cria a análise somente após os uploads.
-      await this.repository.createAnalysis(
-        userId,
-        analysisId,
-        paths
-      );
+      await this.repository.createAnalysis(userId, analysisId, paths);
     } catch (error) {
-      // Tenta limpar os arquivos temporários
-      // se o upload ou o cadastro falhar.
       try {
         await this.repository.removePhotos(paths);
       } catch {
-        // Uma falha na limpeza não substitui
-        // o erro original.
+        /* falha de cleanup não substitui o erro original */
       }
-
       throw error;
     }
 

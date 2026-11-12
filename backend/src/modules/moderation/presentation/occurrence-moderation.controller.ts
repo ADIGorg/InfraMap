@@ -1,206 +1,143 @@
-import { type Request, type Response } from 'express';
+import type { Request, Response } from "express";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
-// ============================================================
-// Tipos dos use cases (padrão duck-typed usado no arquivo)
-// ============================================================
+import { UnauthorizedError } from "../../../shared/errors/app-error.js";
 
-type StartAnalysisUseCase = {
-  execute(userId: string, occurrenceId: string): Promise<unknown>;
-};
+import { SupabaseOccurrenceModerationRepository } from "../infrastructure/repositories/supabase-moderation.repository.js";
 
-type ConfirmOccurrenceUseCase = {
-  execute(userId: string, occurrenceId: string): Promise<unknown>;
-};
+import { StartAnalysisUseCase } from "../application/use-cases/start-analysis.use-case.js";
+import { ConfirmOccurrenceUseCase } from "../application/use-cases/confirm-occurrence.use-case.js";
+import { RejectOccurrenceUseCase } from "../application/use-cases/reject-occurrence.use-case.js";
+import { SetPriorityUseCase } from "../application/use-cases/set-priority.use-case.js";
+import { StartServiceUseCase } from "../application/use-cases/start-service.use-case.js";
+import { ResolveOccurrenceUseCase } from "../application/use-cases/resolve-occurrence.use-case.js";
+import { CreateObservationUseCase } from "../application/use-cases/create-observation.use-case.js";
+import { AdjustLocationUseCase } from "../application/use-cases/adjust-location.use-case.js";
+import { CorrectClassificationUseCase } from "../application/use-cases/correct-classification.use-case.js";
 
-type RejectOccurrenceUseCase = {
-  execute(userId: string, occurrenceId: string, justification: string): Promise<unknown>;
-};
-
-type StartServiceUseCase = {
-  execute(userId: string, occurrenceId: string, actionNotes: string): Promise<unknown>;
-};
-
-type SetPriorityUseCase = {
-  execute(userId: string, occurrenceId: string, priority: unknown): Promise<unknown>;
-};
-
-type ResolveOccurrenceUseCase = {
-  execute(userId: string, occurrenceId: string, resolutionNotes: string): Promise<unknown>;
-};
-
-type CreateObservationUseCase = {
-  execute(
-    userId: string,
-    occurrenceId: string,
-    content: string,
-    visibility: unknown
-  ): Promise<unknown>;
-};
-
-// MOD-04 — novos tipos
-type GeoCoordinate = {
-  lat: number;
-  lng: number;
-};
-
-type AdjustLocationUseCase = {
-  execute(
-    userId: string,
-    occurrenceId: string,
-    newLocation: GeoCoordinate
-  ): Promise<unknown>;
-};
-
-type CorrectClassificationUseCase = {
-  execute(
-    userId: string,
-    occurrenceId: string,
-    newCategoryId?: string | null,
-    newDescription?: string | null
-  ): Promise<unknown>;
-};
-
-// ============================================================
-// Controller
-// ============================================================
+export type CreateUserClient = (accessToken: string) => SupabaseClient;
 
 export class OccurrenceModerationController {
-  constructor(
-    private startAnalysisUseCase: StartAnalysisUseCase,
-    private confirmOccurrenceUseCase: ConfirmOccurrenceUseCase,
-    private rejectOccurrenceUseCase: RejectOccurrenceUseCase,
-    private setPriorityUseCase: SetPriorityUseCase,
-    private startServiceUseCase: StartServiceUseCase,
-    private resolveOccurrenceUseCase: ResolveOccurrenceUseCase,
-    private createObservationUseCase: CreateObservationUseCase,
-    // MOD-04
-    private adjustLocationUseCase: AdjustLocationUseCase,
-    private correctClassificationUseCase: CorrectClassificationUseCase
-  ) {}
+  constructor(private readonly createUserClient: CreateUserClient) {}
 
+  // Helpers
+  private repo(req: Request) {
+    if (!req.token) throw new UnauthorizedError();
+    return new SupabaseOccurrenceModerationRepository(
+      this.createUserClient(req.token),
+    );
+  }
+
+  private occurrenceId(req: Request): string | null {
+    const id = req.params.id;
+    return typeof id === "string" && id.length > 0 ? id : null;
+  }
+
+  // ============================================================
+  // MOD-01
+  // ============================================================
+  async startAnalysis(req: Request, res: Response) {
+    const id = this.occurrenceId(req);
+    if (!id) return res.status(400).json({ message: "ID da ocorrência inválido." });
+
+    await new StartAnalysisUseCase(this.repo(req)).execute(id);
+    return res.status(200).json({ message: "Análise iniciada com sucesso." });
+  }
+
+  async confirm(req: Request, res: Response) {
+    const id = this.occurrenceId(req);
+    if (!id) return res.status(400).json({ message: "ID da ocorrência inválido." });
+
+    await new ConfirmOccurrenceUseCase(this.repo(req)).execute(id);
+    return res.status(200).json({ message: "Ocorrência confirmada com sucesso." });
+  }
+
+  async reject(req: Request, res: Response) {
+    const id = this.occurrenceId(req);
+    if (!id) return res.status(400).json({ message: "ID da ocorrência inválido." });
+
+    const body = req.validated?.body as { justification: string };
+    await new RejectOccurrenceUseCase(this.repo(req)).execute(id, body.justification);
+    return res.status(200).json({ message: "Ocorrência rejeitada com sucesso." });
+  }
+
+  // ============================================================
+  // MOD-02
+  // ============================================================
+  async setPriority(req: Request, res: Response) {
+    const id = this.occurrenceId(req);
+    if (!id) return res.status(400).json({ message: "ID da ocorrência inválido." });
+
+    const body = req.validated?.body as { priority: string };
+    await new SetPriorityUseCase(this.repo(req)).execute(id, body.priority);
+    return res.status(200).json({ message: "Prioridade definida com sucesso." });
+  }
+
+  async startService(req: Request, res: Response) {
+    const id = this.occurrenceId(req);
+    if (!id) return res.status(400).json({ message: "ID da ocorrência inválido." });
+
+    const body = req.validated?.body as { actionNotes: string };
+    await new StartServiceUseCase(this.repo(req)).execute(id, body.actionNotes);
+    return res.status(200).json({ message: "Atendimento iniciado com sucesso." });
+  }
+
+  async resolve(req: Request, res: Response) {
+    const id = this.occurrenceId(req);
+    if (!id) return res.status(400).json({ message: "ID da ocorrência inválido." });
+
+    const body = req.validated?.body as { resolutionNotes?: string };
+    await new ResolveOccurrenceUseCase(this.repo(req)).execute(id, body.resolutionNotes);
+    return res.status(200).json({ message: "Ocorrência resolvida com sucesso." });
+  }
+
+  // ============================================================
+  // MOD-03
+  // ============================================================
   async createObservation(req: Request, res: Response) {
-    const occurrenceId = req.params.id;
-    if (typeof occurrenceId !== 'string') {
-      return res.status(400).json({ message: 'ID da ocorrência inválido.' });
-    }
+    const id = this.occurrenceId(req);
+    if (!id) return res.status(400).json({ message: "ID da ocorrência inválido." });
 
-    const result = await this.createObservationUseCase.execute(
-      req.user!.id,
-      occurrenceId,
-      req.body.content,
-      req.body.visibility
+    const body = req.validated?.body as { content: string; visibility: string };
+    const result = await new CreateObservationUseCase(this.repo(req)).execute(
+      id,
+      body.content,
+      body.visibility,
     );
     return res.status(201).json({
-      message: 'Observação registrada com sucesso.',
+      message: "Observação registrada com sucesso.",
       data: result,
     });
   }
 
-  async startAnalysis(req: Request, res: Response) {
-    const occurrenceId = req.params.id;
-    if (typeof occurrenceId !== 'string') {
-      return res.status(400).json({ message: 'ID da ocorrência inválido.' });
-    }
-
-    await this.startAnalysisUseCase.execute(req.user!.id, occurrenceId);
-    return res.status(200).json({ message: 'Análise iniciada com sucesso.' });
-  }
-
-  async confirm(req: Request, res: Response) {
-    const occurrenceId = req.params.id;
-    if (typeof occurrenceId !== 'string') {
-      return res.status(400).json({ message: 'ID da ocorrência inválido.' });
-    }
-
-    await this.confirmOccurrenceUseCase.execute(req.user!.id, occurrenceId);
-    return res.status(200).json({ message: 'Ocorrência confirmada com sucesso.' });
-  }
-
-  async reject(req: Request, res: Response) {
-    const occurrenceId = req.params.id;
-    if (typeof occurrenceId !== 'string') {
-      return res.status(400).json({ message: 'ID da ocorrência inválido.' });
-    }
-
-    await this.rejectOccurrenceUseCase.execute(
-      req.user!.id,
-      occurrenceId,
-      req.body.justification
-    );
-    return res.status(200).json({ message: 'Ocorrência rejeitada com sucesso.' });
-  }
-
-  // MOD-02
-  async setPriority(req: Request, res: Response) {
-    const occurrenceId = req.params.id;
-    if (typeof occurrenceId !== 'string') {
-      return res.status(400).json({ message: 'ID da ocorrência inválido.' });
-    }
-
-    await this.setPriorityUseCase.execute(
-      req.user!.id,
-      occurrenceId,
-      req.body.priority
-    );
-    return res.status(200).json({ message: 'Prioridade definida com sucesso.' });
-  }
-
-  async startService(req: Request, res: Response) {
-    const occurrenceId = req.params.id;
-    if (typeof occurrenceId !== 'string') {
-      return res.status(400).json({ message: 'ID da ocorrência inválido.' });
-    }
-
-    await this.startServiceUseCase.execute(
-      req.user!.id,
-      occurrenceId,
-      req.body.actionNotes
-    );
-    return res.status(200).json({ message: 'Atendimento iniciado com sucesso.' });
-  }
-
-  async resolve(req: Request, res: Response) {
-    const occurrenceId = req.params.id;
-    if (typeof occurrenceId !== 'string') {
-      return res.status(400).json({ message: 'ID da ocorrência inválido.' });
-    }
-
-    await this.resolveOccurrenceUseCase.execute(
-      req.user!.id,
-      occurrenceId,
-      req.body.resolutionNotes
-    );
-    return res.status(200).json({ message: 'Ocorrência resolvida com sucesso.' });
-  }
-
-  // MOD-04 — ajustar localização administrativa
+  // ============================================================
+  // MOD-04
+  // ============================================================
   async adjustLocation(req: Request, res: Response) {
-    const occurrenceId = req.params.id;
-    if (typeof occurrenceId !== 'string') {
-      return res.status(400).json({ message: 'ID da ocorrência inválido.' });
-    }
+    const id = this.occurrenceId(req);
+    if (!id) return res.status(400).json({ message: "ID da ocorrência inválido." });
 
-    await this.adjustLocationUseCase.execute(
-      req.user!.id,
-      occurrenceId,
-      { lat: req.body.lat, lng: req.body.lng }
-    );
-    return res.status(200).json({ message: 'Localização ajustada com sucesso.' });
+    const body = req.validated?.body as { lat: number; lng: number };
+    await new AdjustLocationUseCase(this.repo(req)).execute(id, {
+      lat: body.lat,
+      lng: body.lng,
+    });
+    return res.status(200).json({ message: "Localização ajustada com sucesso." });
   }
 
-  // MOD-04 — corrigir categoria e/ou descrição
   async correctClassification(req: Request, res: Response) {
-    const occurrenceId = req.params.id;
-    if (typeof occurrenceId !== 'string') {
-      return res.status(400).json({ message: 'ID da ocorrência inválido.' });
-    }
+    const id = this.occurrenceId(req);
+    if (!id) return res.status(400).json({ message: "ID da ocorrência inválido." });
 
-    await this.correctClassificationUseCase.execute(
-      req.user!.id,
-      occurrenceId,
-      req.body.categoryId,
-      req.body.description
+    const body = req.validated?.body as {
+      categoryId?: string;
+      description?: string;
+    };
+    await new CorrectClassificationUseCase(this.repo(req)).execute(
+      id,
+      body.categoryId ?? null,
+      body.description ?? null,
     );
-    return res.status(200).json({ message: 'Classificação corrigida com sucesso.' });
+    return res.status(200).json({ message: "Classificação corrigida com sucesso." });
   }
 }

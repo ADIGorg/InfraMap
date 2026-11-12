@@ -1,18 +1,15 @@
+// src/infrastructure/supabase/public-client.ts
 
-import { createClient } from "@supabase/supabase-js";
-
-import { env } from "../../config/env.js";
-
-// Cliente público para consultas permitidas pela RLS.
-// Usa a chave publicável, sem credenciais privilegiadas.
-export const supabasePublic = createClient(
-  env.supabase.url,
-  env.supabase.publishableKey,
-  {
-    auth: {
-      persistSession: false,
-      autoRefreshToken: false,
-      detectSessionInUrl: false,
-    },
-  }
-);
+/**
+ * Cliente público (anon key) para consultas permitidas pela RLS.
+ *
+ * Tecnicamente é o mesmo client do `auth-client` — mesma URL + mesma
+ * publishableKey. Mantido como alias semântico para deixar explícito,
+ * nos call sites, o contexto de uso:
+ *  - `auth-client`  → autenticação, validação de JWT (`getUser`)
+ *  - `public-client` → leitura anônima respeitando RLS
+ *
+ * Se um dia precisar de config diferente (ex.: rate limit próprio),
+ * este é o lugar para divergir.
+ */
+export { supabaseAuth as supabasePublic } from "./auth-client.js";

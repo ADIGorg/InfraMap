@@ -1,18 +1,34 @@
-import type { Request, Response } from 'express';
+import type { Request, Response } from "express";
 
-type ListUC = { execute(userId: string, filters: unknown): Promise<unknown> };
-type GetUC = { execute(userId: string, id: string): Promise<unknown> };
+import { UnauthorizedError } from "../../../shared/errors/app-error.js";
+import { createUserSupabaseClient } from "../../../infrastructure/supabase/user-client.factory.js";
+import { createSupabaseAdminClient } from "../../../infrastructure/supabase/admin-client.js";
+
+import { SupabaseOccurrenceQueryRepository } from "../infrastructure/repositories/supabase-occurrence-query.repository.js";
+import { SupabasePhotoUrlService } from "../../../infrastructure/storage/supabase-photo-url.service.js";
+import { ListMyOccurrencesUseCase } from "../application/use-cases/list-my-occurrences.use-case.js";
+import { GetMyOccurrenceUseCase } from "../application/use-cases/get-my-occurrence.use-case.js";
+
+import type { ListFilters } from "../domain/repositories/occurrence-query.repository.js";
 
 export class MyOccurrenceController {
-  constructor(private readonly listUC: ListUC, private readonly getUC: GetUC) {}
-
   async list(req: Request, res: Response) {
-    const result = await this.listUC.execute(req.user!.id, req.query);
+    if (!req.user || !req.token) throw new UnauthorizedError();
+    const userClient = createUserSupabaseClient(req.token);
+    const repo = new SupabaseOccurrenceQueryRepository(userClient);
+    const useCase = new ListMyOccurrencesUseCase(repo);
+    const result = await useCase.execute(req.user.id, req.validated?.query as ListFilters);
     return res.status(200).json(result);
   }
 
   async detail(req: Request, res: Response) {
-    const result = await this.getUC.execute(req.user!.id, req.params.id as string);
+    if (!req.user || !req.token) throw new UnauthorizedError();
+    const userClient = createUserSupabaseClient(req.token);
+    const adminClient = createSupabaseAdminClient();
+    const repo = new SupabaseOccurrenceQueryRepository(userClient);
+    const photoSvc = new SupabasePhotoUrlService(adminClient);
+    const useCase = new GetMyOccurrenceUseCase(repo, photoSvc);
+    const result = await useCase.execute(req.user.id, req.params.id as string);
     return res.status(200).json({ data: result });
   }
 }

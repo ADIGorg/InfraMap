@@ -1,7 +1,6 @@
 // src/app.ts
 
 import express, { type Express } from "express";
-import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { createRoutes } from "./routes/index.routes.js";
 import docsRoutes from "./routes/docs.routes.js";
@@ -27,34 +26,23 @@ import {
 } from "./config/constants.js";
 
 // ==========================================
-// DEPENDÊNCIAS DA APLICAÇÃO
-// ==========================================
-
-/**
- * Dependências externas que o app precisa para funcionar.
- *
- * O cliente admin é criado em `server.ts` (composition root) e
- * injetado aqui — isso permite importar `createApp` em testes
- * sem exigir credenciais reais.
- */
-export interface AppDependencies {
-  adminClient: SupabaseClient;
-}
-
-// ==========================================
 // FACTORY DO APP
 // ==========================================
-
-export function createApp(deps: AppDependencies): Express {
+// Sem dependências externas injetadas: os módulos criam
+// os clientes Supabase por requisição. `env.ts` valida
+// todas as variáveis (incluindo `SUPABASE_SECRET_KEY`) no
+// import — fail-fast coberto sem precisar de client no boot.
+// ==========================================
+export function createApp(): Express {
   const app = express();
 
   // ==========================================
-  // API1-12 — LOGGING DE REQUISIÇÕES
+  // API1-12 — LOGGING
   // ==========================================
   app.use(requestLogger);
 
   // ==========================================
-  // API1-11 — PROTEÇÕES HTTP
+  // API1-11 — SEGURANÇA HTTP
   // ==========================================
   app.use(securityHeaders);
   app.use(corsMiddleware);
@@ -63,26 +51,25 @@ export function createApp(deps: AppDependencies): Express {
   app.use(express.json({ limit: JSON_BODY_LIMIT }));
 
   // ==========================================
-  // ROTAS DA APLICAÇÃO
+  // ROTAS
   // ==========================================
   app.use(API_DOCS_PREFIX, docsRoutes);
-  app.use(API_PREFIX, createRoutes(deps));
+  app.use(API_PREFIX, createRoutes());
 
   // ==========================================
-  // API1-44 — ID-02
-  // DESATIVAÇÃO E ANONIMIZAÇÃO DA CONTA
+  // ID-02 — DESATIVAÇÃO (DELETE /identity/me)
   // ==========================================
   app.use(API_PREFIX, deactivateMyAccountRouter);
 
   // ==========================================
-  // API1-10 — ROTAS INEXISTENTES
+  // 404
   // ==========================================
   app.use((_req, _res, next) => {
     next(new NotFoundError("Rota não encontrada."));
   });
 
   // ==========================================
-  // API1-10 / API1-12 — TRATAMENTO DE ERROS
+  // ERROS
   // ==========================================
   app.use(errorHandler);
 

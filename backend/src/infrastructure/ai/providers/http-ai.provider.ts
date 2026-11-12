@@ -1,37 +1,48 @@
+// src/infrastructure/ai/providers/http-ai.provider.ts
 
 import { z } from "zod";
+
+import {
+  AI_DESCRIPTION_MIN_LENGTH,
+  AI_PROVIDER_TIMEOUT_MS,
+  OCCURRENCE_CATEGORY_CODES,
+  OCCURRENCE_DESCRIPTION_MAX_LENGTH,
+  OCCURRENCE_PHOTOS_MAX,
+  OCCURRENCE_PHOTOS_MIN,
+} from "../../../config/constants.js";
 
 import { AppError } from "../../../shared/errors/app-error.js";
 
 import type {
-  AiAnalysisProvider,
   AiAnalysisInput,
+  AiAnalysisProvider,
   AiAnalysisResult,
 } from "../../../modules/ai-analysis/domain/providers/ai-analysis.provider.js";
 
 // API1-46 - AI-01
 
-const categories = [
-  "CAT01", "CAT02", "CAT03", "CAT04",
-  "CAT05", "CAT06", "CAT07",
-] as const;
-
 const resultSchema = z.object({
-  categoryCode: z.enum(categories),
-  description: z.string().trim().min(3).max(500),
+  categoryCode: z.enum(OCCURRENCE_CATEGORY_CODES),
+  description: z
+    .string()
+    .trim()
+    .min(AI_DESCRIPTION_MIN_LENGTH)
+    .max(OCCURRENCE_DESCRIPTION_MAX_LENGTH),
   confidence: z.number().min(0).max(1),
 });
 
 const responseSchema = z.object({
   output: z.array(
     z.object({
-      content: z.array(
-        z.object({
-          type: z.string(),
-          text: z.string().optional(),
-        })
-      ).optional(),
-    })
+      content: z
+        .array(
+          z.object({
+            type: z.string(),
+            text: z.string().optional(),
+          }),
+        )
+        .optional(),
+    }),
   ),
 });
 
@@ -42,35 +53,34 @@ export interface HttpAiConfig {
   promptVersion: string;
 }
 
-// Receberá uma URL assinada ou data URL
-// após verificar a autorização no Storage.
+/** Recebe o path no bucket e o userId do dono. Retorna signed URL ou data URL. */
 export type ResolveAiPhoto = (
   path: string,
-  userId: string
+  userId: string,
 ) => Promise<string>;
 
 export class HttpAiProvider implements AiAnalysisProvider {
   constructor(
     private readonly config: HttpAiConfig,
     private readonly resolvePhoto: ResolveAiPhoto,
-    private readonly http: typeof fetch = fetch
+    private readonly http: typeof fetch = fetch,
   ) {}
 
   async analyzeOccurrence(
-    input: AiAnalysisInput
+    input: AiAnalysisInput,
   ): Promise<AiAnalysisResult> {
     const { photoPaths, userContext } = input;
 
     if (
       !Array.isArray(photoPaths) ||
-      photoPaths.length < 1 ||
-      photoPaths.length > 3 ||
+      photoPaths.length < OCCURRENCE_PHOTOS_MIN ||
+      photoPaths.length > OCCURRENCE_PHOTOS_MAX ||
       photoPaths.some((path) => !path.trim())
     ) {
       throw new AppError(
         400,
         "AI_INVALID_INPUT",
-        "Informe de 1 a 3 fotografias válidas."
+        `Informe de ${OCCURRENCE_PHOTOS_MIN} a ${OCCURRENCE_PHOTOS_MAX} fotografias válidas.`,
       );
     }
 
@@ -78,30 +88,24 @@ export class HttpAiProvider implements AiAnalysisProvider {
       throw new AppError(
         401,
         "UNAUTHORIZED",
-        "Usuário autenticado não informado."
+        "Usuário autenticado não informado.",
       );
     }
 
-    // O resolvedor será integrado ao Storage
-    // nas próximas tarefas.
     let images: string[];
-
     try {
       images = await Promise.all(
-        photoPaths.map((path) =>
-          this.resolvePhoto(path, userContext.id)
-        )
+        photoPaths.map((path) => this.resolvePhoto(path, userContext.id)),
       );
     } catch {
       throw new AppError(
         403,
         "AI_PHOTO_UNAVAILABLE",
-        "Fotografia não autorizada ou indisponível."
+        "Fotografia não autorizada ou indisponível.",
       );
     }
 
     let response: Response;
-
     try {
       response = await this.http(this.config.apiUrl, {
         method: "POST",
@@ -109,16 +113,17 @@ export class HttpAiProvider implements AiAnalysisProvider {
           Authorization: `Bearer ${this.config.apiKey}`,
           "Content-Type": "application/json",
         },
-        signal: AbortSignal.timeout(20000),
+        signal: AbortSignal.timeout(AI_PROVIDER_TIMEOUT_MS),
         body: JSON.stringify({
           model: this.config.model,
           store: false,
-          input: [{
-            role: "user",
-            content: [
-              {
-                type: "input_text",
-                text: `
+          input: [
+            {
+              role: "user",
+              content: [
+                {
+                  type: "input_text",
+                  text: `
 Analise as fotografias de infraestrutura urbana.
 Categorias:
 CAT01 Saneamento e Drenagem
@@ -132,15 +137,16 @@ CAT07 Outros Problemas de Infraestrutura
 Retorne a categoria, descrição objetiva em português
 e confiança entre 0 e 1.
 Não invente informações não visíveis.
-                `.trim(),
-              },
-              ...images.map((image) => ({
-                type: "input_image",
-                image_url: image,
-                detail: "auto",
-              })),
-            ],
-          }],
+                  `.trim(),
+                },
+                ...images.map((image) => ({
+                  type: "input_image",
+                  image_url: image,
+                  detail: "auto",
+                })),
+              ],
+            },
+          ],
           text: {
             format: {
               type: "json_schema",
@@ -152,16 +158,12 @@ Não invente informações não visíveis.
                 properties: {
                   categoryCode: {
                     type: "string",
-                    enum: [...categories],
+                    enum: [...OCCURRENCE_CATEGORY_CODES],
                   },
                   description: { type: "string" },
                   confidence: { type: "number" },
                 },
-                required: [
-                  "categoryCode",
-                  "description",
-                  "confidence",
-                ],
+                required: ["categoryCode", "description", "confidence"],
               },
             },
           },
@@ -171,7 +173,7 @@ Não invente informações não visíveis.
       throw new AppError(
         503,
         "AI_PROVIDER_UNAVAILABLE",
-        "Provedor de IA indisponível."
+        "Provedor de IA indisponível.",
       );
     }
 
@@ -179,48 +181,41 @@ Não invente informações não visíveis.
       throw new AppError(
         503,
         "AI_PROVIDER_UNAVAILABLE",
-        "Falha na comunicação com a IA."
+        "Falha na comunicação com a IA.",
       );
     }
 
     let outputText: string | undefined;
-
     try {
-      const body = responseSchema.parse(
-        await response.json()
-      );
-
+      const body = responseSchema.parse(await response.json());
       outputText = body.output
         .flatMap((item) => item.content ?? [])
-        .find((item) => item.type === "output_text")
-        ?.text;
+        .find((item) => item.type === "output_text")?.text;
     } catch {
       throw new AppError(
         502,
         "AI_INVALID_RESPONSE",
-        "Resposta inválida do provedor de IA."
+        "Resposta inválida do provedor de IA.",
       );
     }
 
     let rawResult: unknown;
-
     try {
       rawResult = JSON.parse(outputText ?? "");
     } catch {
       throw new AppError(
         502,
         "AI_INVALID_RESPONSE",
-        "A IA não retornou um JSON válido."
+        "A IA não retornou um JSON válido.",
       );
     }
 
     const validated = resultSchema.safeParse(rawResult);
-
     if (!validated.success) {
       throw new AppError(
         502,
         "AI_INVALID_RESPONSE",
-        "Resultado da IA fora do contrato esperado."
+        "Resultado da IA fora do contrato esperado.",
       );
     }
 

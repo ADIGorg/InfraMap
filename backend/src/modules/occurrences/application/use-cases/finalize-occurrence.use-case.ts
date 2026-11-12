@@ -59,7 +59,7 @@ export class FinalizeOccurrenceUseCase {
     );
 
     // 6. Invocar função transacional
-    const occurrenceId = await this.repository.finalize(data, userId);
+    const occurrenceId = await this.repository.finalize(data);
 
     // 7. Retorno
     return {

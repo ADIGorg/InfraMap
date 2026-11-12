@@ -2,7 +2,7 @@
     "name": "inframap-api",
     "version": "1.0.0",
     "description": "",
-    "main": "index.js",
+    "main": "dist/server.js",
     "scripts": {
         "test": "cross-env NODE_ENV=test vitest run",
         "dev": "cross-env NODE_ENV=development tsx watch src/server.ts",
@@ -51,5 +51,8 @@
     },
     "overrides": {
         "minimatch": "11.0.1"
+    },
+    "engines": {
+        "node": ">=22.12.0"
     }
 }

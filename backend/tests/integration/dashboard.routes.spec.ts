@@ -22,7 +22,7 @@ app.use("/api/v1/admin", administrationRoutes);
 app.use(errorHandler);
 const data = {
   counts_by_status: { RECEIVED: 0, UNDER_ANALYSIS: 0, CONFIRMED: 0, IN_SERVICE: 0, RESOLVED: 0, REJECTED: 0 },
-  high_priority_total: 0, average_resolution_days: null,
+  high_priority_total: 0, average_resolution_days: null,   sla_breaches: { received_over_48h: 0, under_analysis_over_5d: 0 }
 };
 
 describe("ADM-01", () => {

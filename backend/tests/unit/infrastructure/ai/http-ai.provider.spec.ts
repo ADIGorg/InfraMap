@@ -55,12 +55,10 @@ afterEach(() => {
 });
 
 describe("API1-46 - Provedor de IA", () => {
-  it("deve selecionar o provedor mock", () => {
-    vi.stubEnv("AI_PROVIDER", "mock");
-
-    expect(
-      createAiProvider()
-    ).toBeInstanceOf(MockAiProvider);
+  it("deve selecionar o provedor mock (default)", () => {
+  // env.ts resolve AI_PROVIDER=mock quando não definido.
+  // tests/setup.ts fixa o default para evitar flakiness.
+  expect(createAiProvider()).toBeInstanceOf(MockAiProvider);
   });
 
   it("deve retornar análise válida", async () => {

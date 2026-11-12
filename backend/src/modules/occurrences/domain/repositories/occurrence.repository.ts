@@ -1,5 +1,8 @@
+export type DataSource = "AI_CONFIRMED" | "AI_EDITED" | "USER_MANUAL";
+export type LocationSource = "GPS" | "MANUAL";
+
 export interface UserRoleData {
-  role: 'CITIZEN' | 'ADMIN';
+  role: "CITIZEN" | "ADMIN";
   isActive: boolean;
 }
 
@@ -22,8 +25,6 @@ export interface PhotoInput {
   sizeBytes: number;
 }
 
-export type DataSource = 'AI_CONFIRMED' | 'AI_EDITED' | 'MANUAL';
-
 export interface FinalizeOccurrenceInput {
   aiAnalysisId: string;
   categoryId: string;
@@ -32,11 +33,19 @@ export interface FinalizeOccurrenceInput {
   categorySource: DataSource;
   descriptionSource: DataSource;
   photos: PhotoInput[];
+  /** GPS (padrão) ou MANUAL — RPC exige. */
+  locationSource?: LocationSource;
+  /** Precisão em metros (opcional). */
+  locationAccuracyM?: number | null;
 }
 
 export interface IOccurrenceRepository {
   getUserRole(userId: string): Promise<UserRoleData | null>;
   getAiAnalysis(analysisId: string): Promise<AiAnalysisData | null>;
   getCategory(categoryId: string): Promise<CategoryData | null>;
-  finalize(input: FinalizeOccurrenceInput, userId: string): Promise<string>;
+  /**
+   * RPC `finalize_occurrence` usa auth.uid() — não recebe userId.
+   * Após o commit, move as fotos de `temporary/` → `occurrences/` via admin client.
+   */
+  finalize(input: FinalizeOccurrenceInput): Promise<string>;
 }

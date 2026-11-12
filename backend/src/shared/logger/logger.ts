@@ -1,38 +1,19 @@
+// src/shared/logger/logger.ts
 
-import "dotenv/config";
 import pino from "pino";
 
-// Níveis de log reconhecidos pelo Pino.
-const validLevels = new Set([
-  "fatal",
-  "error",
-  "warn",
-  "info",
-  "debug",
-  "trace",
-  "silent",
-]);
+import { env } from "../../config/env.js";
 
-const requestedLevel = process.env.LOG_LEVEL;
-
-const logLevel =
-  requestedLevel && validLevels.has(requestedLevel)
-    ? requestedLevel
-    : process.env.NODE_ENV === "production"
-      ? "info"
-      : "debug";
-
-// Logger centralizado da aplicação.
+/**
+ * Logger centralizado.
+ *
+ * `env.ts` já validou `LOG_LEVEL` (enum) e definiu default coerente com
+ * `NODE_ENV` (info em prod, debug em dev/test).
+ */
 export const logger = pino({
   name: "inframap-api",
-
-  // Define o nível mínimo de severidade registrado.
-  level: logLevel,
-
-  // Registra data e hora no padrão ISO 8601.
+  level: env.log.level,
   timestamp: pino.stdTimeFunctions.isoTime,
-
-  // Mascaramento adicional de dados sensíveis.
   redact: {
     paths: [
       "password",

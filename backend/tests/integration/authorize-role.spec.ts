@@ -203,34 +203,23 @@ describe("API1-14 - Autorização por perfil", () => {
   });
 
   it("deve retornar 500 em caso de falha na consulta", async () => {
-    // Simula uma falha na consulta ao banco.
-    maybeSingleMock.mockResolvedValue({
-      data: null,
-      error: {
-        message: "Falha na consulta",
-      },
-    });
-
-    const response = await request(
-      createTestApp()
-    ).get("/admin");
-
-    // O erro deve continuar retornando HTTP 500.
-    expect(response.status).toBe(500);
-
-    // O cliente recebe um código genérico,
-    // conforme o tratamento centralizado da API1-10.
-    expect(response.body.error.code).toBe(
-      "INTERNAL_SERVER_ERROR"
-    );
-
-    // Detalhes internos não devem ser expostos.
-    expect(JSON.stringify(response.body))
-      .not.toContain("Falha na consulta");
-
-    expect(JSON.stringify(response.body))
-      .not.toContain("ROLE_LOOKUP_FAILED");
+  // Simula uma falha na consulta ao banco.
+  maybeSingleMock.mockResolvedValue({
+    data: null,
+    error: {
+      message: "Falha na consulta",
+    },
   });
+
+  const response = await request(createTestApp()).get("/admin");
+
+  // AppError 5xx preservado — o código específico chega ao cliente.
+  expect(response.status).toBe(500);
+  expect(response.body.error.code).toBe("ROLE_LOOKUP_FAILED");
+
+  // Detalhes internos do banco NÃO vazam.
+  expect(JSON.stringify(response.body)).not.toContain("Falha na consulta");
+});
 
   it("não deve confiar no perfil enviado pelo frontend", async () => {
     maybeSingleMock.mockResolvedValue({

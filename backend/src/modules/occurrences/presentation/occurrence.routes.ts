@@ -1,36 +1,25 @@
-import { Router, type RequestHandler } from 'express';
-import type { SupabaseClient } from '@supabase/supabase-js';
+import { Router, type RequestHandler } from "express";
 
+import { authenticate } from "../../../shared/middlewares/authenticate.js";
+import { validateRequest } from "../../../shared/middlewares/validate-request.js";
 
 import { FinalizeOccurrenceController } from "./occurrence.controller.js";
-import { FinalizeOccurrenceUseCase } from "../application/use-cases/finalize-occurrence.use-case.js";
-import { SupabaseOccurrenceRepository } from "../infrastructure/repositories/supabase-occurrence.repository.js";
-import { validateRequest } from "../../../shared/middlewares/validate-request.js";
 import { finalizeOccurrenceSchema } from "./occurrence.schema.js";
 
 export interface OccurrenceRoutesDeps {
-  authenticate: RequestHandler;
-  adminClient: SupabaseClient;
+  authenticate?: RequestHandler;
 }
 
 export function createOccurrenceRoutes({
-  authenticate,
-  adminClient,
-}: OccurrenceRoutesDeps): Router {
-  const repository = new SupabaseOccurrenceRepository(adminClient);
-  const controller = new FinalizeOccurrenceController(
-    new FinalizeOccurrenceUseCase(repository)
-  );
-
+  authenticate: auth = authenticate,
+}: OccurrenceRoutesDeps = {}): Router {
+  const controller = new FinalizeOccurrenceController();
   const router = Router();
-
-  // POST /occurrences/finalize — cidadão registra a ocorrência
   router.post(
-    '/finalize',
-    authenticate,
+    "/finalize",
+    auth,
     validateRequest({ body: finalizeOccurrenceSchema.shape.body }),
-    (req, res) => controller.handle(req, res)
+    (req, res, next) => controller.handle(req, res).catch(next),
   );
-
   return router;
 }

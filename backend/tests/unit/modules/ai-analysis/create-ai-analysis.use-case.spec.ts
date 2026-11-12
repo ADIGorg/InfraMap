@@ -8,10 +8,9 @@ import {
 
 import {
   CreateAiAnalysisUseCase,
-  MAX_PHOTO_SIZE,
   type AiAnalysisRepository,
 } from "../../../../src/modules/ai-analysis/application/use-cases/create-ai-analysis.use-case.js";
-
+import { MAX_PHOTO_SIZE_BYTES } from "../../../../src/config/constants.js";
 // ==========================================
 // API1-47 - AI-02
 // TESTES UNITÁRIOS DO CASO DE USO
@@ -169,9 +168,7 @@ describe("API1-47 - CreateAiAnalysisUseCase", () => {
 
     await expect(
       useCase.execute("user-123", [{
-        buffer: Buffer.alloc(
-          MAX_PHOTO_SIZE + 1
-        ),
+        buffer: Buffer.alloc(MAX_PHOTO_SIZE_BYTES + 1),
         mimetype: "image/jpeg",
       }])
     ).rejects.toMatchObject({

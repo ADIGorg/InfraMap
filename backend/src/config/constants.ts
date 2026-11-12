@@ -1,104 +1,121 @@
 // src/config/constants.ts
 
-// ==========================================
-// API — versão e prefixos de rota
-// ==========================================
-export const API_PREFIX = "/api/v1";
-export const API_DOCS_PREFIX = "/api/docs";
-export const API_VERSION = "1.0.0";
+// ============================================================
+// API
+// ============================================================
+export const API_PREFIX = "/api/v1" as const;
+export const API_DOCS_PREFIX = "/api/docs" as const;
+export const API_VERSION = "1.0.0" as const;
+export const JSON_BODY_LIMIT = "100kb" as const;
+
+// ============================================================
+// Paginação
+// ============================================================
+export const DEFAULT_PAGE_SIZE = 20 as const;
+export const MAX_PAGE_SIZE = 100 as const;
+
+// ============================================================
+// Ocorrências — limites (espelham CHECKs do DB)
+// ============================================================
+export const OCCURRENCE_DESCRIPTION_MAX_LENGTH = 500 as const;
+export const OCCURRENCE_PHOTOS_MIN = 1 as const;
+export const OCCURRENCE_PHOTOS_MAX = 3 as const;
+
+// ============================================================
+// Enums de domínio — espelham os ENUMs do banco
+// ============================================================
+export const OCCURRENCE_STATUSES = [
+  "RECEIVED",
+  "UNDER_ANALYSIS",
+  "CONFIRMED",
+  "IN_SERVICE",
+  "RESOLVED",
+  "REJECTED",
+] as const;
+export type OccurrenceStatus = (typeof OCCURRENCE_STATUSES)[number];
+
+export const OCCURRENCE_PRIORITIES = ["LOW", "MEDIUM", "HIGH"] as const;
+export type OccurrencePriority = (typeof OCCURRENCE_PRIORITIES)[number];
+
+export const DATA_SOURCES = [
+  "AI_CONFIRMED",
+  "AI_EDITED",
+  "USER_MANUAL",
+] as const;
+export type DataSource = (typeof DATA_SOURCES)[number];
+
+export const LOCATION_SOURCES = ["GPS", "MANUAL"] as const;
+export type LocationSource = (typeof LOCATION_SOURCES)[number];
+
+export const OBSERVATION_VISIBILITIES = [
+  "INTERNAL",
+  "CITIZEN_RESPONSE",
+] as const;
+export type ObservationVisibility = (typeof OBSERVATION_VISIBILITIES)[number];
+
+// ============================================================
+// Fotos — storage, tamanho, MIME
+// ============================================================
+export const STORAGE_BUCKET_NAME = "occurrence-photos" as const;
+export const MAX_PHOTO_SIZE_BYTES = 5_242_880 as const;
+export const PHOTO_URL_EXPIRATION_SECONDS = 300 as const;
 
 /**
- * Limite do corpo JSON em requisições.
- * Valores maiores são rejeitados com 413.
- */
-export const JSON_BODY_LIMIT = "100kb";
-
-// ==========================================
-// Paginação — consultas de listagem
-// ==========================================
-// (Não especificado nos requisitos — defaults do projeto.)
-export const DEFAULT_PAGE_SIZE = 20;
-export const MAX_PAGE_SIZE = 100;
-
-// ==========================================
-// Ocorrências — RF06, RF08, RF10
-// ==========================================
-
-/** RF08 — limite máximo de caracteres da descrição. */
-export const OCCURRENCE_DESCRIPTION_MAX_LENGTH = 500;
-
-/** RF10 — mínimo de evidências fotográficas obrigatórias. */
-export const OCCURRENCE_PHOTOS_MIN = 1;
-
-/** RF10 — máximo de evidências fotográficas por ocorrência. */
-export const OCCURRENCE_PHOTOS_MAX = 3;
-
-/** RF10 — formatos aceitos (apenas JPG). */
-export const OCCURRENCE_PHOTO_MIME_TYPES = ["image/jpeg"] as const;
-
-// ==========================================
-// Fotos — armazenamento e acesso (RF27)
-// ==========================================
-
-/**
- * Nome do bucket privado no Supabase Storage.
- * Confirmar com a migration `20261107134350_fix_bucket_allowed_mime_types.sql`.
- */
-export const STORAGE_BUCKET_NAME = "occurrence-photos";
-
-/**
- * Tamanho máximo por arquivo.
+ * MIME types aceitos para evidência fotográfica.
  *
- * ⚠️ Não especificado nos requisitos. Sugestão de 5 MB como default
- * razoável para fotos de celular. Confirmar com o limite configurado
- * no bucket do Supabase.
+ * ⚠️ Deve casar com 4 fontes:
+ *   1. Bucket `occurrence-photos` (storage.buckets.allowed_mime_types)
+ *   2. CHECK `occurrence_photos_mime_type_check` (public.occurrence_photos)
+ *   3. Zod `photoSchema` (src/modules/occurrences/presentation/occurrence.schema.ts)
+ *   4. `create-ai-analysis.detectMime` (magic bytes)
+ *
+ * Estado atual no banco: ['image/jpeg', 'image/png']
+ *
+ * Nota: `image/jpg` NÃO é MIME válido — o MIME correto para .jpg é `image/jpeg`.
+ * A versão anterior desta constante e o Zod schema tinham `image/jpg` (bug).
  */
-export const MAX_PHOTO_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
+export const OCCURRENCE_PHOTO_MIME_TYPES = [
+  "image/jpeg",
+  "image/png",
+] as const;
+export type OccurrencePhotoMime = (typeof OCCURRENCE_PHOTO_MIME_TYPES)[number];
 
+export const OCCURRENCE_PHOTO_EXTENSION_BY_MIME: Record<
+  OccurrencePhotoMime,
+  string
+> = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+};
+
+// ============================================================
+// Categorias — códigos canônicos (RN008)
+// ============================================================
+export const OCCURRENCE_CATEGORY_CODES = [
+  "CAT01", "CAT02", "CAT03", "CAT04",
+  "CAT05", "CAT06", "CAT07",
+] as const;
+export type OccurrenceCategoryCode = (typeof OCCURRENCE_CATEGORY_CODES)[number];
+
+export const FALLBACK_CATEGORY_CODE: OccurrenceCategoryCode = "CAT07";
+
+// ============================================================
+// IA — provider HTTP
+// ============================================================
+/** Timeout do provider HTTP (20s) — suficiente para visão multimodal. */
+export const AI_PROVIDER_TIMEOUT_MS = 20_000 as const;
+
+/** Tamanho mínimo da descrição retornada pela IA. */
+export const AI_DESCRIPTION_MIN_LENGTH = 3 as const;
+
+// ============================================================
+// Geolocalização
+// ============================================================
 /**
- * Tempo de expiração da URL assinada de foto (RF27).
+ * Casas decimais para arredondamento da localização no mapa público.
+ * 3 casas ≈ 110m (quadra/bairro) — RN022.
  *
- * Não especificado nos requisitos — 5 min é curto o suficiente para
- * evitar link compartilhado e longo o suficiente para o app carregar.
+ * O snap é feito no banco (`public_occurrences_source` via ST_SnapToGrid).
+ * Este valor é documental — a fonte de verdade é o SQL da função.
  */
-export const PHOTO_URL_EXPIRATION_SECONDS = 300; // 5 min
-
-// ==========================================
-// Privacidade — RF27, RN022
-// ==========================================
-
-/**
- * Casas decimais do arredondamento da coordenada para exibição pública.
- *
- * 3 casas ≈ 110 m (quadra/bairro) — RN022.
- * 2 casas ≈ 1.1 km (bairro amplo) — ver RF27 ("ex: bairro").
- *
- * ⚠️ RF27 cita "bairro" como exemplo, mas RN022 (implementada no código
- * atual como "quadra/bairro") usa 3 casas. Confirmar qual granularidade
- * é a oficial antes de mudar — afeta todos os mapas públicos.
- */
-export const PUBLIC_LOCATION_DECIMALS = 3;
-
-// ==========================================
-// Requisitos não-funcionais (documentação)
-// ==========================================
-//
-// Os valores abaixo NÃO são aplicados diretamente pelo código — são
-// parâmetros de infraestrutura/SLA documentados aqui para referência
-// e uso em dashboards, testes de carga, docs e configuração de CI/ops.
-// Detalhamento pertence a docs/architecture.md e docs/database.md.
-
-/** RNF03 — 95% das requisições abaixo deste tempo (ms). */
-export const SLA_P95_RESPONSE_MS = 2000;
-
-/** RNF04 — disponibilidade mínima mensal (0–1). */
-export const SLA_MONTHLY_UPTIME = 0.99;
-
-/** RNF15 — intervalo máximo de backup (horas). */
-export const BACKUP_INTERVAL_HOURS = 24;
-
-/** RNF15 — tempo máximo de recuperação após desastre (horas). */
-export const RECOVERY_TIME_OBJECTIVE_HOURS = 4;
-
-/** RNF17 — retenção mínima dos logs de auditoria (meses). */
-export const AUDIT_LOG_RETENTION_MONTHS = 6;
+export const PUBLIC_LOCATION_DECIMALS = 3 as const;
