@@ -16,6 +16,7 @@ describe.runIf(enabled)("QA-02 / API1-64 — integração Auth, RLS, RPC e Stora
   let operational: QaUser;
   let objectPath = "";
   let notificationId = "";
+  let publicSignupId = "";
 
   beforeAll(async () => {
     ensureLocalQa();
@@ -30,8 +31,28 @@ describe.runIf(enabled)("QA-02 / API1-64 — integração Auth, RLS, RPC e Stora
     if (!admin) return;
     if (objectPath) await admin.storage.from(bucket).remove([objectPath]);
     if (notificationId) await admin.from("notifications").delete().eq("id", notificationId);
+    if (publicSignupId) await admin.auth.admin.deleteUser(publicSignupId);
     await removeQaUsers(admin, [citizenA, citizenB, master, operational].filter(Boolean));
   }, 30000);
+
+  it("cadastro PÚBLICO Auth cria um cidadão ativo, nunca ADMIN", async () => {
+    const email = `qa-public-${crypto.randomUUID()}@example.com`;
+    const password = `QaPublic!${crypto.randomUUID()}`;
+    const signup = await qaAnonClient().auth.signUp({
+      email, password, options: {data: {name: "Cadastro público QA", role: "ADMIN"}},
+    });
+    expect(signup.error).toBeNull();
+    expect(signup.data.user?.id).toBeTruthy();
+    publicSignupId = signup.data.user!.id;
+    const created = await admin.from("user_roles")
+      .select("role,admin_level,is_active").eq("user_id",publicSignupId).single();
+    expect(created.data).toMatchObject({
+      role:"CITIZEN", admin_level:null, is_active:true,
+    });
+    const profile = await admin.from("profiles")
+      .select("name").eq("id",publicSignupId).single();
+    expect(profile.data?.name).toBe("Cadastro público QA");
+  });
 
   it("gatilho Auth provisiona perfil e papel CITIZEN ativo", async () => {
     const profile = await citizenA.client.from("profiles")
