@@ -1,3 +1,4 @@
+import { BadRequestError, NotFoundError } from "../../../../shared/errors/app-error.js";
 type ObservationVisibility = 'INTERNAL' | 'CITIZEN_RESPONSE';
 
 interface IOccurrenceModerationRepository {
@@ -22,15 +23,15 @@ export class CreateObservationUseCase {
     visibility: string
   ): Promise<{ observationId: string }> {
     if (!VALID_VISIBILITIES.includes(visibility as ObservationVisibility)) {
-      throw new Error('Visibilidade inválida. Use INTERNAL ou CITIZEN_RESPONSE (RN044).');
+      throw new BadRequestError('Visibilidade inválida. Use INTERNAL ou CITIZEN_RESPONSE (RN044).');
     }
 
     if (!content || content.trim().length < 5) {
-      throw new Error('O conteúdo da observação deve ter pelo menos 5 caracteres.');
+      throw new BadRequestError('O conteúdo da observação deve ter pelo menos 5 caracteres.');
     }
 
     const occurrence = await this.repository.getOccurrenceById(occurrenceId);
-    if (!occurrence) throw new Error('Ocorrência não encontrada.');
+    if (!occurrence) throw new NotFoundError('Ocorrência não encontrada.');
 
     const observationId = await this.repository.createObservation(
       occurrenceId,
