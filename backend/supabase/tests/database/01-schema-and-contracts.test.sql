@@ -1,6 +1,10 @@
 -- Esquema do Anexo 2 + migrations vigentes. Somente leitura; rollback protetor.
 BEGIN;
-SELECT plan(104);
+SELECT plan(105);
+SELECT ok(
+  has_table_privilege('authenticated', 'public.occurrences', 'SELECT'),
+  'RLS só funciona para moderadores se o papel authenticated tiver GRANT SELECT em occurrences'
+);
 
 SELECT ok(to_regclass('public.profiles') IS NOT NULL, 'Tabela profiles');
 
