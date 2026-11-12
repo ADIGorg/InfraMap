@@ -13,7 +13,6 @@ export function createAiAnalysisDependencies(
   adminClient: SupabaseClient
 ): AiAnalysisActions {
   const repository = new SupabaseAiAnalysisRepository(adminClient);
-  const bucket = adminClient.storage.from("occurrence-photos");
 
   function authorizePhoto(path: string, userId: string, analysisId: string): void {
     const prefix = `temporary/${userId}/${analysisId}/`;
@@ -31,6 +30,9 @@ export function createAiAnalysisDependencies(
       return new GetAiAnalysisUseCase(repository).execute(userId, analysisId);
     },
     async start(userId, analysisId) {
+      // Resolução do Storage sob demanda: criação do app não exige bucket
+      // real e testes HTTP podem injetar apenas as dependências usadas.
+      const bucket = adminClient.storage.from("occurrence-photos");
       const provider = createAiProvider(
         // Compatibilidade com o provider HTTP legado.
         async (path, ownerId) => {
