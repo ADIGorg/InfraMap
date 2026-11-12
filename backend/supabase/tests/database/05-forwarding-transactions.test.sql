@@ -23,7 +23,9 @@ SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000004102'
 SELECT lives_ok($x$SELECT public.create_forwarding('00000000-0000-4000-8000-000000004301','00000000-0000-4000-8000-000000004401','Encaminhamento A','Verificar rapidamente')$x$,'Admin encaminha ocorrência CONFIRMED');
 SELECT is((SELECT status::text FROM public.forwardings WHERE occurrence_id='00000000-0000-4000-8000-000000004301' LIMIT 1),'PENDING','Novo encaminhamento começa PENDING');
 SELECT is((SELECT recipient_email::text FROM public.forwardings WHERE occurrence_id='00000000-0000-4000-8000-000000004301' LIMIT 1),'obras@example.invalid','E-mail do órgão registrado como snapshot');
+RESET ROLE;
 SELECT is((SELECT count(*)::int FROM public.occurrence_history WHERE occurrence_id='00000000-0000-4000-8000-000000004301' AND action='FORWARDED_TO_AGENCY'),1,'Encaminhamento registra histórico');
+SET LOCAL ROLE authenticated;
 SELECT throws_ok($x$SELECT public.record_forwarding_result(
 (SELECT id FROM public.forwardings WHERE occurrence_id='00000000-0000-4000-8000-000000004301' LIMIT 1),
 'PENDING'::public.forwarding_status)$x$,'22023',NULL,'Resultado não pode permanecer PENDING');
@@ -37,7 +39,9 @@ SELECT lives_ok($x$SELECT public.record_forwarding_result(
 'SENT'::public.forwarding_status,'provider-message-01')$x$,'Resultado SENT registrado');
 SELECT is((SELECT status::text FROM public.forwardings WHERE occurrence_id='00000000-0000-4000-8000-000000004301' LIMIT 1),'SENT','Status SENT persistido');
 SELECT ok((SELECT sent_at IS NOT NULL FROM public.forwardings WHERE occurrence_id='00000000-0000-4000-8000-000000004301' LIMIT 1),'SENT registra sent_at');
+RESET ROLE;
 SELECT is((SELECT count(*)::int FROM public.occurrence_history WHERE occurrence_id='00000000-0000-4000-8000-000000004301' AND action='FORWARDING_SENT'),1,'Resultado gera histórico de envio');
+SET LOCAL ROLE authenticated;
 SELECT throws_ok($x$SELECT public.record_forwarding_result(
 (SELECT id FROM public.forwardings WHERE occurrence_id='00000000-0000-4000-8000-000000004301' LIMIT 1),
 'FAILED'::public.forwarding_status,NULL,'HTTP_503')$x$,'22023',NULL,'Não altera resultado já finalizado');
@@ -46,6 +50,8 @@ SELECT lives_ok($x$SELECT public.record_forwarding_result(
 (SELECT id FROM public.forwardings WHERE occurrence_id='00000000-0000-4000-8000-000000004301' AND status='PENDING' LIMIT 1),
 'FAILED'::public.forwarding_status,NULL,'PROVIDER_UNAVAILABLE')$x$,'Falha de envio registrada em FAILED');
 SELECT is((SELECT count(*)::int FROM public.forwardings WHERE occurrence_id='00000000-0000-4000-8000-000000004301' AND status='FAILED'),1,'Registro FAILED persistido');
+RESET ROLE;
 SELECT is((SELECT count(*)::int FROM public.occurrence_history WHERE occurrence_id='00000000-0000-4000-8000-000000004301' AND action='FORWARDING_FAILED'),1,'Falha registrada no histórico');
+SET LOCAL ROLE authenticated;
 SELECT * FROM finish();
 ROLLBACK;
