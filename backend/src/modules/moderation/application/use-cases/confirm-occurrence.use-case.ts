@@ -1,6 +1,6 @@
 interface IOccurrenceModerationRepository {
   getOccurrenceById(occurrenceId: string): Promise<{ status: string } | null>;
-  transitionStatus(occurrenceId: string, adminId: string, status: 'CONFIRMED'): Promise<void>;
+  transitionStatus(occurrenceId: string, adminId: string, status: 'CONFIRMED'): Promise<unknown>;
 }
 
 export class ConfirmOccurrenceUseCase {
