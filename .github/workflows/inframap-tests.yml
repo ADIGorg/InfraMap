@@ -1,0 +1,64 @@
+name: InfraMap - Regras de negócio e Banco
+
+on:
+  push:
+    branches:
+      - test/business-rules-db-20261112
+    paths:
+      - "backend/**"
+      - ".github/workflows/inframap-tests.yml"
+  pull_request:
+    paths:
+      - "backend/**"
+      - ".github/workflows/inframap-tests.yml"
+  workflow_dispatch:
+
+jobs:
+  api:
+    name: TypeScript + Vitest
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Build
+        run: npm run build
+      - name: Lint
+        run: npm run lint
+      - name: Unit and HTTP integration tests
+        run: npm test
+        env:
+          NODE_ENV: test
+          SUPABASE_URL: http://127.0.0.1:54321
+          SUPABASE_PUBLISHABLE_KEY: ci-publishable-key
+          SUPABASE_SECRET_KEY: ci-secret-key
+          AI_PROVIDER: mock
+          EMAIL_PROVIDER: mock
+
+  database:
+    name: Supabase local + pgTAP
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Start isolated local Supabase database
+        run: supabase start
+      - name: Run pgTAP business and RLS tests
+        run: supabase test db
+      - name: Stop local Supabase stack
+        if: always()
+        run: supabase stop
