@@ -31,7 +31,7 @@ SELECT lives_ok($x$SELECT public.create_observation('00000000-0000-4000-8000-000
 SELECT lives_ok($x$SELECT public.set_occurrence_public_visibility('00000000-0000-4000-8000-000000005301',false)$x$,'Admin oculta ocorrência no mapa público');
 -- A RPC tem um bug de retorno composto; manter a verificação de falha,
 -- mas preparar a flag diretamente para auditar visibilidade/RLS separadamente.
-RESET ROLE;
+SET LOCAL ROLE postgres;
 UPDATE public.occurrences SET public_visible=false WHERE id='00000000-0000-4000-8000-000000005301';
 SET LOCAL ROLE authenticated;
 SELECT is((SELECT count(*)::int FROM public.public_occurrences WHERE id='00000000-0000-4000-8000-000000005301'),0,'Ocorrência oculta não aparece na view');
