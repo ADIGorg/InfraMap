@@ -82,21 +82,21 @@ jobs:
           services = {"api": base, "db": base + 1, "studio": base + 2,
                       "inbucket": base + 3, "analytics": base + 4}
           for line in original.splitlines():
-              m = re.match(r"\\s*\\[([^]]+)\\]", line)
+              m = re.match(r"\s*\[([^]]+)\]", line)
               if m:
                   section = m.group(1)
-              if re.match(r"\\s*port\\s*=", line):
+              if re.match(r"\s*port\s*=", line):
                   key = None
                   if section in services:
                       key = services[section]
                   elif section == "db.pooler":
                       key = base + 5
                   if key is not None:
-                      line = re.sub(r"(port\\s*=\\s*)\\d+", lambda m: m.group(1) + str(key), line, count=1)
-              if section == "db" and re.match(r"\\s*shadow_port\\s*=", line):
-                  line = re.sub(r"(shadow_port\\s*=\\s*)\\d+", lambda m: m.group(1) + str(base + 6), line, count=1)
+                      line = re.sub(r"(port\s*=\s*)\d+", lambda m: m.group(1) + str(key), line, count=1)
+              if section == "db" and re.match(r"\s*shadow_port\s*=", line):
+                  line = re.sub(r"(shadow_port\s*=\s*)\d+", lambda m: m.group(1) + str(base + 6), line, count=1)
               result.append(line)
-          config.write_text("\\n".join(result) + "\\n")
+          config.write_text("\n".join(result) + "\n")
           print("Isolated Supabase ports configured (local CI only).")
           PY
       - name: Start disposable local Supabase
