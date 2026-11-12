@@ -1,3 +1,4 @@
+import { BadRequestError, NotFoundError } from "../../../../shared/errors/app-error.js";
 interface GeoCoordinate {
   lat: number;
   lng: number;
@@ -24,11 +25,11 @@ export class AdjustLocationUseCase {
       newLocation.lat < -90 || newLocation.lat > 90 ||
       newLocation.lng < -180 || newLocation.lng > 180
     ) {
-      throw new Error('Coordenadas inválidas.');
+      throw new BadRequestError('Coordenadas inválidas.');
     }
 
     const occurrence = await this.repository.getOccurrenceById(occurrenceId);
-    if (!occurrence) throw new Error('Ocorrência não encontrada.');
+    if (!occurrence) throw new NotFoundError('Ocorrência não encontrada.');
 
     await this.repository.adjustLocation(occurrenceId, adminId, newLocation);
   }
