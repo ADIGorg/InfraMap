@@ -1,4 +1,4 @@
-import { NotFoundError } from "../../../../shared/errors/app-error.js";
+import { NotFoundError, ConflictError } from "../../../../shared/errors/app-error.js";
 import { canTransitionOccurrence } from "../../domain/services/occurrence-transition-policy.js";
 interface IOccurrenceModerationRepository {
   getOccurrenceById(
@@ -23,7 +23,7 @@ export class ResolveOccurrenceUseCase {
     if (!occurrence) throw new NotFoundError('Ocorrência não encontrada.');
 
     if (!canTransitionOccurrence(occurrence.status, 'RESOLVED')) {
-      throw new Error(
+      throw new ConflictError(
         `Apenas ocorrências IN_SERVICE podem ser resolvidas. Status atual: ${occurrence.status}.`
       );
     }
