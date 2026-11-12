@@ -1,4 +1,4 @@
-import { ConflictError, NotFoundError } from "../../../../shared/errors/app-error.js";
+import { NotFoundError } from "../../../../shared/errors/app-error.js";
 import { canTransitionOccurrence } from "../../domain/services/occurrence-transition-policy.js";
 interface IOccurrenceModerationRepository {
   getOccurrenceById(
