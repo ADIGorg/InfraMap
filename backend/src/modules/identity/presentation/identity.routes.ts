@@ -58,22 +58,7 @@ identityRouter.get(
   }
 );
 
-// Identificação básica do usuário autenticado.
-identityRouter.get(
-  "/me",
-  authenticate,
-  (req, res) => {
-    const user = req.user!;
-
-    return res.status(200).json({
-      message: "Usuário autenticado.",
-      data: {
-        id: user.id,
-        email: user.email,
-      },
-    });
-  }
-);
+// GET /identity/me e PATCH /identity/me são definidos em my-profile.routes.ts.
 
 // Verificação de acesso administrativo.
 identityRouter.get(
