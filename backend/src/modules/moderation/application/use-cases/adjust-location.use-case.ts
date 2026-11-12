@@ -9,7 +9,7 @@ interface IOccurrenceModerationRepository {
     occurrenceId: string,
     adminId: string,
     newLocation: GeoCoordinate
-  ): Promise<void>;
+  ): Promise<unknown>;
 }
 
 export class AdjustLocationUseCase {
