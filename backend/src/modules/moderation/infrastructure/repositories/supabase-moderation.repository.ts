@@ -1,4 +1,5 @@
-import { SupabaseClient } from '@supabase/supabase-js';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import { mapPostgrestError } from '../../../../shared/errors/map-postgrest-error.js';
 import type {
   GeoCoordinate,
   HistoryEvent,
@@ -9,19 +10,13 @@ import type {
   OccurrenceStatus,
 } from '../../domain/repositories/occurrence-moderation.repository.js';
 
-function mapPgError(message: string): Error {
-  for (const prefix of ['FORBIDDEN', 'NOT_FOUND', 'CONFLICT', 'BAD_REQUEST']) {
-    if (message.includes(`${prefix}:`)) {
-      return new Error(message.replace(`${prefix}:`, '').trim());
-    }
-  }
-  return new Error(`Erro no banco: ${message}`);
-}
-
 export class SupabaseOccurrenceModerationRepository
   implements IOccurrenceModerationRepository
 {
-  constructor(private readonly supabase: SupabaseClient) {}
+  constructor(
+    private readonly supabase: SupabaseClient,
+    private readonly mutationClient: SupabaseClient = supabase,
+  ) {}
 
   // ==========================================================
   // MOD-04 — ajustar localização
@@ -31,7 +26,7 @@ export class SupabaseOccurrenceModerationRepository
     adminId: string,
     newLocation: GeoCoordinate
   ): Promise<string> {
-    const { data, error } = await this.supabase.rpc(
+    const { data, error } = await this.mutationClient.rpc(
       'adjust_occurrence_location',
       {
         p_occurrence_id: occurrenceId,
@@ -40,7 +35,7 @@ export class SupabaseOccurrenceModerationRepository
         p_new_lng: newLocation.lng,
       }
     );
-    if (error) throw mapPgError(error.message);
+    if (error) throw mapPostgrestError(error, 'moderar a ocorrência');
     return data as string;
   }
 
@@ -53,7 +48,7 @@ export class SupabaseOccurrenceModerationRepository
     newCategoryId?: string | null,
     newDescription?: string | null
   ): Promise<string> {
-    const { data, error } = await this.supabase.rpc(
+    const { data, error } = await this.mutationClient.rpc(
       'correct_occurrence_classification',
       {
         p_occurrence_id: occurrenceId,
@@ -62,7 +57,7 @@ export class SupabaseOccurrenceModerationRepository
         p_new_description: newDescription ?? null,
       }
     );
-    if (error) throw mapPgError(error.message);
+    if (error) throw mapPostgrestError(error, 'moderar a ocorrência');
     return data as string;
   }
 
@@ -75,13 +70,13 @@ export class SupabaseOccurrenceModerationRepository
     content: string,
     visibility: ObservationVisibility
   ): Promise<string> {
-    const { data, error } = await this.supabase.rpc('create_occurrence_observation', {
+    const { data, error } = await this.mutationClient.rpc('create_occurrence_observation', {
       p_occurrence_id: occurrenceId,
       p_admin_id: adminId,
       p_content: content,
       p_visibility: visibility,
     });
-    if (error) throw mapPgError(error.message);
+    if (error) throw mapPostgrestError(error, 'moderar a ocorrência');
     return data as string;
   }
 
@@ -99,7 +94,7 @@ export class SupabaseOccurrenceModerationRepository
       .order('created_at', { ascending: true });
 
     if (historyErr) {
-      throw new Error(`Erro ao buscar histórico: ${historyErr.message}`);
+      throw mapPostgrestError(historyErr, 'consultar o histórico');
     }
 
     let obsQuery = this.supabase
@@ -113,7 +108,7 @@ export class SupabaseOccurrenceModerationRepository
 
     const { data: obsRows, error: obsErr } = await obsQuery;
     if (obsErr) {
-      throw new Error(`Erro ao buscar observações: ${obsErr.message}`);
+      throw mapPostgrestError(obsErr, 'consultar as observações');
     }
 
     const historyEvents: HistoryEvent[] = (historyRows ?? []).map((r) => ({
@@ -138,7 +133,15 @@ export class SupabaseOccurrenceModerationRepository
       visibility: r.visibility as ObservationVisibility,
     }));
 
-    return [...historyEvents, ...observationEvents].sort(
+    const visibleHistory = includeInternalObservations
+      ? historyEvents
+      : historyEvents.filter((event) => {
+          if (event.action === 'OBSERVATION_INTERNAL_ADDED') return false;
+          if (event.action !== 'OBSERVATION_ADDED') return true;
+          return event.details?.visibility !== 'INTERNAL';
+        });
+
+    return [...visibleHistory, ...observationEvents].sort(
       (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
     );
   }
@@ -153,7 +156,7 @@ export class SupabaseOccurrenceModerationRepository
       .eq('id', occurrenceId)
       .maybeSingle();
 
-    if (error) throw new Error(`Erro ao buscar ocorrência: ${error.message}`);
+    if (error) throw mapPostgrestError(error, 'consultar a ocorrência');
     if (!data) return null;
 
     return {
@@ -173,13 +176,13 @@ export class SupabaseOccurrenceModerationRepository
     newStatus: OccurrenceStatus,
     justification?: string
   ): Promise<string> {
-    const { data, error } = await this.supabase.rpc('transition_occurrence_status', {
+    const { data, error } = await this.mutationClient.rpc('transition_occurrence_status', {
       p_occurrence_id: occurrenceId,
       p_admin_id: adminId,
       p_new_status: newStatus,
       p_justification: justification ?? null,
     });
-    if (error) throw mapPgError(error.message);
+    if (error) throw mapPostgrestError(error, 'moderar a ocorrência');
     return data as string;
   }
 
@@ -191,12 +194,12 @@ export class SupabaseOccurrenceModerationRepository
     adminId: string,
     priority: OccurrencePriority
   ): Promise<string> {
-    const { data, error } = await this.supabase.rpc('set_occurrence_priority', {
+    const { data, error } = await this.mutationClient.rpc('set_occurrence_priority', {
       p_occurrence_id: occurrenceId,
       p_admin_id: adminId,
       p_priority: priority,
     });
-    if (error) throw mapPgError(error.message);
+    if (error) throw mapPostgrestError(error, 'moderar a ocorrência');
     return data as string;
   }
 
@@ -208,12 +211,12 @@ export class SupabaseOccurrenceModerationRepository
     adminId: string,
     actionNotes: string
   ): Promise<string> {
-    const { data, error } = await this.supabase.rpc('start_occurrence_service', {
+    const { data, error } = await this.mutationClient.rpc('start_occurrence_service', {
       p_occurrence_id: occurrenceId,
       p_admin_id: adminId,
       p_action_notes: actionNotes,
     });
-    if (error) throw mapPgError(error.message);
+    if (error) throw mapPostgrestError(error, 'moderar a ocorrência');
     return data as string;
   }
 
@@ -225,12 +228,12 @@ export class SupabaseOccurrenceModerationRepository
     adminId: string,
     resolutionNotes?: string
   ): Promise<string> {
-    const { data, error } = await this.supabase.rpc('resolve_occurrence', {
+    const { data, error } = await this.mutationClient.rpc('resolve_occurrence', {
       p_occurrence_id: occurrenceId,
       p_admin_id: adminId,
       p_resolution_notes: resolutionNotes ?? null,
     });
-    if (error) throw mapPgError(error.message);
+    if (error) throw mapPostgrestError(error, 'moderar a ocorrência');
     return data as string;
   }
 }
