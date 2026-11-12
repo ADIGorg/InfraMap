@@ -18,7 +18,8 @@ INSERT INTO public.ai_analyses
 VALUES ('00000000-0000-4000-8000-000000002201','00000000-0000-4000-8000-000000002101','["temporary/00000000-0000-4000-8000-000000002101/00000000-0000-4000-8000-000000002201/photo-1.jpg"]',
 'COMPLETED',(SELECT id FROM public.categories WHERE code='CAT01'),
 'Esgoto a céu aberto na rua',0.95,'mock-test','v1',now());
-SET LOCAL ROLE authenticated;
+-- A fixture consulta tabelas via executor postgres; as RPCs verificam auth.uid().
+-- RLS com ROLE authenticated é exercitada em 02 e 06.
 SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000002101',true);
 SELECT lives_ok($test$SELECT * FROM public.finalize_occurrence(
 p_analysis_id=>'00000000-0000-4000-8000-000000002201'::uuid,
