@@ -63,7 +63,7 @@ export class LocalQaStack {
     level: "MASTER" | "OPERATIONAL" | null = null,
     viaSignup = false,
   ): Promise<QaUser> {
-    const email = "qa-" + randomUUID() + "@example.invalid";
+    const email = "qa-" + randomUUID() + "@example.com";
     const password = "Qa!InfraMap2026#" + randomUUID().slice(0, 8);
     const name = "Pessoa QA " + (level ?? "Cidadão");
     let id: string;
