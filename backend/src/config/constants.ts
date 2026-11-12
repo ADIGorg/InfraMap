@@ -109,6 +109,18 @@ export const AI_PROVIDER_TIMEOUT_MS = 20_000 as const;
 export const AI_DESCRIPTION_MIN_LENGTH = 3 as const;
 
 // ============================================================
+// E-mail — provider HTTP
+// ============================================================
+/** Timeout do provider de e-mail HTTP (15s). */
+export const EMAIL_PROVIDER_TIMEOUT_MS = 15_000 as const;
+
+/** Assunto máximo (espelha `forwardings.subject VARCHAR(200)`). */
+export const EMAIL_SUBJECT_MAX_LENGTH = 200 as const;
+
+/** Corpo máximo (text + html combinados). */
+export const EMAIL_BODY_MAX_LENGTH = 100_000 as const;
+
+// ============================================================
 // Geolocalização
 // ============================================================
 /**

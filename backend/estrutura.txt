@@ -2,6 +2,7 @@
 ├── docs
 │   ├── architecture.md
 │   └── openapi.yaml
+├── .env.example
 ├── eslint.config.js
 ├── .gitignore
 ├── package.json
@@ -210,6 +211,16 @@
 │       └── types
 │           └── express.d.ts
 ├── supabase
+│   ├── _abandoned_09_11
+│   │   ├── 20261109070000_id02_deactivate_my_account.sql
+│   │   ├── 20261109100000_mod01_transition_occurrence_status.sql
+│   │   ├── 20261109110000_mod02_priority_and_service.sql
+│   │   ├── 20261109120000_mod03_observations_and_history.sql
+│   │   ├── 20261109130000_mod04_adjust_location_and_classification.sql
+│   │   ├── 20261109140000_occ01_finalize_occurrence.sql
+│   │   ├── 20261109150000_occ02_read_queries.sql
+│   │   ├── 20261109235900_notify_citizen_response.sql
+│   │   └── README.md
 │   ├── config.toml
 │   ├── .gitignore
 │   ├── migrations
@@ -238,19 +249,25 @@
 │   │   ├── 20261107154759_fix_public_occurrences_view_source.sql
 │   │   ├── 20261107155255_grant_select_on_public_occurrences_view.sql
 │   │   ├── 20261107155735_add_read_rpcs_for_occurrences.sql
-│   │   ├── 20261109070000_id02_deactivate_my_account.sql
-│   │   ├── 20261109100000_mod01_transition_occurrence_status.sql
-│   │   ├── 20261109110000_mod02_priority_and_service.sql
-│   │   ├── 20261109120000_mod03_observations_and_history.sql
-│   │   ├── 20261109130000_mod04_adjust_location_and_classification.sql
-│   │   ├── 20261109140000_occ01_finalize_occurrence.sql
-│   │   ├── 20261109150000_occ02_read_queries.sql
-│   │   ├── 20261109235900_notify_citizen_response.sql
 │   │   ├── 20261110040000_get_admin_dashboard.sql
 │   │   ├── 20261110050000_manage_administrators.sql
 │   │   ├── 20261110051000_provision_administrator_auth_metadata_update.sql
 │   │   ├── 20261110052000_manage_agencies.sql
-│   │   └── 20261110054000_enforce_transactional_voting.sql
+│   │   ├── 20261110054000_enforce_transactional_voting.sql
+│   │   ├── 20261111235842_add_create_observation.sql
+│   │   ├── 20261111235917_add_notify_citizen_response_trigger.sql
+│   │   ├── 20261111235933_add_update_occurrence_priority.sql
+│   │   ├── 20261111235951_add_deactivate_my_account.sql
+│   │   ├── 20261112002309_add_correct_occurrence_classification.sql
+│   │   ├── 20261112002322_add_create_forwarding.sql
+│   │   ├── 20261112002329_add_public_visibility.sql
+│   │   ├── 20261112002338_add_sla_to_admin_dashboard.sql
+│   │   ├── 20261112002345_add_votes_filter_to_admin_list.sql
+│   │   ├── 20261112003058_add_priority_and_view_fixes.sql
+│   │   ├── 20261112010524_enrich_read_rpcs.sql
+│   │   ├── 20261112010843_differentiate_observation_actions.sql
+│   │   └── 20261112011150_add_missing_indexes.sql
+│   ├── seed.sql
 │   └── .temp
 │       ├── cli-latest
 │       ├── gotrue-version
@@ -304,4 +321,4 @@
 ├── tsconfig.scripts.json
 └── vitest.config.ts
 
-89 directories, 216 files
+90 directories, 232 files

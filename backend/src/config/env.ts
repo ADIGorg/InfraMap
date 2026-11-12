@@ -9,6 +9,7 @@ import { z } from "zod";
 const NODE_ENVS = ["development", "test", "production"] as const;
 const LOG_LEVELS = ["fatal", "error", "warn", "info", "debug", "trace", "silent"] as const;
 const AI_PROVIDERS = ["mock", "http"] as const;
+const EMAIL_PROVIDERS = ["mock", "http"] as const;
 
 // ============================================================
 // Schema
@@ -33,6 +34,12 @@ const envSchema = z.object({
   AI_MODEL: z.string().optional(),
   AI_PROMPT_VERSION: z.string().default("v1"),
   AI_CONFIDENCE_THRESHOLD: z.coerce.number().min(0).max(1).default(0.7),
+
+  // E-mail (FWD-01)
+  EMAIL_PROVIDER: z.enum(EMAIL_PROVIDERS).default("mock"),
+  EMAIL_API_URL: z.string().url().optional(),
+  EMAIL_API_KEY: z.string().optional(),
+  EMAIL_FROM: z.email().optional(),
 });
 
 type RawEnv = z.infer<typeof envSchema>;
@@ -68,6 +75,24 @@ function parseEnv(): RawEnv {
   // AI_API_URL deve ser HTTPS
   if (data.AI_API_URL && !data.AI_API_URL.startsWith("https://")) {
     throw new Error("AI_API_URL deve usar HTTPS.");
+  }
+
+  // EMAIL_PROVIDER=http exige URL, API key e from
+  if (data.EMAIL_PROVIDER === "http") {
+    const missing: string[] = [];
+    if (!data.EMAIL_API_URL) missing.push("EMAIL_API_URL");
+    if (!data.EMAIL_API_KEY) missing.push("EMAIL_API_KEY");
+    if (!data.EMAIL_FROM) missing.push("EMAIL_FROM");
+    if (missing.length > 0) {
+      throw new Error(
+        `EMAIL_PROVIDER=http exige as variáveis: ${missing.join(", ")}.`
+      );
+    }
+  }
+
+  // EMAIL_API_URL deve ser HTTPS
+  if (data.EMAIL_API_URL && !data.EMAIL_API_URL.startsWith("https://")) {
+    throw new Error("EMAIL_API_URL deve usar HTTPS.");
   }
 
   // Production: CORS obrigatório e não vazio
@@ -117,6 +142,13 @@ export const env = {
     model: raw.AI_MODEL,
     promptVersion: raw.AI_PROMPT_VERSION,
     confidenceThreshold: raw.AI_CONFIDENCE_THRESHOLD,
+  },
+
+  email: {
+    provider: raw.EMAIL_PROVIDER,
+    apiUrl: raw.EMAIL_API_URL,
+    apiKey: raw.EMAIL_API_KEY,
+    from: raw.EMAIL_FROM,
   },
 } as const;
 
