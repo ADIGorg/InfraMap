@@ -30,6 +30,8 @@ describe.runIf(enabled)("QA-03 — jornada completa real", () => {
   let categoryId = "";
   let agencyId = "";
   let photoId = "";
+  let independentlyPublishedId = "";
+  let independentlyPublishedPhotoId = "";
 
   const auth = (token: string) => ({Authorization: `Bearer ${token}`});
 
@@ -196,6 +198,38 @@ describe.runIf(enabled)("QA-03 — jornada completa real", () => {
     expect(publicDetail.status).toBe(404);
     const publicPhoto = await request(app).get(`${root}/occurrences/public/${occurrenceId}/photos/${photoId}`);
     expect([403,404]).toContain(publicPhoto.status);
+  });
+
+  // Isola a projeção pública dos erros da rota de moderação. Para preparar
+  // uma fixture já CONFIRMED, apenas o cliente de serviço local altera status.
+  // Não simula sucesso da moderação: o fluxo completo segue testado abaixo.
+  it("projeção pública de ocorrência já confirmada fornece URL assinada de fotos", async () => {
+    independentlyPublishedId = await uploadAnalyzeFinalize(voter, "Teste da foto pública independente");
+    const published = await service.from("occurrences")
+      .update({status:"CONFIRMED"}).eq("id",independentlyPublishedId).select("id").single();
+    expect(published.error).toBeNull();
+    const photo = await service.from("occurrence_photos")
+      .select("id").eq("occurrence_id",independentlyPublishedId).single();
+    expect(photo.error).toBeNull();
+    independentlyPublishedPhotoId = photo.data!.id;
+    const visible = await request(app).get(`${root}/occurrences/public/${independentlyPublishedId}`);
+    expect(visible.status,JSON.stringify(visible.body)).toBe(200);
+    expect(visible.body.data?.photoUrls).toHaveLength(1);
+    expect(visible.body.data.photoUrls[0].url).toContain("token=");
+    expect(JSON.stringify(visible.body)).not.toContain("storagePath");
+  },30000);
+
+  it("foto de ocorrência CONFIRMED mas OCULTA não recebe URL pública", async () => {
+    expect(independentlyPublishedId).toBeTruthy();
+    const hidden = await service.from("occurrences")
+      .update({public_visible:false}).eq("id",independentlyPublishedId).select("id").single();
+    expect(hidden.error).toBeNull();
+    const publicDetail = await request(app).get(`${root}/occurrences/public/${independentlyPublishedId}`);
+    expect(publicDetail.status).toBe(404);
+    const unauthorizedPhoto = await request(app).get(
+      `${root}/occurrences/public/${independentlyPublishedId}/photos/${independentlyPublishedPhotoId}`
+    );
+    expect([403,404]).toContain(unauthorizedPhoto.status);
   });
 
   it("administrador analisa e confirma; foto pública vira URL assinada", async () => {
