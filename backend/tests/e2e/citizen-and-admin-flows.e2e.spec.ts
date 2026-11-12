@@ -2,7 +2,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { createClient } from "@supabase/supabase-js";
 import { API, PNG, harness, type QaHarness, type TestActor } from "./helpers/local-supabase.js";
 
-describe.sequential("API1-65 / QA-03 — API + Supabase local, sem mocks de repository", () => {
+describe("API1-65 / QA-03 — API + Supabase local, sem mocks de repository", () => {
   let h: QaHarness;
   let citizen: TestActor;
   let voter: TestActor;
