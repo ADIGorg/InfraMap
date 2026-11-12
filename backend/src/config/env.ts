@@ -39,7 +39,13 @@ const envSchema = z.object({
   EMAIL_PROVIDER: z.enum(EMAIL_PROVIDERS).default("mock"),
   EMAIL_API_URL: z.string().url().optional(),
   EMAIL_API_KEY: z.string().optional(),
-  EMAIL_FROM: z.email().optional(),
+    EMAIL_FROM: z.email().optional(),
+
+  // Forwarding (FWD-02)
+  FORWARDING_PUBLIC_URL_TEMPLATE: z.string()
+    .min(1, "FORWARDING_PUBLIC_URL_TEMPLATE é obrigatória.")
+    .refine((s) => s.includes("{id}"), "FORWARDING_PUBLIC_URL_TEMPLATE deve conter {id}")
+    .default("http://localhost:5173/occurrences/{id}"),
 });
 
 type RawEnv = z.infer<typeof envSchema>;
@@ -149,6 +155,10 @@ export const env = {
     apiUrl: raw.EMAIL_API_URL,
     apiKey: raw.EMAIL_API_KEY,
     from: raw.EMAIL_FROM,
+  },
+
+  forwarding: {
+    publicUrlTemplate: raw.FORWARDING_PUBLIC_URL_TEMPLATE,
   },
 } as const;
 

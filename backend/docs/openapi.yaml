@@ -46,6 +46,8 @@ tags:
     description: Análise e gerenciamento de ocorrências pelo administrador.
   - name: Photos
     description: Acesso a URLs assinadas das evidências fotográficas.
+  - name: Forwardings
+    description: Encaminhamento de ocorrências a órgãos externos por e-mail.
 
 paths:
   # ========================================
@@ -795,6 +797,75 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorResponse" }
 
+  /admin/occurrences/{id}/forwardings:
+    post:
+      tags: [Forwardings]
+      summary: Encaminhar ocorrência a órgão por e-mail (RN060/RN070)
+      description: |
+        Admin ativo. Ocorrência precisa estar em CONFIRMED e o órgão ativo.
+        Cria `forwardings` como PENDING, envia e-mail, atualiza para
+        SENT/FAILED de forma atômica. O status da ocorrência **não muda**.
+        Resposta 201 mesmo quando o provedor falha (status=FAILED, error_code
+        preenchido) — a tentativa é persistida para auditoria.
+      operationId: forwardOccurrence
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: "#/components/parameters/OccurrenceIdPath" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [agency_id]
+              properties:
+                agency_id: { type: string, format: uuid }
+                observations: { type: string, maxLength: 2000 }
+      responses:
+        "201":
+          description: Encaminhamento registrado (SENT ou FAILED).
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/ForwardingResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: Ocorrência não está CONFIRMED ou órgão inativo.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+    get:
+      tags: [Forwardings]
+      summary: Listar tentativas de encaminhamento
+      description: |
+        Admin ativo. Retorna todas as tentativas (PENDING, SENT, FAILED),
+        ordenadas por `created_at DESC`.
+      operationId: listForwardings
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: "#/components/parameters/OccurrenceIdPath" }
+      responses:
+        "200":
+          description: Lista de tentativas.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/ForwardingListItem" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
   # ========================================
   # VOTES
   # ========================================
@@ -1328,6 +1399,33 @@ components:
     ObservationVisibility:
       type: string
       enum: [INTERNAL, CITIZEN_RESPONSE]
+    ForwardingStatus:
+      type: string
+      enum: [PENDING, SENT, FAILED]
+    ForwardingResponse:
+      type: object
+      required: [id, occurrenceId, agencyId, recipientEmail, subject, status, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        occurrenceId: { type: string, format: uuid }
+        agencyId: { type: string, format: uuid }
+        recipientEmail: { type: string, format: email }
+        subject: { type: string, maxLength: 200 }
+        observations: { type: [string, "null"], maxLength: 2000 }
+        status: { $ref: "#/components/schemas/ForwardingStatus" }
+        providerMessageId: { type: [string, "null"] }
+        errorCode: { type: [string, "null"] }
+        createdAt: { type: string, format: date-time }
+        sentAt: { type: [string, "null"], format: date-time }
+    ForwardingListItem:
+      allOf:
+        - $ref: "#/components/schemas/ForwardingResponse"
+        - type: object
+          required: [agencyName, adminName, adminId]
+          properties:
+            agencyName: { type: string }
+            adminId: { type: string, format: uuid }
+            adminName: { type: string }
 
     # ─────────────────────────────────────
     # Primitivos

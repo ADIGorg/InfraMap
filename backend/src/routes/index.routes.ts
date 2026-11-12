@@ -6,6 +6,7 @@ import healthRoutes from "../modules/health/health.routes.js";
 import { administrationRoutes } from "../modules/administration/presentation/administration.routes.js";
 import { notificationsRoutes } from "../modules/notifications/presentation/notifications.routes.js";
 import { votesRoutes } from "../modules/votes/presentation/votes.routes.js";
+import { createForwardingsRoutes } from "../modules/forwardings/forwardings.routes.js";
 
 import {
   createIdentityRoutes,
@@ -151,6 +152,11 @@ export function createRoutes(): Router {
     }),
   );
 
+  // ==========================================
+  // FWD-02 — ENCAMINHAMENTO A ÓRGÃOS
+  // ==========================================
+  routes.use("/admin/occurrences", createForwardingsRoutes());
+    
   // ==========================================
   // MOD-03 — HISTÓRICO (autor OU admin; decide no use case)
   // ==========================================
