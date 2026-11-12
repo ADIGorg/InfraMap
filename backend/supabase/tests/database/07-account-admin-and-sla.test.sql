@@ -1,6 +1,6 @@
 -- ID-02 e ADM-02. Testa RPCs e fila de limpeza Auth em ambiente local.
 BEGIN;
-SELECT plan(15);
+SELECT plan(16);
 INSERT INTO auth.users(id,instance_id,aud,role,email,encrypted_password,raw_app_meta_data,raw_user_meta_data)
 VALUES('00000000-0000-4000-8000-000000007101','00000000-0000-0000-0000-000000000000','authenticated','authenticated',
 'account-citizen@example.invalid','x','{}','{"name":"citizen original","phone":"75990000000"}');
