@@ -1,4 +1,5 @@
 import type { Request, Response } from 'express';
+import { UnauthorizedError } from '../../../shared/errors/app-error.js';
 
 interface GetOccurrenceHistoryUseCase {
   execute(
@@ -19,8 +20,10 @@ export class OccurrenceHistoryController {
 
     const requester = {
       userId: req.user!.id,
-      role: req.user!.role as 'CITIZEN' | 'ADMIN',
+      role: req.identityRole as 'CITIZEN' | 'ADMIN',
     };
+
+    if (!req.user || !req.identityRole) throw new UnauthorizedError();
 
     const events = await this.getOccurrenceHistoryUseCase.execute(
       requester,
