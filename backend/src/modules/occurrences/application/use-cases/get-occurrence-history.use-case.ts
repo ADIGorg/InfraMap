@@ -1,3 +1,4 @@
+import { NotFoundError, ForbiddenError } from "../../../../shared/errors/app-error.js";
 import type {
     IOccurrenceModerationRepository,
     HistoryEvent,
@@ -17,7 +18,7 @@ export class GetOccurrenceHistoryUseCase {
     occurrenceId: string
   ): Promise<HistoryEvent[]> {
     const occurrence = await this.repository.getOccurrenceById(occurrenceId);
-    if (!occurrence) throw new Error('Ocorrência não encontrada.');
+    if (!occurrence) throw new NotFoundError('Ocorrência não encontrada.');
 
     // Autorização (RN045 e RN046):
     //   - Cidadão só vê o histórico da PRÓPRIA ocorrência
@@ -26,7 +27,7 @@ export class GetOccurrenceHistoryUseCase {
     const isAuthor = occurrence.authorId === requester.userId;
 
     if (!isAdmin && !isAuthor) {
-      throw new Error('Você não tem permissão para consultar o histórico desta ocorrência.');
+      throw new ForbiddenError('Você não tem permissão para consultar o histórico desta ocorrência.');
     }
 
     // Regra de visibilidade (RN044):
