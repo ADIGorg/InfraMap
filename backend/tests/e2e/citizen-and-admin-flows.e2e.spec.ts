@@ -65,6 +65,36 @@ describe("API1-65 / QA-03 — API + Supabase local, sem mocks de repository", ()
     expect(response.status, JSON.stringify(response.body)).toBe(200);
   });
 
+  it("regressão: detalhe público elegível deve entregar URLs das fotos sem caminhos privados", async () => {
+    const { occurrenceId, storagePath } = await h.createOccurrence(citizen);
+    await transitionFixture(occurrenceId, "UNDER_ANALYSIS");
+    await transitionFixture(occurrenceId, "CONFIRMED");
+
+    const response = await h.http().get(`${API}/occurrences/public/${occurrenceId}`);
+    expect(response.status, JSON.stringify(response.body)).toBe(200);
+    expect(JSON.stringify(response.body)).not.toContain(storagePath);
+    expect(response.body.data.photoUrls).toHaveLength(1);
+    expect(response.body.data.photoUrls[0].url).toMatch(/^https?:\/\//);
+  });
+
+  it("regressão: foto de ocorrência CONFIRMED mas public_visible=false não pode ter URL assinada", async () => {
+    const { occurrenceId, photoId } = await h.createOccurrence(citizen);
+    await transitionFixture(occurrenceId, "UNDER_ANALYSIS");
+    await transitionFixture(occurrenceId, "CONFIRMED");
+
+    // Fixture privileged local; a própria RPC de visibilidade falha com SQLSTATE 42601.
+    const { error } = await h.admin.from("occurrences")
+      .update({ public_visible: false }).eq("id", occurrenceId);
+    expect(error).toBeNull();
+    const hiddenDetail = await h.http().get(`${API}/occurrences/public/${occurrenceId}`);
+    expect(hiddenDetail.status).toBe(404);
+
+    const photo = await h.http().get(
+      `${API}/occurrences/public/${occurrenceId}/photos/${photoId}`,
+    );
+    expect(photo.status, JSON.stringify(photo.body)).toBe(403);
+  });
+
   it("cadastro real, login, isolamento e atualização de perfil", async () => {
     const me = await h.http().get(`${API}/identity/me`)
       .set("Authorization", h.bearer(citizen));
