@@ -1,22 +1,13 @@
-export type OccurrenceStatus =
-  | 'RECEIVED'
-  | 'UNDER_ANALYSIS'
-  | 'CONFIRMED'
-  | 'IN_SERVICE'
-  | 'RESOLVED'
-  | 'REJECTED';
+import type { OccurrenceStatus } from "../value-objects/occurrence-status.js";
+import type { OccurrencePriority } from "../value-objects/occurrence-priority.js";
+import type { GeoPoint } from "../value-objects/geo-point.js";
 
-export type OccurrencePriority = 'LOW' | 'MEDIUM' | 'HIGH';
+export type { OccurrenceStatus, OccurrencePriority, GeoPoint };
 
 export interface CategorySummary {
   id: string;
   code: string;
   name: string;
-}
-
-export interface GeoPoint {
-  lat: number;
-  lng: number;
 }
 
 export interface OccurrencePhoto {
