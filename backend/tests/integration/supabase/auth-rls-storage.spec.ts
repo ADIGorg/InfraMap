@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
@@ -36,8 +37,8 @@ describe.runIf(enabled)("QA-02 / API1-64 — integração Auth, RLS, RPC e Stora
   }, 30000);
 
   it("cadastro PÚBLICO Auth cria um cidadão ativo, nunca ADMIN", async () => {
-    const email = `qa-public-${crypto.randomUUID()}@example.com`;
-    const password = `QaPublic!${crypto.randomUUID()}`;
+    const email = `qa-public-${randomUUID()}@example.com`;
+    const password = `QaPublic!${randomUUID()}`;
     const signup = await qaAnonClient().auth.signUp({
       email, password, options: {data: {name: "Cadastro público QA", role: "ADMIN"}},
     });
