@@ -1,3 +1,5 @@
+import { ConflictError, NotFoundError } from "../../../../shared/errors/app-error.js";
+import { canTransitionOccurrence } from "../../domain/services/occurrence-transition-policy.js";
 interface IOccurrenceModerationRepository {
   getOccurrenceById(
     occurrenceId: string
@@ -18,9 +20,9 @@ export class ResolveOccurrenceUseCase {
     resolutionNotes?: string
   ): Promise<void> {
     const occurrence = await this.repository.getOccurrenceById(occurrenceId);
-    if (!occurrence) throw new Error('Ocorrência não encontrada.');
+    if (!occurrence) throw new NotFoundError('Ocorrência não encontrada.');
 
-    if (occurrence.status !== 'IN_SERVICE') {
+    if (!canTransitionOccurrence(occurrence.status, 'RESOLVED')) {
       throw new Error(
         `Apenas ocorrências IN_SERVICE podem ser resolvidas. Status atual: ${occurrence.status}.`
       );
