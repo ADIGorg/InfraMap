@@ -1,5 +1,6 @@
 import { Router, type RequestHandler } from 'express';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { authorizeRole } from '../../../shared/middlewares/authorize-role.js';
 
 
 import { MyOccurrenceController } from "./my-occurrence.controller.js";
@@ -33,7 +34,7 @@ export function createMyOccurrenceRoutes({
   );
 
   const router = Router();
-  router.use(authenticate);
+  router.use(authenticate, authorizeRole(['CITIZEN']));
 
   router.get(
     '/',
