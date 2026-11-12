@@ -1,5 +1,5 @@
 
-import { defineConfig } from "vitest/config";
+import { configDefaults, defineConfig } from "vitest/config";
 
 export default defineConfig({
   test: {
@@ -8,6 +8,8 @@ export default defineConfig({
     include: [
       "tests/**/*.{test,spec}.ts",
     ],
+
+    exclude: [...configDefaults.exclude, "tests/e2e/**"],
 
     setupFiles: [
       "./tests/setup.ts",
