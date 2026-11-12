@@ -6,7 +6,7 @@ interface IOccurrenceModerationRepository {
     occurrenceId: string,
     adminId: string,
     resolutionNotes?: string
-  ): Promise<void>;
+  ): Promise<unknown>;
 }
 
 export class ResolveOccurrenceUseCase {
