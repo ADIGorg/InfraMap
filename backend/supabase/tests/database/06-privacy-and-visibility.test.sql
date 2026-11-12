@@ -46,7 +46,7 @@ SELECT lives_ok($x$SELECT public.set_occurrence_public_visibility('00000000-0000
 SELECT is((SELECT count(*)::int FROM public.public_occurrences WHERE id='00000000-0000-4000-8000-000000005302'),0,'Ocorrência oculta não aparece na view');
 SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000005101',true);
 SELECT is((public.get_occurrence_detail('00000000-0000-4000-8000-000000005302')->>'id'),'00000000-0000-4000-8000-000000005302','Dono ainda pode consultar detalhe próprio oculto');
-SELECT is((SELECT count(*)::int FROM public.observations WHERE occurrence_id='00000000-0000-4000-8000-000000005302'),1,'Dono vê somente a observação CITIZEN_RESPONSE');
+SELECT is(jsonb_array_length(public.get_occurrence_detail('00000000-0000-4000-8000-000000005302')->'observations'),1,'Dono vê somente a observação CITIZEN_RESPONSE no detalhe autenticado');
 SELECT ok(NOT ((public.get_occurrence_history('00000000-0000-4000-8000-000000005302') -> 'data') @> '[{"action":"OBSERVATION_INTERNAL_ADDED"}]'::jsonb),'Histórico do cidadão não revela eventos INTERNOS');
 SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000005103',true);
 SELECT throws_ok($x$SELECT public.get_occurrence_detail('00000000-0000-4000-8000-000000005302')$x$,'42501',NULL,'Terceiro não recebe detalhe exato da ocorrência');
