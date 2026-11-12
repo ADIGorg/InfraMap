@@ -254,25 +254,122 @@ paths:
   /identity/me:
     get:
       tags: [Identity]
-      summary: Consultar identidade básica autenticada
+      summary: Consultar o próprio perfil
       description: |
-        Implementação atualmente montada em identity.routes.ts.
-        Retorna apenas id e email do usuário do JWT validado.
-        A factory de perfil completo (my-profile.routes.ts) não está
-        montada no router principal; PATCH /identity/me não está
-        disponível nesta versão da aplicação.
-      operationId: getBasicIdentity
+        Retorna os dados cadastrais do usuário autenticado.
+
+        Requer token JWT válido e conta ativa.
+
+        O usuário pode consultar somente o próprio perfil.
+
+        Os dados cadastrais são consultados na tabela
+        public.profiles, utilizando o JWT do usuário e
+        respeitando as políticas RLS do Supabase.
+
+        O e-mail é obtido do Supabase Auth.
+
+        Contas inativas ou sem perfil de autorização
+        válido não podem executar esta operação.
+      operationId: getMyProfile
       security:
         - bearerAuth: []
       responses:
         "200":
-          description: Identidade básica consultada.
+          description: Perfil consultado com sucesso.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/AuthenticatedUserResponse"
+                $ref: "#/components/schemas/MyProfileResponse"
+              example:
+                message: Usuário autenticado.
+                data:
+                  id: 181227d2-89d7-4ceb-8dff-85b623aeee5b
+                  name: Maria Silva
+                  phone: "(75) 99999-9999"
+                  created_at: "2026-11-01T10:00:00.000Z"
+                  updated_at: "2026-11-01T10:00:00.000Z"
+                  email: maria@example.com
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+    patch:
+      tags: [Identity]
+      summary: Atualizar o próprio perfil
+      description: |
+        Permite atualizar os dados cadastrais do
+        usuário autenticado.
+
+        Requer token JWT válido e conta ativa.
+
+        Somente os campos name e phone são permitidos.
+
+        A operação não permite modificar:
+        - id
+        - email
+        - role
+        - admin_level
+        - is_active
+
+        A atualização ocorre exclusivamente no registro
+        associado ao identificador do usuário autenticado.
+
+        A API utiliza o JWT do usuário para acessar o
+        Supabase e respeita as políticas RLS.
+
+        O campo name deve conter entre 3 e 150 caracteres.
+
+        O campo phone é opcional e deve conter entre
+        8 e 15 dígitos numéricos, considerando sua
+        formatação.
+
+        Para remover um telefone cadastrado, envie null.
+
+        Deve ser informado pelo menos um campo válido.
+      operationId: updateMyProfile
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateMyProfileRequest"
+            example:
+              name: Maria Souza
+              phone: "(75) 98888-8888"
+      responses:
+        "200":
+          description: Perfil atualizado com sucesso.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MyProfileResponse"
+              example:
+                message: Perfil atualizado com sucesso.
+                data:
+                  id: 181227d2-89d7-4ceb-8dff-85b623aeee5b
+                  name: Maria Souza
+                  phone: "(75) 98888-8888"
+                  created_at: "2026-11-01T10:00:00.000Z"
+                  updated_at: "2026-11-08T18:00:00.000Z"
+                  email: maria@example.com
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
         "500":
@@ -1130,7 +1227,7 @@ paths:
       tags: [Occurrences]
       summary: "Finalizar ocorrência vinculada a análise concluída"
       operationId: finalizeOccurrence
-      description: "Cidadão ativo. A análise pertence ao usuário e deve estar COMPLETED. O banco deve criar ocorrência, fotos e histórico e consumir a análise em uma transação. Existem divergências SQL pendentes em docs/database.md."
+      description: "Cidadão ativo. A análise pertence ao usuário e deve estar COMPLETED. O backend copia as fotos para o caminho definitivo; a RPC corretiva valida autoria, objetos, fontes e status, e registra ocorrência, fotos, histórico e consumo em transação. Requer migrations corretivas aplicadas."
       security:
         - bearerAuth: []
       requestBody:
@@ -1154,6 +1251,9 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
         "429":
           $ref: "#/components/responses/TooManyRequests"
         "500":
@@ -1962,9 +2062,15 @@ components:
         aiAnalysisId: { type: string, format: uuid }
         categoryId: { type: string, format: uuid }
         description: { type: string, minLength: 1, maxLength: 500 }
-        location: { $ref: "#/components/schemas/GeoPoint" }
-        categorySource: { type: string, enum: [AI_CONFIRMED, AI_EDITED, MANUAL] }
-        descriptionSource: { type: string, enum: [AI_CONFIRMED, AI_EDITED, MANUAL] }
+        location:
+          type: object
+          required: [lat, lng]
+          properties:
+            lat: { type: number, minimum: -90, maximum: 90 }
+            lng: { type: number, minimum: -180, maximum: 180 }
+            source: { type: string, enum: [GPS, MANUAL], default: GPS }
+        categorySource: { type: string, enum: [AI_CONFIRMED, AI_EDITED, USER_MANUAL] }
+        descriptionSource: { type: string, enum: [AI_CONFIRMED, AI_EDITED, USER_MANUAL] }
         photos:
           type: array
           minItems: 1
@@ -1974,8 +2080,8 @@ components:
             required: [storagePath, mimeType, sizeBytes]
             properties:
               storagePath: { type: string, minLength: 1 }
-              mimeType: { type: string, enum: [image/jpeg, image/jpg] }
-              sizeBytes: { type: integer, minimum: 1 }
+              mimeType: { type: string, enum: [image/jpeg, image/png] }
+              sizeBytes: { type: integer, minimum: 1, maximum: 5242880 }
 
     FinalizeOccurrenceResponse:
       type: object
