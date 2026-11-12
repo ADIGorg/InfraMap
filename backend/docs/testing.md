@@ -51,7 +51,7 @@ Se algum teste de banco falhar, verifique se é um **defeito demonstrado** ou um
 
 ## 2. Arquivos e escopo dos testes
 
-### SQL (pgTAP) — 235 asserções
+### SQL (pgTAP) — 243 asserções
 
 | Arquivo em `supabase/tests/database/` | Asserções | Regras cobertas |
 |---|---:|---|
@@ -156,3 +156,10 @@ A suíte E2E é separada do `npm test` para não permitir que os testes locais c
 ### Limites de escopo
 
 A captura física pela câmera é obrigação do aplicativo móvel (não verificável dentro do backend); o E2E envia uma imagem PNG de teste. Os cenários não dependem de Gemini real nem provedor de e-mail externo — usam os providers mock previstos para o MVP. A testagem de migrações em banco novo não demonstra, por si só, compatibilidade com o Supabase remoto atualmente vinculado.
+
+## 7. Resultados observados e parecer final
+
+- **QA-01:** `npm test`, TypeScript e lint aprovados no Actions; 276 casos passaram, 1 skip da integração externa.
+- **QA-02:** pgTAP local com 235 asserções executadas (227 aprovadas/8 falhas de regressão) antes de adicionar 8 casos da suíte 09. Pendências detectadas não devem ser removidas do teste.
+- **QA-03:** 9 testes E2E executados em Supabase local, 5 aprovados e 4 falhas reproduzidas em endpoints da aplicação; cenários posteriores reforçam privacidade de fotos, que exige homologação adicional.
+- **Auditoria com localização de arquivos, evidências, prioridades e propostas de correção:** ver [qa-sprint2-review.md](./qa-sprint2-review.md).
