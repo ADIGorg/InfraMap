@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "name": "InfraMap",
+    "slug": "inframap-mobile",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "plugins": [
+      "expo-secure-store"
+    ]
+  }
+}
