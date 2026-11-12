@@ -1,3 +1,4 @@
+import { NotFoundError } from "../../../../shared/errors/app-error.js";
 // src/modules/occurrences/application/use-cases/get-public-occurrence.use-case.ts
 
 import type {
@@ -36,7 +37,7 @@ export class GetPublicOccurrenceUseCase {
 
   async execute(id: string): Promise<PublicOccurrenceDetailWithUrls> {
     const item = await this.repository.getPublic(id);
-    if (!item) throw new Error('Ocorrência não encontrada ou não é pública.');
+    if (!item) throw new NotFoundError('Ocorrência não encontrada ou não é pública.');
 
     // Regra do OCC-03 (RN022): público só vê fotos de CONFIRMED/IN_SERVICE.
     // A RPC já filtra por status público no WHERE, mas revalidamos aqui
