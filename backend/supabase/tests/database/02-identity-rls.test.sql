@@ -1,6 +1,6 @@
 -- Identidade e isolamento de contas RLS (dados fictícios, rollback automático).
 BEGIN;
-SELECT plan(16);
+SELECT plan(17);
 INSERT INTO auth.users(id,instance_id,aud,role,email,encrypted_password,raw_app_meta_data,raw_user_meta_data)
 VALUES ('00000000-0000-4000-8000-000000001101','00000000-0000-0000-0000-000000000000','authenticated','authenticated',
 'db-test-a@example.invalid','x','{}','{"name":"Teste a"}');
