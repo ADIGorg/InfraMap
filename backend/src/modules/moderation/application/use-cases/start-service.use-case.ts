@@ -1,4 +1,4 @@
-import { NotFoundError } from "../../../../shared/errors/app-error.js";
+import { NotFoundError, BadRequestError, ConflictError } from "../../../../shared/errors/app-error.js";
 import { canTransitionOccurrence } from "../../domain/services/occurrence-transition-policy.js";
 interface IOccurrenceModerationRepository {
   getOccurrenceById(occurrenceId: string): Promise<
@@ -20,7 +20,7 @@ export class StartServiceUseCase {
     actionNotes: string
   ): Promise<void> {
     if (!actionNotes || actionNotes.trim().length < 10) {
-      throw new Error(
+      throw new BadRequestError(
         'É obrigatório registrar a ação concreta que caracteriza o início do atendimento (RN061).'
       );
     }
@@ -29,13 +29,13 @@ export class StartServiceUseCase {
     if (!occurrence) throw new NotFoundError('Ocorrência não encontrada.');
 
     if (!canTransitionOccurrence(occurrence.status, 'IN_SERVICE')) {
-      throw new Error(
+      throw new ConflictError(
         `Apenas ocorrências CONFIRMED podem ir para IN_SERVICE. Status atual: ${occurrence.status}.`
       );
     }
 
     if (!occurrence.priority) {
-      throw new Error(
+      throw new ConflictError(
         'É obrigatório definir a prioridade antes de iniciar o atendimento (RN061).'
       );
     }
