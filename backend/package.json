@@ -1,58 +1,63 @@
 {
-    "name": "inframap-api",
-    "version": "1.0.0",
-    "description": "",
-    "main": "dist/server.js",
-    "scripts": {
-        "test": "cross-env NODE_ENV=test vitest run",
-        "dev": "cross-env NODE_ENV=development tsx watch src/server.ts",
-        "build": "tsc -p tsconfig.json",
-        "start": "cross-env NODE_ENV=production node dist/server.js",
-        "test:watch": "cross-env NODE_ENV=test vitest",
-        "lint": "eslint ."
-    },
-    "keywords": [],
-    "author": "",
-    "license": "ISC",
-    "dependencies": {
-        "@supabase/supabase-js": "^2.118.0",
-        "cors": "^2.8.6",
-        "dotenv": "^18.0.9",
-        "express": "^5.3.0",
-        "express-rate-limit": "^8.7.2",
-        "helmet": "^8.3.0",
-        "multer": "^2.5.0",
-        "pino": "^10.4.0",
-        "swagger-ui-express": "^5.0.1",
-        "yaml": "^2.9.1",
-        "zod": "^4.6.7"
-    },
-    "devDependencies": {
-        "@eslint/js": "^10.0.1",
-        "@types/cors": "^2.8.19",
-        "@types/express": "^5.0.6",
-        "@types/multer": "^2.3.0",
-        "@types/node": "^26.6.6",
-        "@types/supertest": "^7.2.1",
-        "@types/swagger-ui-express": "^4.1.8",
-        "cross-env": "^10.1.0",
-        "eslint": "^10.14.0",
-        "globals": "^17.14.0",
-        "supabase": "^2.122.0",
-        "supertest": "^7.3.1",
-        "tsx": "^4.23.15",
-        "typescript": "^6.0.3",
-        "typescript-eslint": "^8.72.1",
-        "vitest": "^5.0.5"
-    },
-    "type": "module",
-    "allowScripts": {
-        "esbuild@0.28.2": true
-    },
-    "overrides": {
-        "minimatch": "11.0.1"
-    },
-    "engines": {
-        "node": ">=22.12.0"
-    }
+  "name": "inframap-api",
+  "version": "1.0.0",
+  "description": "",
+  "main": "dist/server.js",
+  "scripts": {
+    "test": "cross-env NODE_ENV=test vitest run",
+    "dev": "cross-env NODE_ENV=development tsx watch src/server.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "cross-env NODE_ENV=production node dist/server.js",
+    "test:watch": "cross-env NODE_ENV=test vitest",
+    "lint": "eslint .",
+    "test:unit": "cross-env NODE_ENV=test vitest run tests/unit",
+    "test:integration": "cross-env NODE_ENV=test vitest run tests/integration",
+    "test:db": "supabase test db",
+    "test:e2e": "cross-env NODE_ENV=test RUN_SUPABASE_E2E=1 vitest run tests/e2e --maxWorkers=1 --minWorkers=1",
+    "test:qa": "npm run build && npm run lint && npm run test:unit && npm run test:integration && npm run test:db && npm run test:e2e"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.118.0",
+    "cors": "^2.8.6",
+    "dotenv": "^18.0.9",
+    "express": "^5.3.0",
+    "express-rate-limit": "^8.7.2",
+    "helmet": "^8.3.0",
+    "multer": "^2.5.0",
+    "pino": "^10.4.0",
+    "swagger-ui-express": "^5.0.1",
+    "yaml": "^2.9.1",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/multer": "^2.3.0",
+    "@types/node": "^26.6.6",
+    "@types/supertest": "^7.2.1",
+    "@types/swagger-ui-express": "^4.1.8",
+    "cross-env": "^10.1.0",
+    "eslint": "^10.14.0",
+    "globals": "^17.14.0",
+    "supabase": "^2.122.0",
+    "supertest": "^7.3.1",
+    "tsx": "^4.23.15",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.72.1",
+    "vitest": "^5.0.5"
+  },
+  "type": "module",
+  "allowScripts": {
+    "esbuild@0.28.2": true
+  },
+  "overrides": {
+    "minimatch": "11.0.1"
+  },
+  "engines": {
+    "node": ">=22.12.0"
+  }
 }
