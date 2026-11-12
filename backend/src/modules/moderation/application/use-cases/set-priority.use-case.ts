@@ -1,3 +1,4 @@
+import { BadRequestError, NotFoundError, ConflictError } from "../../../../shared/errors/app-error.js";
 type OccurrencePriority = 'LOW' | 'MEDIUM' | 'HIGH';
 
 interface IOccurrenceModerationRepository {
@@ -20,14 +21,14 @@ export class SetPriorityUseCase {
     priority: string
   ): Promise<void> {
     if (!VALID_PRIORITIES.includes(priority as OccurrencePriority)) {
-      throw new Error('Prioridade inválida. Use LOW, MEDIUM ou HIGH (RN034).');
+      throw new BadRequestError('Prioridade inválida. Use LOW, MEDIUM ou HIGH (RN034).');
     }
 
     const occurrence = await this.repository.getOccurrenceById(occurrenceId);
-    if (!occurrence) throw new Error('Ocorrência não encontrada.');
+    if (!occurrence) throw new NotFoundError('Ocorrência não encontrada.');
 
     if (occurrence.status !== 'CONFIRMED') {
-      throw new Error(
+      throw new ConflictError(
         `Apenas ocorrências CONFIRMED podem receber prioridade. Status atual: ${occurrence.status}.`
       );
     }
