@@ -17,6 +17,9 @@ import {
   createProfileReader,
 } from "../modules/identity/infrastructure/repositories/supabase-identity.repository.js";
 
+import { createMyProfileRoutes } from "../modules/identity/presentation/my-profile.routes.js";
+import { createAccountProfileRepository } from "../modules/identity/infrastructure/repositories/supabase-account-profile.repository.js";
+
 import { createCategoriesRoutes } from "../modules/categories/categories.routes.js";
 import { createCategoriesRepository } from "../modules/categories/categories.repository.js";
 
