@@ -6,7 +6,7 @@ interface IOccurrenceModerationRepository {
     occurrenceId: string,
     adminId: string,
     priority: OccurrencePriority
-  ): Promise<void>;
+  ): Promise<unknown>;
 }
 
 const VALID_PRIORITIES: OccurrencePriority[] = ['LOW', 'MEDIUM', 'HIGH'];
