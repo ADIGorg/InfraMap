@@ -114,9 +114,9 @@ Os testes pgTAP anteriormente executados sobre a mesma base de migrations identi
 ## Resultado reproduzido no GitHub Actions — 12/11/2026
 
 - **QA-01:** build + ESLint + 195 testes unitários e 79 testes HTTP com mocks aprovados; os testes de integração remota permanecem ignorados no comando comum.
-- **QA-02 (SQL):** todos os 224 testes pgTAP inicialmente executaram, com 8 falhas reais nas RPCs/permissões/privacidade. Uma 225ª verificação de privilégio SELECT foi adicionada para capturar o defeito de moderação visto no E2E; o total novo ainda precisa ser executado e conferido.
-- **QA-02 (Supabase real):** 4 testes reais de RLS, Auth e Storage passaram; nova verificação de leitura de ocorrência pelo administrador foi adicionada após o E2E apresentar `MODERATION_LOOKUP_FAILED`.
-- **QA-03 (E2E):** cadastro/login, perfil, criação de análise de IA e ocorrência privada, além de permissão Master, foram executados com sucesso. A jornada de moderação falhou no SELECT de `occurrences` usando o token de administrador; os passos dependentes de CONFIRMED ficaram bloqueados. Há uma suíte separada de encaminhamento, que também foi bloqueada durante a preparação.
+- **QA-02 (SQL):** todos os 224 testes pgTAP inicialmente executaram, com 8 falhas reais nas RPCs/permissões/privacidade. A rodada final executou **225 asserções pgTAP: 216 aprovadas e 9 reprovadas**. As falhas são regressões de ACL, visibilidade/privacidade e duas RPCs; nenhuma foi desativada.
+- **QA-02 (Supabase real):** **5 testes reais executados: 4 aprovados, 1 falhou**. O teste de leitura de ocorrência pelo administrador encontrou `42501 permission denied for table occurrences` e explica `MODERATION_LOOKUP_FAILED` no E2E.
+- **QA-03 (E2E):** cadastro/login, perfil, criação de análise de IA e ocorrência privada, além de permissão Master, foram executados com sucesso. **4 testes E2E aprovados, 6 falharam por dependências da moderação, 2 foram ignorados porque a preparação do encaminhamento não conseguiu confirmar a ocorrência**. A leitura `SELECT occurrences` com JWT de administrador é bloqueada por `42501`.
 
 ### Inconsistências de produção confirmadas pela suíte
 
@@ -129,3 +129,11 @@ Os testes pgTAP anteriormente executados sobre a mesma base de migrations identi
 7. **Implementação de IA na main:** a fábrica atual expõe somente `mock` e `http` (Gemini não aparece como provider nativo diretamente). Confirmar se a integração pretendida será por proxy HTTP ou um adapter específico.
 
 **Decisão:** não alterar migrations de produção, estados do Jira ou main dentro desta branch de QA. Manter CI vermelho nos defeitos reais; corrigir em migration incremental isolada e depois executar tudo novamente.
+
+### Evidências da última execução completa
+
+- <https://github.com/ADIGorg/InfraMap/actions/runs/43287647268> — job QA-01 verde (build, ESLint, unitários e integração HTTP com mocks); job QA-02/03 vermelho com testes reais executados.
+- **225** asserções pgTAP, **9** falhas (schema: 3, ciclo de vida: 2, privacidade: 4). Os demais testes SQL passaram, incluindo RLS de perfis, integridade relacional, forwarding e desativação de conta.
+- **QA-02 SDK real:** 4/5 aprovados, um caso de moderação negado pela ACL de `occurrences`.
+- **QA-03 E2E:** 4/10 aprovados no fluxo cidadão; 6 casos dependentes da moderação falharam; 2 cenários do fluxo de administração/encaminhamento não puderam iniciar após falha em `beforeAll`.
+- Para o pacote QA estar pronto para homologação, corrigir as migrations de produção **em uma branch distinta**, aplicar apenas num banco local, e reexecutar os gates até ficarem verdes. Não marcar QA-02/QA-03 como concluídos antes disso.
