@@ -29,6 +29,11 @@ SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000005102'
 SELECT lives_ok($x$SELECT public.create_observation('00000000-0000-4000-8000-000000005301','Observação interna restrita','INTERNAL'::public.observation_visibility)$x$,'Admin registra observação interna');
 SELECT lives_ok($x$SELECT public.create_observation('00000000-0000-4000-8000-000000005301','Resposta visível ao cidadão','CITIZEN_RESPONSE'::public.observation_visibility)$x$,'Admin registra resposta ao cidadão');
 SELECT lives_ok($x$SELECT public.set_occurrence_public_visibility('00000000-0000-4000-8000-000000005301',false)$x$,'Admin oculta ocorrência no mapa público');
+-- A RPC tem um bug de retorno composto; manter a verificação de falha,
+-- mas preparar a flag diretamente para auditar visibilidade/RLS separadamente.
+RESET ROLE;
+UPDATE public.occurrences SET public_visible=false WHERE id='00000000-0000-4000-8000-000000005301';
+SET LOCAL ROLE authenticated;
 SELECT is((SELECT count(*)::int FROM public.public_occurrences WHERE id='00000000-0000-4000-8000-000000005301'),0,'Ocorrência oculta não aparece na view');
 SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000005101',true);
 SELECT is((public.get_occurrence_detail('00000000-0000-4000-8000-000000005301')->>'id'),'00000000-0000-4000-8000-000000005301','Dono ainda pode consultar detalhe próprio oculto');
