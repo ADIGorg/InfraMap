@@ -83,6 +83,20 @@ describe.skipIf(!qaEnabled)("QA-02 / Storage real, Auth e RLS (Supabase LOCAL)",
     expect(response.headers.get("content-type")).toMatch(/image\/png/);
   }, 30_000);
 
+  it("ADMIN operacional consegue consultar uma ocorrência para moderá-la", async () => {
+    const created = await qa.createOccurrence(owner);
+    const { data, error } = await operational.client.from("occurrences")
+      .select("id,status,priority,author_id")
+      .eq("id", created.occurrenceId)
+      .maybeSingle();
+
+    // QA-02: protege a rota PATCH /admin/occurrences/:id/start-analysis.
+    // Sem GRANT SELECT no banco, o repositório retorna MODERATION_LOOKUP_FAILED.
+    expect(error, error?.message).toBeNull();
+    expect(data?.id).toBe(created.occurrenceId);
+    expect(data?.status).toBe("RECEIVED");
+  }, 30_000);
+
   it("notificações são persistidas e isoladas pelo destinatário", async () => {
     const { data, error } = await qa.admin.from("notifications")
       .insert({
