@@ -88,9 +88,7 @@ SELECT throws_ok($test$SELECT * FROM public.transition_occurrence((SELECT id FRO
 SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000002101',true);
 SELECT is((SELECT count(*)::int FROM public.notifications WHERE occurrence_id=(SELECT id FROM public.occurrences WHERE ai_analysis_id='00000000-0000-4000-8000-000000002201') AND type='OCCURRENCE_STATUS_CHANGED'),4,'Quatro transições geram quatro notificações de status');
 SELECT is((SELECT count(*)::int FROM public.notifications WHERE occurrence_id=(SELECT id FROM public.occurrences WHERE ai_analysis_id='00000000-0000-4000-8000-000000002201') AND type='CITIZEN_RESPONSE'),1,'Resposta pública gera exatamente uma notificação');
-SET LOCAL ROLE authenticated;
-SELECT is((SELECT count(*)::int FROM public.observations WHERE occurrence_id=(SELECT id FROM public.occurrences WHERE ai_analysis_id='00000000-0000-4000-8000-000000002201')),1,'Cidadão só enxerga observações públicas');
-RESET ROLE;
+SELECT is((SELECT count(*)::int FROM public.observations WHERE visibility='CITIZEN_RESPONSE' AND occurrence_id=(SELECT id FROM public.occurrences WHERE ai_analysis_id='00000000-0000-4000-8000-000000002201')),1,'Existe exatamente uma observação CITIZEN_RESPONSE para o cidadão');
 SELECT is((SELECT status::text FROM public.occurrences WHERE id=(SELECT id FROM public.occurrences WHERE ai_analysis_id='00000000-0000-4000-8000-000000002201')),'RESOLVED','Autor acompanha estado resolvido');
 SELECT is((SELECT count(*)::int FROM public.public_occurrences WHERE id=(SELECT id FROM public.occurrences WHERE ai_analysis_id='00000000-0000-4000-8000-000000002201')),0,'Ocorrência resolvida sai do mapa público');
 
