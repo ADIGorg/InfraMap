@@ -1,6 +1,6 @@
 # Testes de regras de negócio e banco — InfraMap
 
-> Branch: `test/business-rules-db-20261112`  
+> Branch: `test/qa-01-02-03-sprint2-20261112`  
 > Base: `main` de 12/11/2026. **Nenhuma migration de produção ou regra da aplicação foi modificada.**
 >
 > Referências normativas: `03 — BUSINESS RULES.md`, esquema do Anexo 2, migrations ativas e contratos existentes no GitHub.
@@ -11,7 +11,7 @@ Pré-requisitos: Node.js >= 22.12.0, npm, Docker Desktop aberto e espaço para a
 
 ```bash
 git fetch origin
-git switch test/business-rules-db-20261112
+git switch test/qa-01-02-03-sprint2-20261112
 cd backend
 npm ci
 npm run test:unit
@@ -20,6 +20,7 @@ npm run test:integration
 # Banco local isolado — NÃO é o Supabase hospedado.
 npx supabase start
 npm run test:db
+npm run test:e2e
 
 # Tudo em sequência (Supabase já iniciado)
 npm run test:all
@@ -28,7 +29,7 @@ npm run test:all
 npx supabase stop
 ```
 
-O primeiro `supabase start` pode baixar diversas imagens Docker. Em Windows/PowerShell, os comandos acima funcionam no terminal do VS Code com Docker Desktop ativo. Caso a branch não esteja disponível localmente, use `git fetch origin` e `git switch --track origin/test/business-rules-db-20261112`.
+O primeiro `supabase start` pode baixar diversas imagens Docker. Em Windows/PowerShell, os comandos acima funcionam no terminal do VS Code com Docker Desktop ativo. Caso a branch não esteja disponível localmente, use `git fetch origin` e `git switch --track origin/test/qa-01-02-03-sprint2-20261112`.
 
 **Não rodar `supabase db reset --linked`, `supabase db push`, `supabase test db --remote` ou `migration repair` durante esta validação.** A suíte pgTAP foi criada para o banco local.
 
@@ -42,13 +43,15 @@ Os arquivos SQL usam `BEGIN`/`ROLLBACK` e usuários fictícios. A ferramenta CLI
 | `npm run test:unit` | Somente casos de uso e regras de domínio |
 | `npm run test:integration` | Rotas Express/middlewares com mocks, sem banco |
 | `npm run test:db` | pgTAP no PostgreSQL local (requer `supabase start`) |
-| `npm run test:all` | Build + lint + Vitest + pgTAP |
+| `npm run test:e2e` | Fluxos reais Auth/API/Postgres/Storage com provider de IA e e-mail mock; recusa Supabase remoto |
+| `npm run test:all` | Build + lint + Vitest + pgTAP + E2E |
+| `npm run test:qa` | Sinônimo de test:all |
 
 Se algum teste de banco falhar, verifique se é um **defeito demonstrado** ou um **erro na fixture**. Não torne o teste verde removendo regras. Veja a seção 4.
 
 ## 2. Arquivos e escopo dos testes
 
-### SQL (pgTAP) — 224 asserções
+### SQL (pgTAP) — 235 asserções
 
 | Arquivo em `supabase/tests/database/` | Asserções | Regras cobertas |
 |---|---:|---|
@@ -128,3 +131,28 @@ Aprovado em todos os jobs só após **todas** as assertivas serem verdadeiras. S
 ### Processo recomendado
 
 Executar inicialmente `npm run test:unit`, depois `npm run test:integration`, em seguida `npm run test:db`. Ao corrigir o código/migration em uma branch de correção, executar `npm run test:all` e só então abrir PR de integração.
+
+## 6. Sprint 2 — QA-01, QA-02 e QA-03 (Jira)
+
+- [API1-63](https://deividdev.atlassian.net/browse/API1-63) **QA-01**: Vitest isolado por módulos, mocks de repositories/providers, casos positivos e negativos (IA, evidências, proveniência, transições, prioridade, votação, notificações, filtros).
+- [API1-64](https://deividdev.atlassian.net/browse/API1-64) **QA-02**: testes pgTAP reais de tabela, ENUM, FK, CHECK, RLS, RPC, transações, observações, voto, notificações, níveis MASTER/OPERATIONAL e bucket. O E2E verifica adicionalmente uploads e signed URLs reais.
+- [API1-65](https://deividdev.atlassian.net/browse/API1-65) **QA-03**: `tests/e2e/citizen-and-admin-flows.e2e.spec.ts` valida cadastro e login no Supabase Auth, perfil, upload multipart e Storage, IA mock, revisão e finalização, mapa e detalhes, voto, observações, prioridade, moderação, resolução/rejeição, notificações, dashboard, gestão Master, órgãos e forwarding usando e-mail mock.
+
+### Regra obrigatória de isolamento
+
+`npm run test:e2e` chama `scripts/run-local-e2e.ts`. O script obtém credenciais exclusivamente de `supabase status -o env` e **recusa** toda URL cujo host não seja `127.0.0.1`, `localhost` ou `::1`. Não use credenciais do Supabase remoto nem flags que permitam conexão externa. Contas de teste são únicas e fictícias.
+
+A suíte E2E é separada do `npm test` para não permitir que os testes locais com mocks acessem o Supabase real por engano. Os testes criam registros temporários **somente no banco local**; para começar uma nova instalação local do zero use `npx supabase db reset --local` **apenas depois de confirmar que está conectado ao ambiente de desenvolvimento local**.
+
+### Testes de regressão que podem falhar por bugs da main
+
+- `update_occurrence_priority`: retorno SQL composto incorreto (SQLSTATE 42601). Um cenário E2E verifica a resposta HTTP; o cenário de resolução subsequente utiliza prioridade semeada **somente no banco local**, com comentário explícito, para testar o restante do fluxo independentemente.
+- `set_occurrence_public_visibility`: mesmo erro de retorno composto (SQLSTATE 42601).
+- `create_forwarding` e `record_forwarding_result`: EXECUTE concedido ao papel anon no banco local, apesar da checagem de `auth.uid()` no corpo da função. Revisar privilégios por defense in depth.
+- Histórico/Storage: revisar `public_visible` e a visibilidade de ações internas na função `get_occurrence_history`.
+
+**Nunca eliminar esses asserts para forçar CI verde.** A execução final do job `database` roda pgTAP e E2E independentemente (com `continue-on-error` somente nos passos intermediários) e **falha** se qualquer uma das suítes falhar.
+
+### Limites de escopo
+
+A captura física pela câmera é obrigação do aplicativo móvel (não verificável dentro do backend); o E2E envia uma imagem PNG de teste. Os cenários não dependem de Gemini real nem provedor de e-mail externo — usam os providers mock previstos para o MVP. A testagem de migrações em banco novo não demonstra, por si só, compatibilidade com o Supabase remoto atualmente vinculado.
