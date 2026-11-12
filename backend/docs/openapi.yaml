@@ -2620,6 +2620,17 @@ components:
               code: NOT_FOUND
               message: Perfil cadastral não encontrado.
 
+    Conflict:
+      description: Estado atual ou dados incompatíveis com a operação.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error:
+              code: CONFLICT
+              message: Estado ou dados incompatíveis com a operação.
+
     PayloadTooLarge:
       description: Corpo JSON excede 100 KB ou uma fotografia excede 5 MB.
       content:
