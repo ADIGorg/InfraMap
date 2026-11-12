@@ -24,6 +24,6 @@ SELECT throws_ok($case$INSERT INTO public.occurrences(id,author_id,category_id,a
 SELECT throws_ok($case$UPDATE public.user_roles SET role='ADMIN',admin_level=NULL WHERE user_id='00000000-0000-4000-8000-000000003101'$case$,'23514',NULL,'ADMIN exige nível administrativo');
 SELECT throws_ok($case$INSERT INTO public.notifications(user_id,occurRence_id,title,message,type) VALUES('00000000-0000-4000-8000-000000009999','00000000-0000-4000-8000-000000003301','Teste','Teste','CITIZEN_RESPONSE')$case$,'23503',NULL,'Notificação sem usuário viola FK');
 SELECT throws_ok($case$INSERT INTO public.notifications(user_id,occurrence_id,title,message,type) VALUES('00000000-0000-4000-8000-000000003101','00000000-0000-4000-8000-000000003301','Teste','Teste','STATUS_CHANGE')$case$,'22P02',NULL,'ENUM de notificação rejeita STATUS_CHANGE legado');
-SELECT throws_ok($case$UPDATE public.occurrences SET description=repeat('A',501) WHERE id='00000000-0000-4000-8000-000000003301'$case$,'23514',NULL,'Descrição acima de 500 caracteres rejeitada');
+SELECT throws_ok($case$UPDATE public.occurrences SET description=repeat('A',501) WHERE id='00000000-0000-4000-8000-000000003301'$case$,'22001',NULL,'Descrição acima de 500 caracteres rejeitada');
 SELECT * FROM finish();
 ROLLBACK;
