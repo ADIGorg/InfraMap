@@ -1,3 +1,4 @@
+import { NotFoundError } from "../../../../shared/errors/app-error.js";
 import type {
   AdminOccurrenceDetail,
   IOccurrenceQueryRepository,
@@ -24,7 +25,7 @@ export class GetAdminOccurrenceUseCase {
 
   async execute(id: string): Promise<AdminOccurrenceDetailWithUrls> {
     const item = await this.repository.getAdmin(id);
-    if (!item) throw new Error('Ocorrência não encontrada.');
+    if (!item) throw new NotFoundError('Ocorrência não encontrada.');
 
     const paths = item.photos.map((p) => p.storagePath);
     const urlsMap = await this.photoUrlService.generateBatch(paths);
