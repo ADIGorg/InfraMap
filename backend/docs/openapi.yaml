@@ -2,7 +2,7 @@ openapi: 3.1.0
 
 info:
   title: InfraMap API
-  version: 1.1.0
+  version: 1.2.0
   license:
     name: UNLICENSED
     identifier: UNLICENSED
@@ -85,74 +85,6 @@ paths:
               schema: { $ref: "#/components/schemas/CategoriesListResponse" }
         "429": { $ref: "#/components/responses/TooManyRequests" }
         "500": { $ref: "#/components/responses/InternalServerError" }
-
-  # ========================================
-  # IDENTITY — ROTAS PROVISÓRIAS
-  # ========================================
-  /identity/users:
-    post:
-      tags: [Identity]
-      summary: Validar dados para criação de usuário (provisório)
-      description: |
-        Endpoint provisório. Valida o body com Zod mas **não cria** usuário
-        em `auth.users`. A implementação definitiva pertence a um ticket
-        separado (ARC-01). Requer ADMIN.
-      operationId: validateUserCreation
-      security: [{ bearerAuth: [] }]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: "#/components/schemas/CreateUserRequest" }
-      responses:
-        "201":
-          description: Dados validados. Nenhum usuário foi criado.
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/UserValidationResponse" }
-        "400": { $ref: "#/components/responses/BadRequest" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "403": { $ref: "#/components/responses/Forbidden" }
-        "413": { $ref: "#/components/responses/PayloadTooLarge" }
-        "429": { $ref: "#/components/responses/TooManyRequests" }
-        "500": { $ref: "#/components/responses/InternalServerError" }
-    get:
-      tags: [Identity]
-      summary: Validar parâmetros de consulta de usuários (provisório)
-      operationId: validateUsersQuery
-      security: [{ bearerAuth: [] }]
-      parameters:
-        - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
-        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
-      responses:
-        "200":
-          description: Parâmetros validados.
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/UsersQueryResponse" }
-        "400": { $ref: "#/components/responses/BadRequest" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "429": { $ref: "#/components/responses/TooManyRequests" }
-
-  /identity/users/{id}:
-    get:
-      tags: [Identity]
-      summary: Validar identificador de usuário (provisório)
-      operationId: validateUserId
-      security: [{ bearerAuth: [] }]
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema: { type: string, format: uuid }
-      responses:
-        "200":
-          description: Identificador válido.
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/MessageResponse" }
-        "400": { $ref: "#/components/responses/BadRequest" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
 
   # ========================================
   # ID-01 — PERFIL DO PRÓPRIO USUÁRIO
@@ -294,12 +226,34 @@ paths:
         content:
           application/json:
             schema: { $ref: "#/components/schemas/FinalizeOccurrenceRequest" }
+            example:
+              aiAnalysisId: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+              categoryId: 54d17101-feff-40f1-a24a-12875638ba80
+              description: Buraco profundo na via, risco para veículos.
+              location:
+                lat: -23.5505
+                lng: -46.6333
+              categorySource: AI_CONFIRMED
+              descriptionSource: AI_EDITED
+              photos:
+                - storagePath: temporary/181227d2-89d7-4ceb-8dff-85b623aeee5b/3fa85f64-5717-4562-b3fc-2c963f66afa6/photo-1.jpg
+                  mimeType: image/jpeg
+                  sizeBytes: 184320
       responses:
         "201":
           description: Ocorrência registrada.
           content:
             application/json:
               schema: { $ref: "#/components/schemas/FinalizeOccurrenceResponse" }
+              example:
+                message: Ocorrência registrada com sucesso.
+                data:
+                  id: 9b2f4d61-1a2b-4c5d-8e7f-0a1b2c3d4e5f
+                  status: RECEIVED
+                  summary:
+                    categoryId: 54d17101-feff-40f1-a24a-12875638ba80
+                    descriptionLength: 48
+                    photosCount: 1
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
@@ -822,6 +776,9 @@ paths:
               properties:
                 agency_id: { type: string, format: uuid }
                 observations: { type: string, maxLength: 2000 }
+            example:
+              agency_id: 7c9e6679-7425-40de-944b-e07fc1f90ae7
+              observations: Ocorrência crítica, favor priorizar atendimento.
       responses:
         "201":
           description: Encaminhamento registrado (SENT ou FAILED).
@@ -832,6 +789,19 @@ paths:
                 required: [data]
                 properties:
                   data: { $ref: "#/components/schemas/ForwardingResponse" }
+              example:
+                data:
+                  id: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+                  occurrenceId: 9b2f4d61-1a2b-4c5d-8e7f-0a1b2c3d4e5f
+                  agencyId: 7c9e6679-7425-40de-944b-e07fc1f90ae7
+                  recipientEmail: obras@prefeitura.example
+                  subject: "InfraMap — Ocorrência #9b2f4d61 (Pavimentação e Vias)"
+                  observations: Ocorrência crítica, favor priorizar atendimento.
+                  status: SENT
+                  providerMessageId: mock-message-id
+                  errorCode: null
+                  createdAt: "2026-11-14T14:30:00.000Z"
+                  sentAt: "2026-11-14T14:30:01.000Z"
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
@@ -1876,31 +1846,6 @@ components:
               maxLength: 20
               pattern: '^\+?[0-9 ()-]+$'
             - type: "null"
-
-    CreateUserRequest:
-      type: object
-      required: [name, email, password]
-      properties:
-        name: { type: string, minLength: 3, maxLength: 150 }
-        email: { type: string, format: email }
-        password: { type: string, format: password, minLength: 6, writeOnly: true }
-        role: { type: string, enum: [CITIZEN, ADMIN], default: CITIZEN }
-
-    UserValidationResponse:
-      type: object
-      required: [message]
-      properties:
-        message: { type: string }
-
-    UsersQueryResponse:
-      type: object
-      properties:
-        message: { type: string }
-        data:
-          type: object
-          properties:
-            page: { type: integer }
-            limit: { type: integer }
 
     IdentityResponse:
       type: object

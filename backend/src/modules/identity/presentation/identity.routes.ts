@@ -1,3 +1,4 @@
+// src/modules/identity/presentation/identity.routes.ts
 
 import {
   Router,
@@ -15,67 +16,21 @@ import type {
 
 import { authenticate } from "../../../shared/middlewares/authenticate.js";
 import { authorizeRole } from "../../../shared/middlewares/authorize-role.js";
-import { validateRequest } from "../../../shared/middlewares/validate-request.js";
-
-import {
-  createUserBodySchema,
-  getUserParamsSchema,
-  getUsersQuerySchema,
-} from "./identity.schema.js";
 
 // ==========================================
-// ROTAS ANTERIORES DE IDENTIDADE
+// ROTAS DE IDENTIDADE
 // ==========================================
-
-// Estas rotas permanecem agrupadas em /identity.
-// Exemplo: /api/v1/identity/users
+// Rotas provisórias POST /users, GET /users, GET /users/:id e GET /me
+// foram REMOVIDAS em DOC-01 (anexo 05 §9: "não são contratos válidos —
+// serão removidos"). O perfil autenticado vive em `my-profile.routes.ts`;
+// a identidade autenticada vive em `createIdentityRoutes` abaixo.
+// `/admin-check` é mantido por compatibilidade com clientes existentes.
+//
+// `identity.schema.ts` fica órfão até limpeza futura — não é referenciado
+// por nenhuma rota ativa.
 
 export const identityRouter = Router();
 
-// Apenas administradores podem acessar a validação de cadastro.
-// A criação real de usuários será tratada em outro ticket.
-identityRouter.post(
-  "/users",
-  authenticate,
-  authorizeRole(["ADMIN"]),
-  validateRequest({ body: createUserBodySchema }),
-  (_req, res) => {
-    return res.status(201).json({
-      message: "Dados validados. Nenhum usuário foi criado.",
-    });
-  }
-);
-
-// Validação de parâmetros da URL.
-identityRouter.get(
-  "/users/:id",
-  authenticate,
-  validateRequest({ params: getUserParamsSchema }),
-  (req, res) => {
-    return res.status(200).json({
-      message: `Buscando usuário ${req.params.id}`,
-    });
-  }
-);
-
-// Identificação básica do usuário autenticado.
-identityRouter.get(
-  "/me",
-  authenticate,
-  (req, res) => {
-    const user = req.user!;
-
-    return res.status(200).json({
-      message: "Usuário autenticado.",
-      data: {
-        id: user.id,
-        email: user.email,
-      },
-    });
-  }
-);
-
-// Verificação de acesso administrativo.
 identityRouter.get(
   "/admin-check",
   authenticate,
@@ -84,43 +39,30 @@ identityRouter.get(
     return res.status(200).json({
       message: "Acesso administrativo autorizado.",
     });
-  }
-);
-
-// Validação dos parâmetros de consulta.
-identityRouter.get(
-  "/users",
-  authenticate,
-  validateRequest({ query: getUsersQuerySchema }),
-  (req, res) => {
-    return res.status(200).json({
-      message: "Parâmetros validados com sucesso.",
-      data: req.validated?.query,
-    });
-  }
+  },
 );
 
 // ==========================================
-// API1-13 - ROTAS DE IDENTIDADE DO USUÁRIO
+// API1-13 — ROTAS DE IDENTIDADE DO USUÁRIO
 // ==========================================
 
 interface IdentityRoutesDependencies {
   authenticate: RequestHandler;
 
   authorizeRole: (
-    role: IdentityRole
+    role: IdentityRole,
   ) => RequestHandler;
 
   resolveContext: ResolveIdentityContext;
 }
 
 export function createIdentityRoutes(
-  dependencies: IdentityRoutesDependencies
+  dependencies: IdentityRoutesDependencies,
 ) {
   const router = Router();
 
   const controller = createIdentityController(
-    dependencies.resolveContext
+    dependencies.resolveContext,
   );
 
   // Identificação do cidadão autenticado.
@@ -128,7 +70,7 @@ export function createIdentityRoutes(
     "/app/me",
     dependencies.authenticate,
     dependencies.authorizeRole("CITIZEN"),
-    controller.appMe
+    controller.appMe,
   );
 
   // Identificação do administrador autenticado.
@@ -136,7 +78,7 @@ export function createIdentityRoutes(
     "/admin/me",
     dependencies.authenticate,
     dependencies.authorizeRole("ADMIN"),
-    controller.adminMe
+    controller.adminMe,
   );
 
   return router;
