@@ -43,7 +43,7 @@ export class GetPhotoSignedUrlUseCase {
       }
     } else if (requester.role === 'PUBLIC') {
       // Público só vê fotos de ocorrências elegíveis (RN022, RN017)
-      if (!PUBLIC_ELIGIBLE_STATUSES.includes(photo.occurrenceStatus)) {
+      if (!PUBLIC_ELIGIBLE_STATUSES.includes(photo.occurrenceStatus) || !photo.occurrencePublicVisible) {
         throw new ForbiddenError(
           'Esta foto não está disponível publicamente. A ocorrência não está confirmada ou em atendimento.'
         );
