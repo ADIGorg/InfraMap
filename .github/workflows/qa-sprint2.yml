@@ -66,9 +66,9 @@ jobs:
           cache: npm
           cache-dependency-path: backend/package-lock.json
       - run: npm ci
-      - uses: supabase/setup-cli@v1
-        with:
-          version: latest
+      # CLI is a pinned npm devDependency; avoid GitHub Release API rate limits.
+      - name: Use project-locked Supabase CLI
+        run: npx supabase --version
       - name: Configure distinct local ports for this QA run
         run: |
           python3 - <<'PY'
@@ -101,12 +101,12 @@ jobs:
           print("Isolated Supabase ports configured (local CI only).")
           PY
       - name: Start disposable local Supabase
-        run: supabase start --exclude studio,mailpit,logflare,vector,imgproxy,edge-runtime
+        run: npx supabase start --exclude studio,mailpit,logflare,vector,imgproxy,edge-runtime
       - name: Read only ephemeral LOCAL keys
         shell: bash
         run: |
           set -euo pipefail
-          STATUS="$(supabase status -o json)"
+          STATUS="$(npx supabase status -o json)"
           echo "SUPABASE_URL=$(jq -r '.API_URL' <<< "$STATUS")" >> "$GITHUB_ENV"
           echo "SUPABASE_PUBLISHABLE_KEY=$(jq -r '.ANON_KEY' <<< "$STATUS")" >> "$GITHUB_ENV"
           echo "SUPABASE_SECRET_KEY=$(jq -r '.SERVICE_ROLE_KEY' <<< "$STATUS")" >> "$GITHUB_ENV"
@@ -124,7 +124,7 @@ jobs:
         run: npm run test:e2e
       - name: Stop disposable stack
         if: always()
-        run: supabase stop
+        run: npx supabase stop
       - name: Keep CI red if any real test failed
         if: always()
         shell: bash
