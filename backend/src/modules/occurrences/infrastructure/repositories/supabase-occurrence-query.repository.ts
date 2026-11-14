@@ -92,7 +92,10 @@ function mapAdminFilters(filters: ListFilters): Record<string, unknown> {
 export class SupabaseOccurrenceQueryRepository
   implements IOccurrenceQueryRepository
 {
-  constructor(private readonly supabase: SupabaseClient) {}
+  constructor(
+    private readonly supabase: SupabaseClient,
+    private readonly publicPhotoMetadataReader?: SupabaseClient,
+  ) {}
 
   // ==========================================================
   // PUBLIC — view public_occurrences (RN022)
@@ -139,6 +142,21 @@ export class SupabaseOccurrenceQueryRepository
     if (error) throw new Error(`Erro na consulta: ${error.message}`);
     if (!data) return null;
 
+    // The caller has already passed the PUBLIC, visibility-filtered view.
+    // Only after that gate may the backend retrieve private metadata using a
+    // service-role client, solely to sign temporary Storage URLs server-side.
+    // Never expose storage_path in the public response.
+    let photos: OccurrencePhoto[] = [];
+    if (this.publicPhotoMetadataReader) {
+      const { data: photoRows, error: photoError } = await this.publicPhotoMetadataReader
+        .from("occurrence_photos")
+        .select("storage_path, mime_type, size_bytes, position")
+        .eq("occurrence_id", id)
+        .order("position", { ascending: true });
+      if (photoError) throw new Error(`Erro ao consultar fotos públicas: ${photoError.message}`);
+      photos = mapPhotos(photoRows);
+    }
+
     return {
       id: data.id as string,
       category: { id: data.category_id as string, code: data.category_code as string, name: data.category_name as string },
@@ -147,7 +165,7 @@ export class SupabaseOccurrenceQueryRepository
       location: parseGeoPoint(data.location_approximate),
       votesCount: toInt(data.vote_count),
       createdAt: data.created_at as string,
-      photos: [],
+      photos,
     };
   }
 
