@@ -9,6 +9,7 @@ export interface PhotoAccessInfo {
   position: number;
   occurrenceStatus: OccurrenceStatus;
   occurrenceAuthorId: string;
+  occurrencePublicVisible: boolean;
 }
 
 export interface IPhotoAccessRepository {
