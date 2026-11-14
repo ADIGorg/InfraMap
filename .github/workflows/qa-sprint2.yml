@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - qa/sprint2-qa01-qa02-qa03-20261112
+      - fix/qa-supabase-security-and-backend-docs-20261114
   pull_request:
     paths:
       - "backend/**"
