@@ -19,8 +19,8 @@ export class PublicOccurrenceController {
   }
 
   async detail(req: Request, res: Response) {
-    const repo = new SupabaseOccurrenceQueryRepository(supabasePublic);
     const adminClient = createSupabaseAdminClient();
+    const repo = new SupabaseOccurrenceQueryRepository(supabasePublic, adminClient);
     const photoSvc = new SupabasePhotoUrlService(adminClient);
     const useCase = new GetPublicOccurrenceUseCase(repo, photoSvc);
     const result = await useCase.execute(req.params.id as string);
