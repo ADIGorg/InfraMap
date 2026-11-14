@@ -16,7 +16,7 @@ const photo={
   photoId:"photo-1",occurrenceId:id,
   storagePath:`occurrences/${id}/photo-1.jpg`,mimeType:"image/jpeg",
   sizeBytes:1200,position:1,occurrenceStatus:"CONFIRMED" as const,
-  occurrenceAuthorId:author,
+  occurrenceAuthorId:author,occurrencePublicVisible:true,
 };
 
 function setup(status=photo.occurrenceStatus) {
@@ -46,6 +46,13 @@ describe("OCC-03 / RN017, RN022: foto privada e URL assinada",()=>{
       await expect(useCase.execute({role:"PUBLIC"},id,photo.photoId)).rejects.toHaveProperty("statusCode",403);
       expect(urls.generate).not.toHaveBeenCalled();
     });
+  it("público não recebe signed URL de ocorrência oculta mesmo CONFIRMED",async()=>{
+    const {useCase,repo,urls}=setup("CONFIRMED");
+    repo.getPhotoInfo.mockResolvedValue({...photo,occurrencePublicVisible:false});
+    await expect(useCase.execute({role:"PUBLIC"},id,photo.photoId))
+      .rejects.toHaveProperty("statusCode",403);
+    expect(urls.generate).not.toHaveBeenCalled();
+  });
   it("autor vê foto própria independentemente do status",async()=>{
     const {useCase}=setup("RECEIVED");
     await expect(useCase.execute({role:"OWNER",userId:author},id,photo.photoId)).resolves.toEqual(signed);
