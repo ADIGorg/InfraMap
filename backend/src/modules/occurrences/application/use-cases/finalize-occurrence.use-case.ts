@@ -38,7 +38,7 @@ export class FinalizeOccurrenceUseCase {
     if (analysis.userId !== userId) {
       throw new Error('A análise não pertence a este cidadão.');
     }
-    if (analysis.status !== 'COMPLETED') {
+    if (analysis.status !== 'COMPLETED' && analysis.status !== 'CONSUMED') {
       throw new Error(`A análise não está concluída. Status atual: ${analysis.status}.`);
     }
 
@@ -59,7 +59,11 @@ export class FinalizeOccurrenceUseCase {
     );
 
     // 6. Invocar função transacional
-    const occurrenceId = await this.repository.finalize(data);
+    // Retry after a committed RPC must only recover missing Storage files.
+    // Never invoke finalize_occurrence again for a consumed analysis.
+    const occurrenceId = analysis.status === 'CONSUMED'
+      ? await this.repository.resume(userId, data)
+      : await this.repository.finalize(userId, data);
 
     // 7. Retorno
     return {

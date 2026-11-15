@@ -8,7 +8,7 @@ import { z } from "zod";
 // ============================================================
 const NODE_ENVS = ["development", "test", "production"] as const;
 const LOG_LEVELS = ["fatal", "error", "warn", "info", "debug", "trace", "silent"] as const;
-const AI_PROVIDERS = ["mock", "http"] as const;
+const AI_PROVIDERS = ["mock", "http", "gemini"] as const;
 const EMAIL_PROVIDERS = ["mock", "http"] as const;
 
 // ============================================================
@@ -32,6 +32,8 @@ const envSchema = z.object({
   AI_API_URL: z.string().url().optional(),
   AI_API_KEY: z.string().optional(),
   AI_MODEL: z.string().optional(),
+  GEMINI_API_KEY: z.string().optional(),
+  GEMINI_MODEL: z.enum(["gemini-3.5-flash-lite", "gemini-2.5-flash-lite"]).default("gemini-3.5-flash-lite"),
   AI_PROMPT_VERSION: z.string().default("v1"),
   AI_CONFIDENCE_THRESHOLD: z.coerce.number().min(0).max(1).default(0.7),
 
@@ -76,6 +78,10 @@ function parseEnv(): RawEnv {
         `AI_PROVIDER=http exige as variáveis: ${missing.join(", ")}.`
       );
     }
+  }
+
+  if (data.AI_PROVIDER === "gemini" && !data.GEMINI_API_KEY) {
+    throw new Error("AI_PROVIDER=gemini exige GEMINI_API_KEY.");
   }
 
   // AI_API_URL deve ser HTTPS
@@ -146,6 +152,8 @@ export const env = {
     apiUrl: raw.AI_API_URL,
     apiKey: raw.AI_API_KEY,
     model: raw.AI_MODEL,
+    geminiApiKey: raw.GEMINI_API_KEY,
+    geminiModel: raw.GEMINI_MODEL,
     promptVersion: raw.AI_PROMPT_VERSION,
     confidenceThreshold: raw.AI_CONFIDENCE_THRESHOLD,
   },

@@ -1,172 +1,95 @@
+# Arquitetura real do backend InfraMap
 
-# Arquitetura do Backend — InfraMap
+## Visão e componentes
 
-## 1. Visão geral
+O backend é um **monólito modular REST** em Node.js >=22.12, Express 5, TypeScript NodeNext (imports internos com sufixo `.js`), Zod, Vitest/Supertest e Supabase (Postgres/PostGIS, Auth, Storage, Realtime). O código-fonte fica em `backend/src`; `dist` é artefato de build.
 
-O InfraMap utiliza uma API REST desenvolvida com Node.js,
-Express e TypeScript, integrada ao Supabase.
+O desenho é **camadas com DDD seletivo**: módulos complexos usam `domain` (contratos), `application/use-cases` (orquestração), `infrastructure` (concretos) e `presentation` (Express/DTO Zod). `health` e `categories` são menores e não precisam de scaffolding artificial.
 
-O estilo arquitetural adotado é:
+### Árvore de responsabilidades
 
-- Monólito modular
-- Arquitetura em camadas (N-Layer)
-- Domain-Driven Design (DDD) seletivo
-- MVC na camada de apresentação
+```text
+backend/
+  src/
+    config/          env.ts, constants.ts
+    infrastructure/
+      supabase/      auth/public/admin/client factory com JWT
+      storage/       signed URLs e Storage de fotos
+      ai/            provider mock/http com Strategy + Factory
+      email/         provider mock/http com Strategy + Factory
+    modules/
+      identity/      perfil próprio, papéis, desativação, admin-check
+      categories/    CAT01..CAT07
+      ai-analysis/   upload, PENDING/PROCESSING/COMPLETED/CONSUMED/FAILED
+      occurrences/   cadastro, consultas, histórico, acesso a fotos
+      moderation/    transições, prioridade, local, classificação, observações
+      votes/         voto único e contagem pública
+      notifications/ notificações do cidadão
+      forwardings/   encaminhamento para órgãos e resultado e-mail
+      administration/gestão MASTER, órgãos e dashboard
+      health/        liveness
+    shared/          middlewares, erros, logging, tipos Express
+    routes/          agregação de routers, composição por requisição
+    app.ts           Express, Helmet/CORS/limites/404/errors
+    server.ts        HTTP listener
+  supabase/
+    migrations/      SQL incremental e auditável (NUNCA editar já aplicada)
+    seed.sql         dados locais/sintéticos
+    tests/database/  pgTAP — regras, RLS, RPC, banco
+  tests/
+    unit/            regras sem banco (Vitest)
+    integration/     HTTP mocks; supabase/ com DB/Auth/Storage reais locais
+    e2e/             jornadas completas API + Supabase local
+    support/         fixtures restritas ao host local
+  docs/              arquitetura, API, dados, ambientes e operação
+  package.json       scripts oficiais
+```
 
-O DDD é aplicado aos módulos que possuem regras de
-negócio relevantes, evitando abstrações desnecessárias.
+### Fluxo HTTP
 
-## 2. Camadas da aplicação
+1. Cliente mobile envia solicitação à API Express sob `/api/v1`.
+2. `requestLogger`, Helmet, CORS, restrição de método, rate limit e JSON parser são aplicados em `app.ts`.
+3. Router do módulo valida `params`, `query` e `body` via Zod; rotas protegidas usam `authenticate` e `authorizeRole`.
+4. `authenticate` valida JWT no Supabase Auth e define `req.user`/`req.token`.
+5. Controller cria caso de uso e repositório associado ao **JWT do solicitante**, ou cliente `service_role` somente quando indispensável.
+6. Use case valida domínio; repositório chama view, RPC ou tabela. PostgreSQL confirma RLS e constraints; RPC `SECURITY DEFINER` sempre valida identidade e estado.
+7. `errorHandler` traduz exceções em resposta JSON sem divulgar segredos.
 
-### Domain
+Padrões existentes: Repository, Use Case, Factory/Strategy para IA e e-mail, validação de entrada via schemas/DTOs; programação orientada a interfaces nos módulos maduros. Não é DDD integral e não se deve alegar que todo módulo já o utiliza.
 
-Responsável por representar conceitos, regras e
-contratos do domínio.
+### Fronteiras de segurança
 
-Contém entidades, objetos de valor e interfaces
-de repositórios.
+| Cliente | Propósito | Quem usa |
+|---|---|---|
+| Public/Publishable | Categorias, lista/detalhe público de ocorrências e agregados | Backend sem JWT |
+| User + JWT | Perfil, ocorrência própria, moderação por ADMIN, voto, histórico | Backend por requisição |
+| Admin/Secret (service_role) | Gestão de Auth, upload e movimentação de fotos, signed URLs, operações administrativas estritas | **Somente servidor** |
 
-Não deve depender de Express, Supabase, Zod ou
-outras tecnologias externas.
+RLS controla tabela privada; `GRANT` controla privilégio de comando; ambos são necessários. Repositórios e RPCs precisam respeitar os mesmos invariantes. A view pública deve expor somente localização aproximada; `occurrences` não tem `SELECT` para `anon`. A policy `authenticated` dá leitura direta **apenas ao autor ou ADMIN ativo**; a listagem pública continua disponível pela projeção segura.
 
-### Application
+### Fotos/IA
 
-Contém os casos de uso responsáveis por coordenar
-as operações da aplicação.
+- Envio 1–3 fotos PNG/JPEG (até 5 MiB por foto); caminho temporário privado no Storage.
+- IA: provider `mock` em QA; `http` integra fornecedor externo HTTPS e requer URL/key/model. **Não existe adapter Gemini nativo nesta main**; usar proxy HTTP exige validação contratual separada.
+- Quando `COMPLETED`, autor revisa classificação/descrição e finaliza a ocorrência via RPC SQL. Campos de proveniência registram confirmação/edição/manual.
+- API gera signed URLs por tempo limitado; não retorna caminhos privados ao público. Fotos de ocorrências ocultas não podem ser acessadas por terceiros.
+- **Limitação operacional pendente:** commit da ocorrência e movimentação física de fotos são serviços distintos e não fazem transação distribuída. Ver `known-limitations.md`.
 
-Depende dos contratos do domínio, não das
-implementações concretas do banco.
+### Moderação e domínio
 
-Não deve utilizar Request, Response ou outros
-objetos HTTP do Express.
+```text
+RECEIVED -> UNDER_ANALYSIS -> CONFIRMED -> IN_SERVICE -> RESOLVED
+                         \\-> REJECTED
+```
 
-### Infrastructure
+Só ADMIN ativo transiciona; CONFIRMED precisa de prioridade e ação concreta antes de IN_SERVICE; REJECTED exige justificativa. RESOLVED/REJECTED são terminais na implementação atual. Uma ocorrência confirmada pode ser exibida no mapa se `public_visible=true`; autor e admin continuam vendo suas próprias/administradas, mesmo ocultas.
 
-Contém implementações concretas de persistência e
-integração com serviços externos.
+### Princípios de alteração
 
-Os repositórios Supabase implementam os contratos
-definidos pelo domínio.
+- Definir contratos em `domain`; implementações do Supabase sempre em `infrastructure`. Não criar `supabase-*.repository.ts` dentro de `domain`.
+- Nomes de arquivos: `kebab-case` + sufixos `.controller.ts`, `.routes.ts`, `.repository.ts`, `.use-case.ts`, `.schema.ts`.
+- Migrations sempre incrementais e em ordem cronológica; SQL idempotente quando possível; não sobrescrever migrations históricas.
+- API em `/api/v1`, OpenAPI em `docs/openapi.yaml`, scripts NodeNext e TypeScript strict.
+- Modificações de Auth/RLS/Storage exigem QA de privilégio negativo, não só caminho de sucesso.
 
-### Presentation
-
-Responsável pela comunicação HTTP.
-
-Contém controllers, rotas e schemas de validação.
-
-Os controllers chamam casos de uso e devolvem
-respostas, sem consultar diretamente o Supabase.
-
-### Shared
-
-Contém recursos compartilhados:
-
-- Middlewares de autenticação e autorização
-- Tratamento centralizado de erros
-- Logger
-- Tipos e utilitários comuns
-
-## 3. Estrutura do módulo Identity
-
-src/modules/identity/
-  application/
-    use-cases/
-      get-current-user.use-case.ts
-
-  domain/
-    entities/
-      user-profile.entity.ts
-    repositories/
-      identity.repository.ts
-
-  infrastructure/
-    repositories/
-      supabase-identity.repository.ts
-
-  presentation/
-    identity.controller.ts
-    identity.routes.ts
-    identity.schema.ts
-
-## 4. Fluxo de identificação do usuário
-
-1. O cliente envia uma requisição autenticada.
-2. Os middlewares validam o token e o papel do usuário.
-3. A composição em src/routes/index.routes.ts fornece
-   o contexto e o repositório de identidade.
-4. O controller chama GetCurrentUserUseCase.
-5. O caso de uso consulta o contrato ProfileReader.
-6. O repositório concreto consulta user_roles no Supabase.
-7. O caso de uso valida a identidade e as permissões.
-8. O controller retorna a resposta HTTP.
-
-Erros são encaminhados ao middleware centralizado.
-
-## 5. Regras de dependência
-
-- Domain não importa Application, Infrastructure
-  ou Presentation.
-- Application depende de Domain.
-- Infrastructure implementa contratos de Domain.
-- Presentation utiliza casos de uso de Application.
-- Controllers não executam consultas SQL ou Supabase.
-- Casos de uso não utilizam req ou res.
-- Credenciais e tokens não devem aparecer em logs.
-- Acesso a dados deve respeitar RLS e as permissões
-  definidas no Supabase.
-
-## 6. Outros módulos
-
-Módulos complexos, como occurrences, ai-analysis
-e moderation, utilizarão a estrutura completa
-quando forem implementados.
-
-Módulos simples, como health e categories, não
-precisam receber camadas adicionais sem necessidade.
-
-Não devem ser criadas pastas ou abstrações sem uso real.
-
-## 7. Integrações com o banco de dados
-
-Os clientes Supabase são definidos em
-src/infrastructure/supabase/.
-
-O acesso deve utilizar o contexto de autenticação
-apropriado.
-
-Conforme as Implementation Notes (anexo 11),
-consultas a occurrences devem utilizar a view
-pública ou as RPCs autorizadas, em vez de SELECT
-direto com o cliente do usuário.
-
-Migrations já aplicadas não devem ser reescritas.
-
-## 8. Testes e qualidade
-
-A arquitetura deve preservar os comportamentos
-existentes e permitir testes isolados.
-
-Os casos de uso são testados com repositórios mockados.
-
-As rotas são verificadas por testes de integração.
-
-Antes de concluir uma implementação, executar:
-
-npm run build
-npm run lint
-npm test
-
-## 9. Limites da refatoração ARC-01
-
-A reorganização do Identity preserva os endpoints
-e contratos existentes.
-
-As rotas provisórias de validação de usuário ainda
-não representam uma implementação completa de
-gerenciamento de perfis.
-
-A rota provisória POST /identity/users foi ajustada para não devolver dados sensíveis na resposta. Foi acrescentado um teste automatizado de regressão para verificar esse comportamento. A implementação definitiva do cadastro de usuários permanece fora do escopo da ARC-01.
-
-A implementação definitiva de gerenciamento e
-desativação de perfis pertence às tarefas ID-01
-e ID-02, respectivamente.
+Outras referências: [Módulos e endpoints](modules-and-api.md), [Dados e segurança](database-and-security.md), [Ambientes](supabase-environments.md), [Testes e operação](qa-and-operations.md).

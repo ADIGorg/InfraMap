@@ -21,20 +21,30 @@ import type {
 // ============================================================
 
 /** Converte GeoJSON (RPC) ou WKT (view) em GeoPoint. */
-function parseGeoPoint(raw: unknown): GeoPoint {
-  if (!raw) return { lat: 0, lng: 0 };
-
-  if (typeof raw === "string") {
-    const m = raw.match(/POINT\s*\(\s*(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)\s*\)/i);
-    if (m) return { lng: parseFloat(m[1]!), lat: parseFloat(m[2]!) };
-    return { lat: 0, lng: 0 };
+export function parseGeoPoint(raw: unknown): GeoPoint {
+  let lat: number | undefined;
+  let lng: number | undefined;
+  if (typeof raw === "object" && raw !== null) {
+    const point = raw as { type?: string; coordinates?: unknown; lat?: unknown; lng?: unknown };
+    if (point.type === "Point" && Array.isArray(point.coordinates) && point.coordinates.length === 2) {
+      [lng, lat] = point.coordinates as [number, number];
+    } else if (typeof point.lat === "number" && typeof point.lng === "number") {
+      lat = point.lat;
+      lng = point.lng;
+    }
+  } else if (typeof raw === "string") {
+    const match = raw.match(/^POINT\\s*\\(\\s*(-?\\d+(?:\\.\\d+)?)\\s+(-?\\d+(?:\\.\\d+)?)\\s*\\)$/i);
+    if (match) {
+      lng = Number(match[1]);
+      lat = Number(match[2]);
+    }
   }
-
-  const g = raw as { type?: string; coordinates?: [number, number] } | null;
-  if (g?.type === "Point" && g.coordinates) {
-    return { lng: g.coordinates[0], lat: g.coordinates[1] };
+  if (typeof lat !== "number" || typeof lng !== "number" ||
+      !Number.isFinite(lat) || !Number.isFinite(lng) ||
+      lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+    throw new Error("Coordenada geográfica inválida ou em formato não suportado.");
   }
-  return { lat: 0, lng: 0 };
+  return { lat, lng };
 }
 
 interface RawPhoto {
@@ -73,6 +83,7 @@ function mapAdminFilters(filters: ListFilters): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   if (filters.statuses?.length) out.status = filters.statuses;
   if (filters.categoryId) out.category = [filters.categoryId];
+  if (filters.bbox) out.bbox = filters.bbox;
   switch (filters.sort) {
     case "most_liked":
       out.sort = "votes";
@@ -92,7 +103,10 @@ function mapAdminFilters(filters: ListFilters): Record<string, unknown> {
 export class SupabaseOccurrenceQueryRepository
   implements IOccurrenceQueryRepository
 {
-  constructor(private readonly supabase: SupabaseClient) {}
+  constructor(
+    private readonly supabase: SupabaseClient,
+    private readonly publicPhotoMetadataReader?: SupabaseClient,
+  ) {}
 
   // ==========================================================
   // PUBLIC — view public_occurrences (RN022)
@@ -100,8 +114,12 @@ export class SupabaseOccurrenceQueryRepository
   async listPublic(filters: ListFilters): Promise<PaginatedResult<PublicOccurrenceItem>> {
     const offset = (filters.page - 1) * filters.pageSize;
 
-    let query = this.supabase.from("public_occurrences").select("*", { count: "exact" });
+    let query = this.supabase.from("public_occurrences_api").select("*", { count: "exact" });
     if (filters.categoryId) query = query.eq("category_id", filters.categoryId);
+    if (filters.bbox) {
+      query = query.gte("latitude", filters.bbox.minLat).lte("latitude", filters.bbox.maxLat)
+        .gte("longitude", filters.bbox.minLng).lte("longitude", filters.bbox.maxLng);
+    }
 
     if (filters.sort === "most_liked") {
       query = query.order("vote_count", { ascending: false }).order("created_at", { ascending: false });
@@ -117,7 +135,7 @@ export class SupabaseOccurrenceQueryRepository
       category: { id: r.category_id as string, code: r.category_code as string, name: r.category_name as string },
       description: r.description as string,
       status: r.status as OccurrenceStatus,
-      location: parseGeoPoint(r.location_approximate),
+      location: parseGeoPoint({ lat: r.latitude, lng: r.longitude }),
       votesCount: toInt(r.vote_count),
       createdAt: r.created_at as string,
       photos: [],
@@ -131,7 +149,7 @@ export class SupabaseOccurrenceQueryRepository
 
   async getPublic(id: string): Promise<PublicOccurrenceDetail | null> {
     const { data, error } = await this.supabase
-      .from("public_occurrences")
+      .from("public_occurrences_api")
       .select("*")
       .eq("id", id)
       .maybeSingle();
@@ -139,15 +157,30 @@ export class SupabaseOccurrenceQueryRepository
     if (error) throw new Error(`Erro na consulta: ${error.message}`);
     if (!data) return null;
 
+    // The caller has already passed the PUBLIC, visibility-filtered view.
+    // Only after that gate may the backend retrieve private metadata using a
+    // service-role client, solely to sign temporary Storage URLs server-side.
+    // Never expose storage_path in the public response.
+    let photos: OccurrencePhoto[] = [];
+    if (this.publicPhotoMetadataReader) {
+      const { data: photoRows, error: photoError } = await this.publicPhotoMetadataReader
+        .from("occurrence_photos")
+        .select("storage_path, mime_type, size_bytes, position")
+        .eq("occurrence_id", id)
+        .order("position", { ascending: true });
+      if (photoError) throw new Error(`Erro ao consultar fotos públicas: ${photoError.message}`);
+      photos = mapPhotos(photoRows);
+    }
+
     return {
       id: data.id as string,
       category: { id: data.category_id as string, code: data.category_code as string, name: data.category_name as string },
       description: data.description as string,
       status: data.status as OccurrenceStatus,
-      location: parseGeoPoint(data.location_approximate),
+      location: parseGeoPoint({ lat: data.latitude, lng: data.longitude }),
       votesCount: toInt(data.vote_count),
       createdAt: data.created_at as string,
-      photos: [],
+      photos,
     };
   }
 
@@ -156,6 +189,12 @@ export class SupabaseOccurrenceQueryRepository
   // ==========================================================
   async listMine(_userId: string, filters: ListFilters): Promise<PaginatedResult<MyOccurrenceItem>> {
     const { data, error } = await this.supabase.rpc("get_my_occurrences", {
+      p_filters: {
+        ...(filters.statuses?.length ? { status: filters.statuses } : {}),
+        ...(filters.categoryId ? { category: [filters.categoryId] } : {}),
+        ...(filters.bbox ? { bbox: filters.bbox } : {}),
+        sort: filters.sort,
+      },
       p_page: filters.page,
       p_limit: filters.pageSize,
     });

@@ -9,11 +9,11 @@ import { getHistorySchema } from "./occurrence-history.schema.js";
 export function createOccurrenceHistoryRoutes(): Router {
   const controller = new OccurrenceHistoryController();
   const router = Router();
-  router.use(authenticate);
 
   // Sem authorizeRole — o use case decide (autor OU admin)
   router.get(
     "/:id/history",
+    authenticate,
     validateRequest({ params: getHistorySchema.shape.params }),  // ← fix
     (req, res, next) => controller.handle(req, res).catch(next),
   );

@@ -53,21 +53,34 @@ router.post("/:id/analyze", ...protectedRoutes, async (req, res, next) => {
       throw new ConflictError("Esta análise não pode ser processada.");
     }
 
-    const provider = createAiProvider(async (path, ownerId) => {
+    const verifyPath = (path: string, ownerId: string) => {
       const expectedPrefix = `temporary/${ownerId}/${analysisId}/`;
       if (!path.startsWith(expectedPrefix) || path.includes("..")) {
         throw new ForbiddenError("Fotografia não autorizada.");
       }
-
-      const { data, error } = await client.storage
-        .from(STORAGE_BUCKET_NAME)
-        .createSignedUrl(path, 60);
-
-      if (error || !data?.signedUrl) {
-        throw new Error("Fotografia indisponível.");
-      }
-      return data.signedUrl;
-    });
+    };
+    const provider = createAiProvider(
+      // Legacy HTTP adapter.
+      async (path, ownerId) => {
+        verifyPath(path, ownerId);
+        const { data, error } = await client.storage.from(STORAGE_BUCKET_NAME)
+          .createSignedUrl(path, 60);
+        if (error || !data?.signedUrl) throw new Error("Fotografia indisponível.");
+        return data.signedUrl;
+      },
+      // Gemini expects bytes, not the OpenAI-specific input_image URL contract.
+      async (path, ownerId) => {
+        verifyPath(path, ownerId);
+        const { data, error } = await client.storage.from(STORAGE_BUCKET_NAME).download(path);
+        if (error || !data) throw new Error("Fotografia indisponível.");
+        const mimeType = path.toLowerCase().endsWith(".png") ? "image/png" : "image/jpeg";
+        const bytes = Buffer.from(await data.arrayBuffer());
+        if (!bytes.length || bytes.length > 5 * 1024 * 1024) {
+          throw new Error("Tamanho da fotografia inválido.");
+        }
+        return { mimeType: mimeType as "image/png" | "image/jpeg", base64: bytes.toString("base64") };
+      },
+    );
 
     const useCase = new ProcessAiAnalysisUseCase(
       repository,
