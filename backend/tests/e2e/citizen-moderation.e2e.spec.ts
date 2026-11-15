@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import request from "supertest";
-import { API, LocalQaStack, qaEnabled } from "../support/qa-local-supabase.js";
+import { API, LocalQaStack, PNG, qaEnabled } from "../support/qa-local-supabase.js";
 import type { QaUser } from "../support/qa-local-supabase.js";
 
 describe.skipIf(!qaEnabled)("QA-03 / fluxo cidadão → IA mock → cadastro → moderação", () => {
@@ -264,4 +264,22 @@ describe.skipIf(!qaEnabled)("QA-03 / fluxo cidadão → IA mock → cadastro →
     const dashboard = await request(qa.app).get(API + "/admin/dashboard").set(qa.as(operator));
     expect(dashboard.status, JSON.stringify(dashboard.body)).toBe(200);
   });
+
+  it("GET /ai-analyses/:id retorna input_photo_paths para permitir finalização", async () => {
+  const upload = await request(qa.app).post(API + "/ai-analyses/")
+    .set(qa.as(voter))
+    .attach("photos", PNG, { filename: "photo-1.png", contentType: "image/png" });
+  expect(upload.status, JSON.stringify(upload.body)).toBe(201);
+  const newId = upload.body.data.id;
+  qa.photoPaths.push(`temporary/${voter.id}/${newId}/photo-1.png`);
+
+  const detail = await request(qa.app)
+    .get(API + "/ai-analyses/" + newId)
+    .set(qa.as(voter));
+  expect(detail.status, JSON.stringify(detail.body)).toBe(200);
+  expect(detail.body.data.input_photo_paths).toEqual([
+    `temporary/${voter.id}/${newId}/photo-1.png`,
+  ]);
+  expect(detail.body.data.photo_count).toBe(1);
+  }, 30_000);
 });

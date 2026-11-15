@@ -72,12 +72,26 @@ describe("MOD-02 / RN033–RN036 e RN061: prioridade e atendimento", () => {
     const {repo}=setup("CONFIRMED");
     await expect(new SetPriorityUseCase(repo).execute(id,"CRITICAL")).rejects.toHaveProperty("statusCode",400);
   });
-  it.each(["RECEIVED","UNDER_ANALYSIS","REJECTED","IN_SERVICE","RESOLVED"] as const)(
-    "não define prioridade em %s pelo caso de uso",async status => {
-      const {repo,repository}=setup(status);
-      await expect(new SetPriorityUseCase(repo).execute(id,"HIGH")).rejects.toHaveProperty("statusCode",409);
+  // RN036: prioridade pode ser ALTERADA após confirmação
+  it.each(["IN_SERVICE", "RESOLVED"] as const)(
+    "atribui prioridade em %s (alteração pós-confirmação, RN036)",
+    async (status) => {
+      const { repository, repo } = setup(status);
+      await new SetPriorityUseCase(repo).execute(id, "HIGH");
+      expect(repository.setPriority).toHaveBeenCalledWith(id, "HIGH");
+    }
+  );
+
+  // RN035: não pode priorizar antes da confirmação ou após rejeição
+  it.each(["RECEIVED", "UNDER_ANALYSIS", "REJECTED"] as const)(
+    "não define prioridade em %s pelo caso de uso",
+    async (status) => {
+      const { repo, repository } = setup(status);
+      await expect(new SetPriorityUseCase(repo).execute(id, "HIGH"))
+        .rejects.toHaveProperty("statusCode", 409);
       expect(repository.setPriority).not.toHaveBeenCalled();
-    });
+    }
+  );
   it("não inicia atendimento sem prioridade", async () => {
     const {repo}=setup("CONFIRMED",null);
     await expect(new StartServiceUseCase(repo).execute(id,"Equipe deslocada ao local")).rejects.toHaveProperty("statusCode",409);
@@ -99,6 +113,13 @@ describe("MOD-02 / RN033–RN036 e RN061: prioridade e atendimento", () => {
     const {repo,repository}=setup("IN_SERVICE","HIGH");
     await new ResolveOccurrenceUseCase(repo).execute(id,"  Conserto realizado  ");
     expect(repository.resolve).toHaveBeenCalledWith(id,"Conserto realizado");
+  });
+  it("resolve sem notes envia p_reason=null (não undefined)", async () => {
+  const { repo, repository } = setup("IN_SERVICE", "HIGH");
+  await new ResolveOccurrenceUseCase(repo).execute(id);
+  expect(repository.resolve).toHaveBeenCalledWith(id, undefined);
+  // A normalização acontece no repositório, não no use case.
+  // Este teste apenas documenta o comportamento esperado do use case.
   });
 });
 

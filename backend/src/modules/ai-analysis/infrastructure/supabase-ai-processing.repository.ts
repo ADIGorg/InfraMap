@@ -223,6 +223,9 @@ export class SupabaseAiProcessingRepository
     return {
       id: data.id,
       status: data.status,
+      input_photo_paths: Array.isArray(data.input_photo_paths)
+        ? data.input_photo_paths
+        : [],
       category_code: categoryCode,
       suggested_description: data.suggested_description,
       confidence: data.confidence,

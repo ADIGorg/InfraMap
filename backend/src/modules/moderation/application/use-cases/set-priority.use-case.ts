@@ -24,9 +24,10 @@ export class SetPriorityUseCase {
     const occurrence = await this.repository.getOccurrenceById(occurrenceId);
     if (!occurrence) throw new NotFoundError("Ocorrência não encontrada.");
 
-    if (occurrence.status !== "CONFIRMED") {
+    const ALLOWED = ["CONFIRMED", "IN_SERVICE", "RESOLVED"];
+    if (!ALLOWED.includes(occurrence.status)) {
       throw new ConflictError(
-        `Apenas ocorrências CONFIRMED podem receber prioridade. Status atual: ${occurrence.status}.`,
+        `Prioridade só pode ser definida/alterada em CONFIRMED, IN_SERVICE ou RESOLVED. Status atual: ${occurrence.status}.`
       );
     }
 

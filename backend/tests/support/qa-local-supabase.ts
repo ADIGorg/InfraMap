@@ -125,67 +125,96 @@ export class LocalQaStack {
   }
 
   async createOccurrence(citizen: QaUser) {
-    const upload = await request(this.app).post(API + "/ai-analyses/")
-      .set(this.as(citizen))
-      .attach("photos", PNG, { filename: "photo-1.png", contentType: "image/png" });
-    if (upload.status !== 201) {
-      throw new Error("Upload da análise falhou " + upload.status + ": " + JSON.stringify(upload.body));
-    }
+  // 1. Upload
+  const upload = await request(this.app).post(API + "/ai-analyses/")
+    .set(this.as(citizen))
+    .attach("photos", PNG, { filename: "photo-1.png", contentType: "image/png" });
+  if (upload.status !== 201) {
+    throw new Error(
+      "Upload da análise falhou " + upload.status + ": " + JSON.stringify(upload.body)
+    );
+  }
+  const analysisId: string = upload.body.data.id;
 
-    const analysisId: string = upload.body.data.id;
-    const { data: analysis, error: readError } = await this.admin.from("ai_analyses")
-      .select("input_photo_paths").eq("id", analysisId).single();
-    if (readError || !analysis || !Array.isArray(analysis.input_photo_paths)) {
-      throw new Error("Análise não persistiu os metadados das fotos: " + readError?.message);
-    }
-    const initialPath = analysis.input_photo_paths[0] as string;
-    this.photoPaths.push(initialPath);
+  // 2. Ler detalhe via API (input_photo_paths)
+  const detail = await request(this.app)
+    .get(API + "/ai-analyses/" + analysisId)
+    .set(this.as(citizen));
+  if (detail.status !== 200) {
+    throw new Error(
+      "Detalhe da análise: " + detail.status + " " + JSON.stringify(detail.body)
+    );
+  }
+  const paths: unknown = detail.body?.data?.input_photo_paths;
+  if (!Array.isArray(paths) || paths.length === 0) {
+    throw new Error("Análise não retornou input_photo_paths via API.");
+  }
+  const initialPath = paths[0] as string;
+  this.photoPaths.push(initialPath);
 
-    const processing = await request(this.app)
-      .post(API + "/ai-analyses/" + analysisId + "/analyze")
+  // 3. Processar
+  const processing = await request(this.app)
+    .post(API + "/ai-analyses/" + analysisId + "/analyze")
+    .set(this.as(citizen));
+  if (processing.status !== 202) {
+    throw new Error(
+      "Processar análise: " + processing.status + " " + JSON.stringify(processing.body)
+    );
+  }
+
+  // 4. Poll até COMPLETED
+  let analysisResult: Record<string, unknown> | undefined;
+  for (let i = 0; i < 50; i++) {
+    const state = await request(this.app)
+      .get(API + "/ai-analyses/" + analysisId)
       .set(this.as(citizen));
-    if (processing.status !== 202) {
-      throw new Error("Processar análise: " + processing.status + " " + JSON.stringify(processing.body));
+    if (state.status !== 200) {
+      throw new Error(
+        "Consultar análise: " + state.status + " " + JSON.stringify(state.body)
+      );
     }
+    analysisResult = state.body.data as Record<string, unknown>;
+    if (analysisResult.status === "COMPLETED") break;
+    if (analysisResult.status === "FAILED") {
+      throw new Error("IA mock falhou: " + JSON.stringify(analysisResult));
+    }
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  if (analysisResult?.status !== "COMPLETED") {
+    throw new Error("Análise não chegou a COMPLETED.");
+  }
 
-    let analysisResult: Record<string, unknown> | undefined;
-    for (let i = 0; i < 50; i++) {
-      const state = await request(this.app)
-        .get(API + "/ai-analyses/" + analysisId)
-        .set(this.as(citizen));
-      if (state.status !== 200) {
-        throw new Error("Consultar análise: " + state.status + " " + JSON.stringify(state.body));
-      }
-      analysisResult = state.body.data as Record<string, unknown>;
-      if (analysisResult.status === "COMPLETED") break;
-      if (analysisResult.status === "FAILED") throw new Error("IA mock falhou: " + JSON.stringify(analysisResult));
-      await new Promise((resolve) => setTimeout(resolve, 100));
-    }
-    if (analysisResult?.status !== "COMPLETED") {
-      throw new Error("Análise não chegou a COMPLETED.");
-    }
+  // 5. Resolver UUID da categoria sugerida via API (category_code → GET /categories)
+  const suggestedCode = analysisResult.category_code as string | null;
+  if (!suggestedCode) throw new Error("IA não sugeriu categoria.");
+  const categoriesResp = await request(this.app).get(API + "/categories");
+  if (categoriesResp.status !== 200) {
+    throw new Error("Consultar categorias: " + categoriesResp.status);
+  }
+  const match = (categoriesResp.body.data as Array<{ id: string; code: string }>)
+    .find((c) => c.code === suggestedCode);
+  if (!match) throw new Error(`Categoria ${suggestedCode} não encontrada.`);
 
-    const { data: completed, error } = await this.admin.from("ai_analyses")
-      .select("suggested_category_id, suggested_description")
-      .eq("id", analysisId).single();
-    if (error || !completed) throw new Error("Sugestão de IA ausente: " + error?.message);
-    const finalization = await request(this.app).post(API + "/occurrences/finalize")
-      .set(this.as(citizen))
-      .send({
-        aiAnalysisId: analysisId,
-        categoryId: completed.suggested_category_id,
-        description: completed.suggested_description,
-        location: { lat: -12.2667, lng: -38.9665 },
-        categorySource: "AI_CONFIRMED",
-        descriptionSource: "AI_CONFIRMED",
-        photos: [{ storagePath: initialPath, mimeType: "image/png", sizeBytes: PNG.length }],
-      });
-    if (finalization.status !== 201) {
-      throw new Error("Finalizar ocorrência: " + finalization.status + " " + JSON.stringify(finalization.body));
-    }
-    const occurrenceId: string = finalization.body.data.id;
-    this.photoPaths.push("occurrences/" + occurrenceId + "/photo-1.png");
-    return { analysisId, initialPath, occurrenceId, analysisResult };
+  // 6. Finalizar
+  const finalization = await request(this.app).post(API + "/occurrences/finalize")
+    .set(this.as(citizen))
+    .send({
+      aiAnalysisId: analysisId,
+      categoryId: match.id,
+      description: analysisResult.suggested_description as string,
+      location: { lat: -12.2667, lng: -38.9665 },
+      categorySource: "AI_CONFIRMED",
+      descriptionSource: "AI_CONFIRMED",
+      photos: [{ storagePath: initialPath, mimeType: "image/png", sizeBytes: PNG.length }],
+    });
+  if (finalization.status !== 201) {
+    throw new Error(
+      "Finalizar ocorrência: " + finalization.status + " " + JSON.stringify(finalization.body)
+    );
+  }
+  const occurrenceId: string = finalization.body.data.id;
+  this.photoPaths.push("occurrences/" + occurrenceId + "/photo-1.png");
+  return { analysisId, initialPath, occurrenceId, analysisResult };
   }
 
   async cleanup(): Promise<void> {

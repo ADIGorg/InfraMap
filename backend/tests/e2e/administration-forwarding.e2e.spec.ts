@@ -1,8 +1,10 @@
 import { randomUUID } from "node:crypto";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import request from "supertest";
 import { API, LocalQaStack, qaEnabled } from "../support/qa-local-supabase.js";
 import type { QaUser } from "../support/qa-local-supabase.js";
+import { MockEmailProvider } from "../../src/infrastructure/email/providers/mock-email.provider.js";
+import { vi } from "vitest";  // se ainda não estiver
 
 describe.skipIf(!qaEnabled)("QA-03 / encaminhamento, dashboard e gestão MASTER", () => {
   let qa: LocalQaStack;
@@ -11,6 +13,8 @@ describe.skipIf(!qaEnabled)("QA-03 / encaminhamento, dashboard e gestão MASTER"
   let operator: QaUser;
   let occurrenceId: string;
   let agencyId: string;
+
+  afterEach(() => { vi.restoreAllMocks(); });
 
   beforeAll(async () => {
     qa = LocalQaStack.connect();
@@ -84,5 +88,22 @@ describe.skipIf(!qaEnabled)("QA-03 / encaminhamento, dashboard e gestão MASTER"
     expect(history.error).toBeNull();
     expect(history.data?.map((x) => x.action).sort())
       .toEqual(["FORWARDED_TO_AGENCY", "FORWARDING_SENT"]);
+  });
+
+  it("corpo do email de encaminhamento contém lat/lng reais (não 0,0)", async () => {
+  if (!agencyId) throw new Error("Pré-condição: órgão de teste não foi criado.");
+
+  const spy = vi.spyOn(MockEmailProvider.prototype, "send");
+  const path = API + "/admin/occurrences/" + occurrenceId + "/forwardings";
+
+  const forwarded = await request(qa.app).post(path).set(qa.as(operator))
+    .send({ agency_id: agencyId, observations: "QA email body check" });
+  expect(forwarded.status, JSON.stringify(forwarded.body)).toBe(201);
+
+  const call = spy.mock.calls[0]?.[0];
+  expect(call).toBeDefined();
+  expect(call!.body.text).toContain("Localização: -12.266700, -38.966500");
+  expect(call!.body.text).not.toContain("Localização: 0.000000, 0.000000");
+  expect(call!.body.text).toContain("QA email body check");
   });
 });

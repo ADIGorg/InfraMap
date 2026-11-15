@@ -1805,6 +1805,15 @@ components:
           oneOf:
             - { type: string, format: date-time }
             - { type: "null" }
+        input_photo_paths:
+          type: array
+          items: { type: string }
+          minItems: 0
+          maxItems: 3
+          description: |
+            Caminhos privados das fotos no bucket temporário. Necessários para
+            `POST /occurrences/finalize` (`photos[].storagePath`). Nunca expõe
+            conteúdo binário nem URL pública.
 
     # ─────────────────────────────────────
     # Identity

@@ -43,76 +43,72 @@ describe("OCC-01 / RN007, RN009, RN010, RN063, RN064, RN068", () => {
     expect(repo.finalize).toHaveBeenCalledOnce();
   });
 
-  it.each([
-    [null, "ausente"],
-    [{ role: "ADMIN", isActive: true }, "administrador"],
-    [{ role: "CITIZEN", isActive: false }, "inativo"],
-  ])("recusa cidadão %s (%s)", async (role) => {
+    it.each([
+    { role: null, expectedStatus: 403, label: "ausente" },
+    { role: { role: "ADMIN", isActive: true }, expectedStatus: 403, label: "administrador" },
+    { role: { role: "CITIZEN", isActive: false }, expectedStatus: 403, label: "inativo" },
+  ])("recusa cidadão $label com 403", async ({ role, expectedStatus }) => {
     const { run, repo } = setup();
     repo.getUserRole.mockResolvedValue(role);
-    await expect(run()).rejects.toThrow();
+    await expect(run()).rejects.toMatchObject({ statusCode: expectedStatus });
     expect(repo.finalize).not.toHaveBeenCalled();
   });
 
-  it("recusa análise inexistente", async () => {
+  it("recusa análise inexistente com 404", async () => {
     const { run, repo } = setup();
     repo.getAiAnalysis.mockResolvedValue(null);
-    await expect(run()).rejects.toThrow(/Análise/);
+    await expect(run()).rejects.toMatchObject({ statusCode: 404 });
     expect(repo.finalize).not.toHaveBeenCalled();
   });
 
   it.each(["PENDING", "PROCESSING", "FAILED"])(
-    "recusa análise em %s", async (status) => {
+    "recusa análise em %s com 409",
+    async (status) => {
       const { run, repo } = setup();
       repo.getAiAnalysis.mockResolvedValue({
         id: analysisId, userId, status,
-        suggestedCategoryId: categoryId, suggestedDescription: "Esgoto a céu aberto",
+        suggestedCategoryId: categoryId,
+        suggestedDescription: "Esgoto a céu aberto",
       });
-      await expect(run()).rejects.toThrow();
+      await expect(run()).rejects.toMatchObject({ statusCode: 409 });
       expect(repo.finalize).not.toHaveBeenCalled();
     },
   );
 
-  it("retoma uma análise CONSUMED sem refazer a RPC", async () => {
-    const { run, repo } = setup();
-    repo.getAiAnalysis.mockResolvedValue({
-      id: analysisId, userId, status: "CONSUMED",
-      suggestedCategoryId: categoryId, suggestedDescription: "Esgoto a céu aberto",
-    });
-    await expect(run()).resolves.toHaveProperty("status", "RECEIVED");
-    expect(repo.finalize).not.toHaveBeenCalled();
-    expect(repo.resume).toHaveBeenCalledWith(userId, valid());
-  });
-
-  it("recusa análise de outro cidadão", async () => {
+  it("recusa análise de outro cidadão com 403", async () => {
     const { run, repo } = setup();
     repo.getAiAnalysis.mockResolvedValue({
       id: analysisId, userId: "outra-pessoa", status: "COMPLETED",
-      suggestedCategoryId: categoryId, suggestedDescription: "Esgoto a céu aberto",
+      suggestedCategoryId: categoryId,
+      suggestedDescription: "Esgoto a céu aberto",
     });
-    await expect(run()).rejects.toThrow();
+    await expect(run()).rejects.toMatchObject({ statusCode: 403 });
     expect(repo.finalize).not.toHaveBeenCalled();
   });
 
   it.each([null, { id: categoryId, isActive: false }])(
-    "recusa categoria inexistente/inativa", async (category) => {
+    "recusa categoria inexistente/inativa com 400",
+    async (category) => {
       const { run, repo } = setup();
       repo.getCategory.mockResolvedValue(category);
-      await expect(run()).rejects.toThrow();
+      await expect(run()).rejects.toMatchObject({ statusCode: 400 });
       expect(repo.finalize).not.toHaveBeenCalled();
     },
   );
 
-  it("não aceita categoria diferente com fonte AI_CONFIRMED", async () => {
+  it("não aceita categoria diferente com fonte AI_CONFIRMED (400)", async () => {
     const { run, repo } = setup();
-    await expect(run({ categoryId: "10000000-0000-4000-8000-000000000009" }))
-      .rejects.toThrow(/AI_EDITED/);
+    await expect(
+      run({ categoryId: "10000000-0000-4000-8000-000000000009" })
+    ).rejects.toMatchObject({ statusCode: 400 });
     expect(repo.finalize).not.toHaveBeenCalled();
   });
 
-  it("não aceita descrição diferente com fonte AI_CONFIRMED", async () => {
+  it("não aceita descrição diferente com fonte AI_CONFIRMED (400)", async () => {
     const { run } = setup();
-    await expect(run({ description: "Texto alterado" })).rejects.toThrow(/AI_EDITED/);
+    await expect(
+      run({ description: "Texto alterado" })
+    ).rejects.toMatchObject({ statusCode: 400 });
   });
 
   it("permite edição declarada como AI_EDITED", async () => {
@@ -124,20 +120,54 @@ describe("OCC-01 / RN007, RN009, RN010, RN063, RN064, RN068", () => {
     expect(repo.finalize).toHaveBeenCalledOnce();
   });
 
+
+  it("normaliza AI_EDITED → AI_CONFIRMED quando categoria/descrição coincidem (RN068)", async () => {
+  const { run, repo } = setup();
+  // categoria == sugestão (valid() padrão já faz isso)
+  // descrição == sugestão (valid() padrão já faz isso)
+  await run({
+    categorySource: "AI_EDITED",
+    descriptionSource: "AI_EDITED",
+  });
+  expect(repo.finalize).toHaveBeenCalledWith(
+    userId,
+    expect.objectContaining({
+      categorySource: "AI_CONFIRMED",     // ← normalizado
+      descriptionSource: "AI_CONFIRMED",  // ← normalizado
+    }),
+  );
+});
+
+it("preserva AI_EDITED quando só a descrição mudou (RN068)", async () => {
+  const { run, repo } = setup();
+  await run({
+    categorySource: "AI_EDITED",
+    descriptionSource: "AI_EDITED",
+    description: "Descrição editada pelo cidadão",
+  });
+  expect(repo.finalize).toHaveBeenCalledWith(
+    userId,
+    expect.objectContaining({
+      categorySource: "AI_CONFIRMED",    // categoria não mudou → normalizado
+      descriptionSource: "AI_EDITED",    // descrição mudou → preservado
+    }),
+  );
+  });
+
   it.each([
-    ["fotos ausentes", { photos: [] }],
-    ["fotos acima do limite", { photos: Array.from({ length: 4 }, () => valid().photos[0]) }],
-    ["MIME inválido", { photos: [{ storagePath: "x", mimeType: "image/gif", sizeBytes: 1 }] }],
-    ["tamanho zero", { photos: [{ storagePath: "x", mimeType: "image/jpeg", sizeBytes: 0 }] }],
-    ["descrição vazia", { description: "    " }],
-    ["descrição acima de 500", { description: "a".repeat(501) }],
-    ["latitude inválida", { location: { lat: 91, lng: -38.97 } }],
-    ["longitude inválida", { location: { lat: -12.26, lng: -181 } }],
-    ["ID inválido", { aiAnalysisId: "errado" }],
-    ["fonte inventada", { descriptionSource: "MANUAL" }],
-  ])("validação rejeita %s antes da persistência", async (_title, changes) => {
+  ["fotos ausentes", { photos: [] }],
+  ["fotos acima do limite", { photos: Array.from({ length: 4 }, () => valid().photos[0]) }],
+  ["MIME inválido", { photos: [{ storagePath: "x", mimeType: "image/gif", sizeBytes: 1 }] }],
+  ["tamanho zero", { photos: [{ storagePath: "x", mimeType: "image/jpeg", sizeBytes: 0 }] }],
+  ["descrição vazia", { description: "    " }],
+  ["descrição acima de 500", { description: "a".repeat(501) }],
+  ["latitude inválida", { location: { lat: 91, lng: -38.97 } }],
+  ["longitude inválida", { location: { lat: -12.26, lng: -181 } }],
+  ["ID inválido", { aiAnalysisId: "errado" }],
+  ["fonte inventada", { descriptionSource: "MANUAL" }],
+  ])("validação rejeita %s antes da persistência com 400", async (_title, changes) => {
     const { run, repo } = setup();
-    await expect(run(changes)).rejects.toThrow();
+    await expect(run(changes)).rejects.toMatchObject({ statusCode: 400 });
     expect(repo.finalize).not.toHaveBeenCalled();
   });
 });

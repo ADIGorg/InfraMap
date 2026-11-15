@@ -2,6 +2,8 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { parseGeoPoint } from "../../shared/geo/parse-geo-point.js";
+
 import {
   AppError,
   ConflictError,
@@ -63,14 +65,6 @@ function mapPgError(error: { code?: string; message: string }): never {
     "FORWARDING_PERSIST_FAILED",
     "Não foi possível registrar o encaminhamento.",
   );
-}
-
-function parseGeoPoint(raw: unknown): { lat: number; lng: number } {
-  const g = raw as { type?: string; coordinates?: [number, number] } | null;
-  if (g?.type === "Point" && g.coordinates) {
-    return { lng: g.coordinates[0], lat: g.coordinates[1] };
-  }
-  return { lat: 0, lng: 0 };
 }
 
 function mapForwardingRow(r: Record<string, unknown>): ForwardingRow {

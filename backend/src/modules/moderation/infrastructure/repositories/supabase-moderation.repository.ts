@@ -177,7 +177,7 @@ export class SupabaseOccurrenceModerationRepository
     const { error } = await this.supabase.rpc("transition_occurrence", {
       p_occurrence_id: occurrenceId,
       p_new_status: "RESOLVED",
-      p_reason: resolutionNotes ?? null,
+      p_reason: resolutionNotes?.trim() ?? null,
       p_priority: null,
       p_action: null,
     });

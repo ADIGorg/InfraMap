@@ -1,7 +1,14 @@
 .
 ├── docs
 │   ├── architecture.md
-│   └── openapi.yaml
+│   ├── database-and-security.md
+│   ├── gemini-storage-and-query-fixes.md
+│   ├── known-limitations.md
+│   ├── modules-and-api.md
+│   ├── openapi.yaml
+│   ├── qa-and-operations.md
+│   ├── qa-sprint2.md
+│   └── supabase-environments.md
 ├── .env.example
 ├── eslint.config.js
 ├── .gitignore
@@ -21,8 +28,15 @@
 │   │   ├── ai
 │   │   │   ├── ai-provider.factory.ts
 │   │   │   └── providers
+│   │   │       ├── gemini-ai.provider.ts
 │   │   │       ├── http-ai.provider.ts
 │   │   │       └── mock-ai.provider.ts
+│   │   ├── email
+│   │   │   ├── email-sender.factory.ts
+│   │   │   ├── email-sender.interface.ts
+│   │   │   └── providers
+│   │   │       ├── http-email.provider.ts
+│   │   │       └── mock-email.provider.ts
 │   │   ├── storage
 │   │   │   └── supabase-photo-url.service.ts
 │   │   └── supabase
@@ -64,6 +78,12 @@
 │   │   │   ├── categories.controller.ts
 │   │   │   ├── categories.repository.ts
 │   │   │   └── categories.routes.ts
+│   │   ├── forwardings
+│   │   │   ├── forwardings.controller.ts
+│   │   │   ├── forwardings.repository.ts
+│   │   │   ├── forwardings.routes.ts
+│   │   │   ├── forwardings.schema.ts
+│   │   │   └── forwardings.service.ts
 │   │   ├── health
 │   │   │   ├── health.controller.ts
 │   │   │   └── health.routes.ts
@@ -266,19 +286,35 @@
 │   │   ├── 20261112003058_add_priority_and_view_fixes.sql
 │   │   ├── 20261112010524_enrich_read_rpcs.sql
 │   │   ├── 20261112010843_differentiate_observation_actions.sql
-│   │   └── 20261112011150_add_missing_indexes.sql
+│   │   ├── 20261112011150_add_missing_indexes.sql
+│   │   ├── 20261112153952_add_record_forwarding_result.sql
+│   │   ├── 20261114173000_fix_qa_rls_privacy_and_rpc_returns.sql
+│   │   └── 20261115020000_add_occurrence_query_filters_and_geo_api.sql
 │   ├── seed.sql
-│   └── .temp
-│       ├── cli-latest
-│       ├── gotrue-version
-│       ├── linked-project.json
-│       ├── pooler-url
-│       ├── postgres-version
-│       ├── project-ref
-│       ├── rest-version
-│       ├── storage-migration
-│       └── storage-version
+│   ├── .temp
+│   │   ├── cli-latest
+│   │   ├── gotrue-version
+│   │   ├── linked-project.json
+│   │   ├── pooler-url
+│   │   ├── postgres-version
+│   │   ├── project-ref
+│   │   ├── rest-version
+│   │   ├── storage-migration
+│   │   └── storage-version
+│   └── tests
+│       └── database
+│           ├── 01-schema-and-contracts.test.sql
+│           ├── 02-identity-rls.test.sql
+│           ├── 03-occurrence-lifecycle.test.sql
+│           ├── 04-integrity-constraints.test.sql
+│           ├── 05-forwarding-transactions.test.sql
+│           ├── 06-privacy-and-visibility.test.sql
+│           ├── 07-account-admin-and-sla.test.sql
+│           └── 08-query-filters-and-geo.test.sql
 ├── tests
+│   ├── e2e
+│   │   ├── administration-forwarding.e2e.spec.ts
+│   │   └── citizen-moderation.e2e.spec.ts
 │   ├── integration
 │   │   ├── app.test.ts
 │   │   ├── authenticate.spec.ts
@@ -289,24 +325,33 @@
 │   │   ├── error-handler.spec.ts
 │   │   ├── http-security.spec.ts
 │   │   ├── identity.routes.spec.ts
-│   │   ├── identity.security.spec.ts
 │   │   ├── my-profile.routes.spec.ts
 │   │   ├── request-logger.spec.ts
 │   │   ├── supabase
-│   │   │   └── dashboard.rollback.sql
+│   │   │   ├── dashboard.rollback.sql
+│   │   │   └── storage-rls.real.spec.ts
 │   │   ├── supabase.test.ts
 │   │   └── validate-request.spec.ts
 │   ├── setup.ts
+│   ├── support
+│   │   └── qa-local-supabase.ts
 │   └── unit
 │       ├── infrastructure
-│       │   └── ai
-│       │       └── http-ai.provider.spec.ts
+│       │   ├── ai
+│       │   │   ├── gemini-ai.provider.spec.ts
+│       │   │   └── http-ai.provider.spec.ts
+│       │   └── email
+│       │       ├── email-sender.factory.spec.ts
+│       │       ├── http-email.provider.spec.ts
+│       │       └── mock-email.provider.spec.ts
 │       └── modules
 │           ├── ai-analysis
 │           │   ├── create-ai-analysis.use-case.spec.ts
 │           │   └── process-ai-analysis.use-case.spec.ts
 │           ├── categories
 │           │   └── categories.repository.spec.ts
+│           ├── forwardings
+│           │   └── forwardings.service.spec.ts
 │           ├── identity
 │           │   ├── deactivate-my-account.use-case.spec.ts
 │           │   ├── get-current-user.use-case.spec.ts
@@ -315,10 +360,19 @@
 │           │   ├── supabase-account-profile.repository.spec.ts
 │           │   ├── update-my-profile.use-case.spec.ts
 │           │   └── update-profile.schema.spec.ts
-│           └── notifications
-│               └── notifications.use-cases.spec.ts
+│           ├── moderation
+│           │   └── moderation-business-rules.spec.ts
+│           ├── notifications
+│           │   └── notifications.use-cases.spec.ts
+│           ├── occurrences
+│           │   ├── finalize-occurrence.rules.spec.ts
+│           │   ├── geo-point.spec.ts
+│           │   ├── occurrence-query-validation.spec.ts
+│           │   └── photo-access-and-public-dto.spec.ts
+│           └── votes
+│               └── voting-rules.spec.ts
 ├── tsconfig.json
 ├── tsconfig.scripts.json
 └── vitest.config.ts
 
-90 directories, 232 files
+102 directories, 274 files

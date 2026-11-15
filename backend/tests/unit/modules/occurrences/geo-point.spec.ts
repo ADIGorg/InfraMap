@@ -13,4 +13,13 @@ describe("Geographic contract", () => {
     expect(() => parseGeoPoint("0101000020E6100000")).toThrow();
     expect(() => parseGeoPoint({type:"Point",coordinates:[181,0]})).toThrow();
   });
+
+  it("reads WKT longitude-first", () => {
+  expect(parseGeoPoint("POINT(-38.97 -12.26)")).toEqual({ lat: -12.26, lng: -38.97 });
+  expect(parseGeoPoint("POINT(-38.9776 -12.2669)")).toEqual({ lat: -12.2669, lng: -38.9776 });
+  });
+
+  it("is case-insensitive for WKT", () => {
+    expect(parseGeoPoint("point(-38.97 -12.26)")).toEqual({ lat: -12.26, lng: -38.97 });
+  });
 });
