@@ -17,7 +17,7 @@ describe("Gemini adapter",()=>{
       categoryCode:"CAT01",modelName:"gemini-3.5-flash-lite",
     });
     const [url,options] = fetchMock.mock.calls[0]!;
-    expect(url).toContain("gemini-2.5-flash-lite:generateContent");
+    expect(url).toContain("gemini-3.5-flash-lite:generateContent");
     const request = JSON.parse(String(options?.body));
     expect(request.contents[0].parts[1].inlineData.mimeType).toBe("image/png");
     expect(request.generationConfig.responseMimeType).toBe("application/json");
