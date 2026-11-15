@@ -48,10 +48,14 @@ export class GeminiAiProvider implements AiAnalysisProvider {
         input.photoPaths.some(p => !p.trim())) {
       throw new AppError(400, "AI_INVALID_INPUT", "Análise deve conter de uma a três fotos válidas.");
     }
+    const userId = input.userContext?.id;
+    if (!userId) {
+      throw new AppError(401, "UNAUTHORIZED", "Usuário não autenticado.");
+    }
     let photos: GeminiPhoto[];
     try {
       photos = await Promise.all(input.photoPaths.map(p =>
-        this.resolvePhoto(p, input.userContext.id),
+        this.resolvePhoto(p, userId),
       ));
     } catch {
       throw new AppError(403, "AI_PHOTO_UNAVAILABLE", "Fotografia indisponível para análise.");
