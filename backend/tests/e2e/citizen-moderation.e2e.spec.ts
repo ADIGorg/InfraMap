@@ -41,6 +41,37 @@ describe.skipIf(!qaEnabled)("QA-03 / fluxo cidadão → IA mock → cadastro →
     expect(JSON.stringify(other.body)).not.toContain("Cidadão QA Editado");
   });
 
+  it("retry idempotente confirma fotos físicas sem duplicar ocorrência", async () => {
+    const { data: occurrence, error } = await qa.admin.from("occurrences")
+      .select("id,ai_analysis_id,category_id,description,category_source,description_source")
+      .eq("id", occurrenceId).single();
+    expect(error).toBeNull();
+    const { data: photo } = await qa.admin.from("occurrence_photos")
+      .select("mime_type,size_bytes,storage_path")
+      .eq("occurrence_id", occurrenceId).single();
+    expect(photo).not.toBeNull();
+    const source = `temporary/${owner.id}/${occurrence!.ai_analysis_id}/photo-1.png`;
+    const retried = await request(qa.app).post(API + "/occurrences/finalize")
+      .set(qa.as(owner)).send({
+        aiAnalysisId: occurrence!.ai_analysis_id,
+        categoryId: occurrence!.category_id,
+        description: occurrence!.description,
+        categorySource: occurrence!.category_source,
+        descriptionSource: occurrence!.description_source,
+        location: { lat: -12.2667, lng: -38.9665 },
+        photos: [{ storagePath: source, mimeType: photo!.mime_type, sizeBytes: photo!.size_bytes }],
+      });
+    expect(retried.status, JSON.stringify(retried.body)).toBe(201);
+    expect(retried.body.data.id).toBe(occurrenceId);
+    const { data: all } = await qa.admin.from("occurrences")
+      .select("id").eq("ai_analysis_id", occurrence!.ai_analysis_id);
+    expect(all).toHaveLength(1);
+    const { data: objects, error: storageError } = await qa.admin.storage
+      .from("occurrence-photos").list(`occurrences/${occurrenceId}`);
+    expect(storageError).toBeNull();
+    expect(objects?.map(object => object.name)).toContain("photo-1.png");
+  });
+
   it("análise consumida cria RECEIVED e não permite nova finalização", async () => {
     const { data: occurrence, error } = await qa.admin.from("occurrences")
       .select("status,priority,ai_analysis_id").eq("id", occurrenceId).single();
@@ -111,6 +142,31 @@ describe.skipIf(!qaEnabled)("QA-03 / fluxo cidadão → IA mock → cadastro →
       .get(API + "/occurrences/public/" + occurrenceId + "/photos/" + photoId);
     expect(publicPhoto.status, JSON.stringify(publicPhoto.body)).toBe(200);
     expect(publicPhoto.body.data.url).toContain("token=");
+  });
+
+  it("aplica status e bbox antes da paginação no mapa e para o autor", async () => {
+    const own = await request(qa.app)
+      .get(API + "/occurrences/mine")
+      .query({ status: "CONFIRMED", minLat: -13, maxLat: -12, minLng: -40, maxLng: -38 })
+      .set(qa.as(owner));
+    expect(own.status, JSON.stringify(own.body)).toBe(200);
+    expect(own.body.data.map((item: {id:string}) => item.id)).toContain(occurrenceId);
+    const none = await request(qa.app)
+      .get(API + "/occurrences/mine").query({status:"RECEIVED"})
+      .set(qa.as(owner));
+    expect(none.status, JSON.stringify(none.body)).toBe(200);
+    expect(none.body.data).toHaveLength(0);
+
+    const publicMatch = await request(qa.app)
+      .get(API + "/occurrences/public")
+      .query({minLat:-13,maxLat:-12,minLng:-40,maxLng:-38});
+    expect(publicMatch.status, JSON.stringify(publicMatch.body)).toBe(200);
+    expect(publicMatch.body.data.map((item: {id:string}) => item.id)).toContain(occurrenceId);
+    const outside = await request(qa.app)
+      .get(API + "/occurrences/public")
+      .query({minLat:0,maxLat:1,minLng:0,maxLng:1});
+    expect(outside.status, JSON.stringify(outside.body)).toBe(200);
+    expect(outside.body.data).toHaveLength(0);
   });
 
   it("voto de terceiro é único e removível; autor não pode votar", async () => {

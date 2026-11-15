@@ -37,15 +37,24 @@ describe("OCC-02 / RN020, RN045: filtros, paginação e visibilidade",()=>{
     const parsed=listAdminOccurrencesSchema.parse({query:{
       page:"3",pageSize:"10",minLat:"-13",maxLat:"-12",minLng:"-40",maxLng:"-39",
     }});
-    expect(parsed.query).toMatchObject({page:3,pageSize:10,minLat:-13,maxLat:-12,minLng:-40,maxLng:-39});
+    expect(parsed.query).toMatchObject({page:3,pageSize:10,bbox:{minLat:-13,maxLat:-12,minLng:-40,maxLng:-39}});
   });
   it("consulta pública nunca aceita status arbitrário",()=>{
     const parsed=listPublicOccurrencesSchema.parse({query:{status:"RECEIVED"}});
-    expect("status" in parsed.query).toBe(false);
+    expect("statuses" in parsed.query).toBe(false);
   });
   it("consultas do autor e admin aceitam filtro de status",()=>{
-    expect(listMyOccurrencesSchema.parse({query:{status:"RECEIVED"}}).query.status).toBe("RECEIVED");
-    expect(listAdminOccurrencesSchema.parse({query:{status:"CONFIRMED"}}).query.status).toBe("CONFIRMED");
+    expect(listMyOccurrencesSchema.parse({query:{status:"RECEIVED"}}).query.statuses).toEqual(["RECEIVED"]);
+    expect(listAdminOccurrencesSchema.parse({query:{status:"CONFIRMED"}}).query.statuses).toEqual(["CONFIRMED"]);
+  });
+  it("rejeita bbox incompleta, invertida e status inválido",()=>{
+    expect(listPublicOccurrencesSchema.safeParse({query:{minLat:"-13"}}).success).toBe(false);
+    expect(listPublicOccurrencesSchema.safeParse({query:{minLat:"-12",maxLat:"-13",minLng:"-40",maxLng:"-39"}}).success).toBe(false);
+    expect(listAdminOccurrencesSchema.safeParse({query:{status:"INVENTADO"}}).success).toBe(false);
+  });
+  it("normaliza lista de status separados por vírgula",()=>{
+    expect(listAdminOccurrencesSchema.parse({query:{status:"RECEIVED,CONFIRMED"}}).query.statuses)
+      .toEqual(["RECEIVED","CONFIRMED"]);
   });
   it("caso de uso público suprime filtro de status injetado",async()=>{
     const {repo,fns}=makeRepo();

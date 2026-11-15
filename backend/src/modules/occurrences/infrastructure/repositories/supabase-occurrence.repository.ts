@@ -92,93 +92,131 @@ export class SupabaseOccurrenceRepository implements IOccurrenceRepository {
     return { id: data.id, isActive: data.is_active };
   }
 
-  async finalize(input: FinalizeOccurrenceInput): Promise<string> {
-    // RPC 10 params, sem p_author_id (usa auth.uid())
+  async finalize(userId: string, input: FinalizeOccurrenceInput): Promise<string> {
     const { data, error } = await this.supabase.rpc("finalize_occurrence", {
-      p_analysis_id:         input.aiAnalysisId,
-      p_category_id:         input.categoryId,
-      p_description:         input.description,
-      p_category_source:     input.categorySource,
-      p_description_source:  input.descriptionSource,
-      p_location_lon:        input.location.lng,   // ordem: lon antes de lat
-      p_location_lat:        input.location.lat,
-      p_location_source:     input.locationSource ?? "GPS",
+      p_analysis_id: input.aiAnalysisId,
+      p_category_id: input.categoryId,
+      p_description: input.description,
+      p_category_source: input.categorySource,
+      p_description_source: input.descriptionSource,
+      p_location_lon: input.location.lng,
+      p_location_lat: input.location.lat,
+      p_location_source: input.locationSource ?? "GPS",
       p_location_accuracy_m: input.locationAccuracyM ?? null,
-      p_photos: input.photos.map((p) => ({
-        mime_type:  p.mimeType,
-        size_bytes: p.sizeBytes,
-      })),
+      p_photos: input.photos.map(p => ({ mime_type: p.mimeType, size_bytes: p.sizeBytes })),
     });
 
     if (error) mapPgError(error);
-
     const rows = data as Array<{ occurrence_id: string }> | null;
     const occurrenceId = rows?.[0]?.occurrence_id;
-    if (!occurrenceId) {
-      throw new AppError(
-        500,
-        "OCCURRENCE_PERSIST_FAILED",
-        "RPC finalize_occurrence não retornou occurrence_id.",
-      );
-    }
+    if (!occurrenceId) throw new AppError(500, "OCCURRENCE_PERSIST_FAILED", "RPC não retornou occurrence_id.");
 
-    // Move fotos: temporary/{userId}/{analysisId}/photo-N.ext → occurrences/{occId}/photo-N.ext
-    // O RPC já criou ocorrência + rows em occurrence_photos, mas o arquivo físico
-    // permanece no temp. Sem esse move, signed URL falha em runtime.
-    await this.movePhotos(input.aiAnalysisId, occurrenceId, input.photos);
-
-    return occurrenceId;
+    // SQL is already committed. A failure here is recoverable by calling
+    // POST /occurrences/finalize again with the ORIGINAL request payload.
+    return this.reconcilePhotos(userId, input, occurrenceId);
   }
 
-  private async movePhotos(
-    analysisId: string,
-    occurrenceId: string,
-    photos: FinalizeOccurrenceInput["photos"],
-  ): Promise<void> {
-    // Precisamos do userId (dono). O RPC usa auth.uid() internamente; aqui
-    // pegamos do JWT via admin auth.getUser? Não — o repo não tem o JWT direto.
-    // Alternativa: o path original é `temporary/{userId}/{analysisId}/`.
-    // O usuário sabe seu próprio ID. Mas o repo não recebe. Solução:
-    // usar o `finalize_occurrence` return + consultar o author_id via admin.
-    // Simplificação: o service_role lê a occurrence para pegar author_id.
-
-    const { data: occ, error: occErr } = await this.adminClient
+  async resume(userId: string, input: FinalizeOccurrenceInput): Promise<string> {
+    const { data: occurrence, error } = await this.adminClient
       .from("occurrences")
-      .select("author_id")
-      .eq("id", occurrenceId)
+      .select("id")
+      .eq("ai_analysis_id", input.aiAnalysisId)
+      .eq("author_id", userId)
       .maybeSingle();
 
-    if (occErr || !occ) {
-      throw new AppError(
-        500,
-        "OCCURRENCE_PHOTO_MOVE_FAILED",
-        `Ocorrência ${occurrenceId} criada, mas falha ao resolver author_id.`,
-      );
+    if (error || !occurrence) {
+      throw new ConflictError("Análise consumida sem ocorrência própria recuperável.");
+    }
+    return this.reconcilePhotos(userId, input, occurrence.id as string);
+  }
+
+  private async reconcilePhotos(
+    userId: string,
+    input: FinalizeOccurrenceInput,
+    occurrenceId: string,
+  ): Promise<string> {
+    const [{ data: occurrence, error: occurrenceError },
+      { data: rows, error: metadataError },
+      { data: analysis, error: analysisError }] = await Promise.all([
+      this.adminClient.from("occurrences")
+        .select("id,author_id,ai_analysis_id,category_id,description,category_source,description_source")
+        .eq("id", occurrenceId).maybeSingle(),
+      this.adminClient.from("occurrence_photos")
+        .select("storage_path,mime_type,size_bytes,position")
+        .eq("occurrence_id", occurrenceId).order("position"),
+      this.adminClient.from("ai_analyses")
+        .select("id,user_id,input_photo_paths,status")
+        .eq("id", input.aiAnalysisId).maybeSingle(),
+    ]);
+
+    if (occurrenceError || metadataError || analysisError || !occurrence || !analysis || !rows) {
+      throw new AppError(503, "OCCURRENCE_PHOTO_MOVE_FAILED", "Falha ao recuperar metadados das fotos.");
+    }
+    if (occurrence.author_id !== userId || occurrence.ai_analysis_id !== input.aiAnalysisId ||
+        analysis.user_id !== userId || analysis.status !== "CONSUMED" ||
+        occurrence.category_id !== input.categoryId ||
+        occurrence.description !== input.description ||
+        occurrence.category_source !== input.categorySource ||
+        occurrence.description_source !== input.descriptionSource ||
+        rows.length !== input.photos.length) {
+      throw new ConflictError("A tentativa de recuperação não corresponde à ocorrência original.");
     }
 
-    const userId = occ.author_id as string;
-    const errors: string[] = [];
-
-    for (let i = 0; i < photos.length; i++) {
-      const mime = photos[i]!.mimeType as OccurrencePhotoMime;
-      const ext = OCCURRENCE_PHOTO_EXTENSION_BY_MIME[mime] ?? "jpg";
-      const src = `temporary/${userId}/${analysisId}/photo-${i + 1}.${ext}`;
-      const dst = `occurrences/${occurrenceId}/photo-${i + 1}.${ext}`;
-
-      const { error: moveErr } = await this.adminClient.storage
-        .from(STORAGE_BUCKET_NAME)
-        .move(src, dst);
-
-      if (moveErr) errors.push(`${src} → ${dst}: ${moveErr.message}`);
+    const sourcePaths = analysis.input_photo_paths;
+    if (!Array.isArray(sourcePaths) || sourcePaths.length !== rows.length) {
+      throw new ConflictError("As fotografias da análise original são incompatíveis.");
     }
 
-    if (errors.length > 0) {
-      throw new AppError(
-        500,
-        "OCCURRENCE_PHOTO_MOVE_FAILED",
-        `Ocorrência ${occurrenceId} criada, mas falha ao mover fotos: ${errors.join("; ")}. ` +
-        `Ação manual: mover arquivos no bucket ${STORAGE_BUCKET_NAME}.`,
-      );
+    const folder = `occurrences/${occurrenceId}`;
+    const listNames = async (prefix: string): Promise<Set<string>> => {
+      const { data, error } = await this.adminClient.storage.from(STORAGE_BUCKET_NAME)
+        .list(prefix, { limit: 100 });
+      if (error || !data) throw new AppError(503, "OCCURRENCE_PHOTO_MOVE_FAILED", "Storage indisponível.");
+      return new Set(data.map(file => file.name));
+    };
+
+    for (let i = 0; i < rows.length; i++) {
+      const original = input.photos[i]!;
+      const mime = original.mimeType as OccurrencePhotoMime;
+      const ext = OCCURRENCE_PHOTO_EXTENSION_BY_MIME[mime];
+      if (!ext) throw new ConflictError("Formato da fotografia inválido.");
+      const expectedSource = `temporary/${userId}/${input.aiAnalysisId}/photo-${i + 1}.${ext}`;
+      const destName = `photo-${i + 1}.${ext}`;
+      const dest = `${folder}/${destName}`;
+      const row = rows[i]!;
+      if (sourcePaths[i] !== expectedSource || original.storagePath !== expectedSource ||
+          row.storage_path !== dest || row.position !== i + 1 ||
+          row.mime_type !== mime || Number(row.size_bytes) !== original.sizeBytes) {
+        throw new ConflictError("As fotografias enviadas não correspondem ao registro persistido.");
+      }
+
+      // If a prior attempt already moved a photo, do not move it again.
+      const destNames = await listNames(folder);
+      if (destNames.has(destName)) continue;
+
+      const sourcePrefix = `temporary/${userId}/${input.aiAnalysisId}`;
+      const tempNames = await listNames(sourcePrefix);
+      if (!tempNames.has(destName)) {
+        throw new AppError(503, "OCCURRENCE_PHOTO_MOVE_FAILED",
+          "Arquivo não está no caminho temporário nem no destino. Recuperação manual necessária.");
+      }
+
+      const { error: moveError } = await this.adminClient.storage
+        .from(STORAGE_BUCKET_NAME).move(expectedSource, dest);
+      if (moveError) {
+        // Another request may have finished the same move concurrently.
+        const afterError = await listNames(folder);
+        if (!afterError.has(destName)) {
+          throw new AppError(503, "OCCURRENCE_PHOTO_MOVE_FAILED",
+            "Falha ao mover fotografia. Repita a finalização com o mesmo payload.");
+        }
+      }
+      const confirmed = await listNames(folder);
+      if (!confirmed.has(destName)) {
+        throw new AppError(503, "OCCURRENCE_PHOTO_MOVE_FAILED",
+          "Movimentação não confirmada. Repita a finalização com o mesmo payload.");
+      }
     }
+    return occurrenceId;
   }
 }

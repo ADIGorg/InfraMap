@@ -24,6 +24,7 @@ function setup() {
     }),
     getCategory: vi.fn().mockResolvedValue({ id: categoryId, isActive: true }),
     finalize: vi.fn().mockResolvedValue("10000000-0000-4000-8000-000000000004"),
+    resume: vi.fn().mockResolvedValue("10000000-0000-4000-8000-000000000004"),
   };
   const useCase = new FinalizeOccurrenceUseCase(repo as unknown as IOccurrenceRepository);
   return { repo, run: (changes: Record<string, unknown> = {}) =>
@@ -60,7 +61,7 @@ describe("OCC-01 / RN007, RN009, RN010, RN063, RN064, RN068", () => {
     expect(repo.finalize).not.toHaveBeenCalled();
   });
 
-  it.each(["PENDING", "PROCESSING", "FAILED", "CONSUMED"])(
+  it.each(["PENDING", "PROCESSING", "FAILED"])(
     "recusa análise em %s", async (status) => {
       const { run, repo } = setup();
       repo.getAiAnalysis.mockResolvedValue({
@@ -71,6 +72,17 @@ describe("OCC-01 / RN007, RN009, RN010, RN063, RN064, RN068", () => {
       expect(repo.finalize).not.toHaveBeenCalled();
     },
   );
+
+  it("retoma uma análise CONSUMED sem refazer a RPC", async () => {
+    const { run, repo } = setup();
+    repo.getAiAnalysis.mockResolvedValue({
+      id: analysisId, userId, status: "CONSUMED",
+      suggestedCategoryId: categoryId, suggestedDescription: "Esgoto a céu aberto",
+    });
+    await expect(run()).resolves.toHaveProperty("status", "RECEIVED");
+    expect(repo.finalize).not.toHaveBeenCalled();
+    expect(repo.resume).toHaveBeenCalledWith(userId, valid());
+  });
 
   it("recusa análise de outro cidadão", async () => {
     const { run, repo } = setup();

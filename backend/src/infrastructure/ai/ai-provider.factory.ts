@@ -6,6 +6,7 @@ import type { AiAnalysisProvider } from "../../modules/ai-analysis/domain/provid
 
 import { HttpAiProvider, type ResolveAiPhoto } from "./providers/http-ai.provider.js";
 import { MockAiProvider } from "./providers/mock-ai.provider.js";
+import { GeminiAiProvider, type ResolveGeminiPhoto } from "./providers/gemini-ai.provider.js";
 
 /**
  * Seleciona o provider de IA com base em `AI_PROVIDER`.
@@ -15,12 +16,23 @@ import { MockAiProvider } from "./providers/mock-ai.provider.js";
  *  - Se `http`, `AI_API_URL`/`AI_API_KEY`/`AI_MODEL` estão presentes
  *  - `AI_API_URL` é HTTPS
  */
-export function createAiProvider(resolvePhoto?: ResolveAiPhoto): AiAnalysisProvider {
+export function createAiProvider(resolvePhoto?: ResolveAiPhoto, resolveGeminiPhoto?: ResolveGeminiPhoto): AiAnalysisProvider {
   if (env.ai.provider === "mock") {
     return new MockAiProvider();
   }
 
-  // provider === "http" (validado no env.ts)
+  if (env.ai.provider === "gemini") {
+    if (!resolveGeminiPhoto || !env.ai.geminiApiKey) {
+      throw new Error("AI_PROVIDER=gemini exige resolver de fotos e GEMINI_API_KEY.");
+    }
+    return new GeminiAiProvider({
+      apiKey: env.ai.geminiApiKey,
+      model: env.ai.geminiModel,
+      promptVersion: env.ai.promptVersion,
+    }, resolveGeminiPhoto);
+  }
+
+  // Legacy HTTP adapter retained for backward-compatible tests.
   if (!resolvePhoto) {
     throw new Error(
       "AI_PROVIDER=http exige um resolver de fotografias (signed URL).",

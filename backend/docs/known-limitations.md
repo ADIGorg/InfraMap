@@ -2,25 +2,25 @@
 
 **Este arquivo evita confundir "225 testes SQL aprovados" com "produto homologado em produção".** As correções de QA tratam falhas verificáveis, mas algumas decisões arquiteturais seguem pendentes. Nenhuma tarefa abaixo foi declarada implementada sem verificação específica.
 
-## P0 / Integridade cross-service — finalização e Storage
+## P0 / Integridade cross-service — finalização e Storage (mitigação por retry)
 
 `finalize_occurrence` confirma PostgreSQL (ocorrência, photo metadata, IA CONSUMED e histórico). Depois, a aplicação movimenta arquivos `temporary/...` para `occurrences/...` no Supabase Storage. Postgres e Storage **não compartilham transação distribuída**. Falha no segundo passo pode criar ocorrência sem fotos disponíveis, mesmo com transação SQL consistente.
 
-**Recomendação:** desenhar saga/outbox durável com estado `FINALIZING` ou `PENDING_MEDIA`, operação idempotente e job de reconciliação; aceitar/confirmar somente após verificar presença de cada arquivo. Não alterar fluxo/estados sem revisar migrations, contratos mobile, rollback e teste real de falha. Esta branch manteve o fluxo existente e **não o homologou contra falhas de rede**.
+**Mitigação implementada nesta branch:** o cliente pode repetir POST /occurrences/finalize com payload idêntico. O backend valida autor, análise, metadados e caminhos e tenta mover apenas arquivos faltantes, sem repetir a RPC de inserção. Ainda faltam testes de falha real entre DB/Storage, recuperação autônoma em caso de ausência de retry e uma estratégia de outbox/saga para maior robustez.
 
 ## P1 / IA assíncrona em memória
 
 `POST /ai-analyses/:id/analyze` retorna HTTP 202 e dispara o processamento com promise não persistida em fila. Uma interrupção do processo Node pode deixar análise `PROCESSING` sem retomada automática. Em produção, migrar para job runner/queue durável com recovery e retries controlados; adicionar integração de restart.
 
-## P1 / Provider Gemini ainda não integrado diretamente
+## P1 / Gemini implementado; credencial e testes reais pendentes
 
-Na `main` desta baseline, `AI_PROVIDER` aceita `mock` e `http`; o provider HTTP é genérico e valida URL HTTPS/model/key. Não existe opção dedicada `gemini` no schema/factory atual. A escolha do fornecedor Gemini discutida no projeto requer adaptação/testes do payload, auth, limites e resposta. Não registrar como entregue apenas porque `AI_PROVIDER=http` existe.
+Esta branch inclui GeminiAiProvider, `AI_PROVIDER=gemini` e modelo fixado `gemini-2.5-flash-lite` com envio inline e validação Zod. **Não há testes reais com uma chave do Google nem garantia de cota gratuita**; a equipe deve validar nível de cobrança, cotas, qualidade e privacidade no staging. O adaptador HTTP antigo permanece para compatibilidade.
 
-## P1 / Coordenadas e filtros de consulta
+## P1 / Coordenadas e filtros de consulta (mitigação nesta branch)
 
-O mapper `SupabaseOccurrenceQueryRepository.parseGeoPoint` reconhece GeoJSON e WKT, porém formatos geoespaciais retornados diretamente pelo PostgREST podem exigir EWKB ou transformação SQL explícita. O fallback atual `{lat:0,lng:0}` não representa um local válido e deveria gerar erro/transformação controlada.
+O mapper agora rejeita coordenadas incorretas em vez de usar `(0,0)`; a view `public_occurrences_api` converte a coordenada aproximada para lat/lng no SQL. Falta comprovar cenários reais do mapa após migração local/staging.
 
-Schemas de listagem aceitam `status`/bbox na query, enquanto contratos do domínio usam `statuses`/`bbox`; algumas listagens podem ignorar filtros ou ordenar sem o resultado esperado. Precisam de DTO/mappers e testes de filtro SQL, não apenas de parsing Zod. Não anunciar esses filtros como inteiramente homologados.
+O schema converte status para `statuses` e parâmetros geográficos para `bbox`; a migration adiciona filtro público, próprio e administrativo do lado SQL. Ainda exigem testes E2E com múltiplas ocorrências, ordem/paginação e coordenadas nos limites, e validação em staging.
 
 ## P1 / Teste de câmera e frontend
 

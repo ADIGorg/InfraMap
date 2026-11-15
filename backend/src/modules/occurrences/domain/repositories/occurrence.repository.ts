@@ -47,5 +47,7 @@ export interface IOccurrenceRepository {
    * RPC `finalize_occurrence` usa auth.uid() — não recebe userId.
    * Após o commit, move as fotos de `temporary/` → `occurrences/` via admin client.
    */
-  finalize(input: FinalizeOccurrenceInput): Promise<string>;
+  finalize(userId: string, input: FinalizeOccurrenceInput): Promise<string>;
+  /** Resume physical photo moves when a prior RPC committed but Storage failed. */
+  resume(userId: string, input: FinalizeOccurrenceInput): Promise<string>;
 }
