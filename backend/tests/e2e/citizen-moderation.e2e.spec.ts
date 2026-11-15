@@ -51,6 +51,12 @@ describe.skipIf(!qaEnabled)("QA-03 / fluxo cidadão → IA mock → cadastro →
       .eq("occurrence_id", occurrenceId).single();
     expect(photo).not.toBeNull();
     const source = `temporary/${owner.id}/${occurrence!.ai_analysis_id}/photo-1.png`;
+    // Simula a falha depois do commit SQL e antes do move definitivo:
+    // os metadados continuam apontando para o destino, mas o arquivo está no temp.
+    const { error: rewindError } = await qa.admin.storage.from("occurrence-photos")
+      .move(photo!.storage_path, source);
+    expect(rewindError).toBeNull();
+
     const retried = await request(qa.app).post(API + "/occurrences/finalize")
       .set(qa.as(owner)).send({
         aiAnalysisId: occurrence!.ai_analysis_id,

@@ -1,7 +1,7 @@
 # Implementação Gemini, filtros e finalização recuperável — InfraMap
 
 ## Seleção de IA
-- `AI_PROVIDER=gemini` habilita `GeminiAiProvider` usando apenas o modelo fixado `gemini-2.5-flash-lite`.
+- `AI_PROVIDER=gemini` habilita `GeminiAiProvider` usando apenas o modelo fixado `gemini-3.5-flash-lite`.
 - `GEMINI_API_KEY` deve estar no servidor (não em client/mobile, Git ou logs).
 - As fotos são baixadas do bucket privado pelo servidor; a API Gemini recebe bytes JPEG/PNG inline.
 - Saída JSON validada por Zod: `categoryCode` (CAT01–CAT07), `description`, `confidence` (0–1).
@@ -16,7 +16,7 @@
 ```env
 AI_PROVIDER=gemini
 GEMINI_API_KEY=<configure-apenas-em-secret-store>
-GEMINI_MODEL=gemini-2.5-flash-lite
+GEMINI_MODEL=gemini-3.5-flash-lite
 AI_CONFIDENCE_THRESHOLD=0.7
 ```
 

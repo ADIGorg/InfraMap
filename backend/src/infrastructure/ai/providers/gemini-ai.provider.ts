@@ -14,7 +14,7 @@ export interface GeminiPhoto { mimeType: "image/png" | "image/jpeg"; base64: str
 export type ResolveGeminiPhoto = (path: string, userId: string) => Promise<GeminiPhoto>;
 export interface GeminiConfig {
   apiKey: string;
-  model: "gemini-2.5-flash-lite";
+  model: "gemini-3.5-flash-lite" | "gemini-2.5-flash-lite";
   promptVersion: string;
 }
 

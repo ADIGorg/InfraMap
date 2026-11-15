@@ -33,7 +33,7 @@ const envSchema = z.object({
   AI_API_KEY: z.string().optional(),
   AI_MODEL: z.string().optional(),
   GEMINI_API_KEY: z.string().optional(),
-  GEMINI_MODEL: z.literal("gemini-2.5-flash-lite").default("gemini-2.5-flash-lite"),
+  GEMINI_MODEL: z.enum(["gemini-3.5-flash-lite", "gemini-2.5-flash-lite"]).default("gemini-3.5-flash-lite"),
   AI_PROMPT_VERSION: z.string().default("v1"),
   AI_CONFIDENCE_THRESHOLD: z.coerce.number().min(0).max(1).default(0.7),
 

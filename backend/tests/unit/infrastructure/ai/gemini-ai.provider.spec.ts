@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { GeminiAiProvider } from "../../../../src/infrastructure/ai/providers/gemini-ai.provider.js";
 
-const config = {apiKey:"test-key",model:"gemini-2.5-flash-lite" as const,promptVersion:"v1"};
+const config = {apiKey:"test-key",model:"gemini-3.5-flash-lite" as const,promptVersion:"v1"};
 const photo = vi.fn().mockResolvedValue({mimeType:"image/png",base64:"iVBORw0KGgo="});
 const input = {photoPaths:["temporary/user/analysis/photo-1.png"],userContext:{id:"user"}};
 function response(result: unknown, status=200) {
@@ -14,7 +14,7 @@ describe("Gemini adapter",()=>{
     }));
     const provider = new GeminiAiProvider(config,photo,fetchMock);
     await expect(provider.analyzeOccurrence(input)).resolves.toMatchObject({
-      categoryCode:"CAT01",modelName:"gemini-2.5-flash-lite",
+      categoryCode:"CAT01",modelName:"gemini-3.5-flash-lite",
     });
     const [url,options] = fetchMock.mock.calls[0]!;
     expect(url).toContain("gemini-2.5-flash-lite:generateContent");
