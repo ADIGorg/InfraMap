@@ -122,9 +122,9 @@ BEGIN
          AND (
       $7::jsonb IS NULL OR (
         extensions.ST_Y(COALESCE(o.location_adjusted, o.location_original)::extensions.geometry)
-          BETWEEN ($7->>'minLat')::DOUBLE PRECISION AND ($7->>'maxLat')::DOUBLE PRECISION
+          BETWEEN ($7->>''minLat'')::DOUBLE PRECISION AND ($7->>''maxLat'')::DOUBLE PRECISION
         AND extensions.ST_X(COALESCE(o.location_adjusted, o.location_original)::extensions.geometry)
-          BETWEEN ($7->>'minLng')::DOUBLE PRECISION AND ($7->>'maxLng')::DOUBLE PRECISION
+          BETWEEN ($7->>''minLng'')::DOUBLE PRECISION AND ($7->>''maxLng'')::DOUBLE PRECISION
       )
     )
        ORDER BY %I %s, o.id DESC
