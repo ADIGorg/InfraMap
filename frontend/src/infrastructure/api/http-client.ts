@@ -62,8 +62,10 @@ export async function http<T>(path: string, options: HttpOptions = {}): Promise<
     // Somente GET: mutations nunca são repetidas automaticamente.
     if (auth && response.status === 401 && method === 'GET') {
       const refreshed = await renewSessionOnce();
-      if (refreshed) response = await send(refreshed);
-      else await supabase.auth.signOut();
+      if (refreshed) {
+        response = await send(refreshed);
+        if (response.status === 401) await supabase.auth.signOut();
+      } else await supabase.auth.signOut();
     }
   } catch (error) {
     if (error instanceof AppError) throw error;
