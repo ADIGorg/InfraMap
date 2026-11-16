@@ -1,0 +1,39 @@
+name: InfraMap Admin Web - Sprint 3
+
+on:
+  push:
+    branches:
+      - 'feature/web-*'
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/frontend-sprint3.yml'
+  pull_request:
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/frontend-sprint3.yml'
+
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Lint
+        run: npm run lint
+      - name: Unit and integration tests
+        run: npm test
+      - name: Production bundle
+        run: npm run build
+        env:
+          VITE_API_BASE_URL: http://localhost:3000/api/v1
+          VITE_SUPABASE_URL: http://127.0.0.1:54321
+          VITE_SUPABASE_PUBLISHABLE_KEY: ci-placeholder-public-only
