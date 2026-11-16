@@ -1,0 +1,56 @@
+.
+├── AGENTS.md
+├── app.json
+├── App.tsx
+├── assets
+│   ├── android-icon-background.png
+│   ├── android-icon-foreground.png
+│   ├── android-icon-monochrome.png
+│   ├── favicon.png
+│   ├── icon.png
+│   └── splash-icon.png
+├── .env.example
+├── estrutura.txtcat
+├── .expo
+│   ├── devices.json
+│   └── README.md
+├── .gitignore
+├── index.ts
+├── LICENSE
+├── package.json
+├── package-lock.json
+├── src
+│   ├── config
+│   │   └── env.ts
+│   ├── features
+│   │   ├── auth
+│   │   │   ├── hooks
+│   │   │   │   └── use-auth.tsx
+│   │   │   └── screens
+│   │   │       └── welcome-screen.tsx
+│   │   └── map
+│   │       └── screens
+│   │           └── map-screen.tsx
+│   ├── infrastructure
+│   │   ├── api
+│   │   │   ├── http-client.ts
+│   │   │   └── supabase-auth.ts
+│   │   └── query-client.ts
+│   ├── navigation
+│   │   ├── AppTabs.tsx
+│   │   ├── AuthStack.tsx
+│   │   └── RootNavigator.tsx
+│   └── shared
+│       ├── components
+│       │   └── loading-screen.tsx
+│       ├── errors
+│       │   └── app-error.ts
+│       ├── hooks
+│       ├── theme
+│       │   └── index.ts
+│       ├── types
+│       └── utils
+├── text.txt
+└── tsconfig.json
+
+21 directories, 33 files
