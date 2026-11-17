@@ -7,6 +7,7 @@ import { ConfirmRecoveryPage } from '@/features/auth/pages/confirm-recovery-page
 import { ResetPasswordPage } from '@/features/auth/pages/reset-password-page';
 import { FeaturePlaceholder } from '@/shared/components/feature-placeholder';
 import { AdminDashboardPage } from '@/features/dashboard/pages/admin-dashboard-page';
+import { AdminMapPage } from '@/features/admin-map/pages/admin-map-page';
 import { ProtectedRoute } from './protected-route';
 import { MasterRoute } from './master-route';
 
@@ -27,9 +28,7 @@ export function AppRouter() {
           <Route element={<AdminLayout />}>
             <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
             <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
-            <Route path="/admin/map" element={<FeaturePlaceholder
-              title="Mapa Administrativo" ticket="API1-95"
-              description="Visualização de ocorrências ativas, filtros e ajuste de localização." />} />
+            <Route path="/admin/map" element={<AdminMapPage />} />
             <Route path="/admin/occurrences" element={<FeaturePlaceholder
               title="Controle de Ocorrências" ticket="API1-96"
               description="Lista, triagem, filtros e paginação de ocorrências." />} />
