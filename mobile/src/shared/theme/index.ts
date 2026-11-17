@@ -15,6 +15,7 @@ export const colors = {
     primary: '#1C2833',
     secondary: '#5D6D7E',
     inverse: '#FFFFFF',
+    sidebar: '#EAECEE', 
   },
   border: {
     default: '#D1D5DB',

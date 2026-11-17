@@ -2,9 +2,11 @@ import { supabase } from '@/infrastructure/api/supabase-auth';
 import { http } from '@/infrastructure/api/http-client';
 import { AppError } from '@/shared/errors/app-error';
 import { IdentityResponse } from '@/shared/types/api';
+import * as Linking from 'expo-linking';
+import Constants from 'expo-constants';
 
 // ─────────────────────────────────────
-// LOGIN (MOB-UI-02)
+// LOGIN
 // ─────────────────────────────────────
 export async function loginWithPassword(email: string, password: string) {
   const { data, error } = await supabase.auth.signInWithPassword({
@@ -29,14 +31,13 @@ export async function loginWithPassword(email: string, password: string) {
 }
 
 // ─────────────────────────────────────
-// SIGNUP (MOB-UI-03)
+// SIGNUP
 // ─────────────────────────────────────
 export async function signup(input: { name: string; email: string; password: string }) {
   const { data, error } = await supabase.auth.signUp({
     email: input.email.trim().toLowerCase(),
     password: input.password,
     options: {
-      // Popula raw_user_meta_data.name → trigger handle_new_user cria profiles.name
       data: { name: input.name.trim() },
     },
   });
@@ -55,7 +56,6 @@ export async function signup(input: { name: string; email: string; password: str
     throw new AppError(500, 'SIGNUP_FAILED', 'Erro ao criar conta. Tente novamente.');
   }
 
-  // session === null quando confirmação de e-mail está habilitada (staging/prod)
   return { user: data.user, session: data.session };
 }
 
@@ -70,7 +70,7 @@ export async function resendConfirmationEmail(email: string) {
 }
 
 // ─────────────────────────────────────
-// IDENTIDADE E LOGOUT (compartilhados)
+// IDENTIDADE E LOGOUT
 // ─────────────────────────────────────
 export async function validateCitizenIdentity(): Promise<IdentityResponse> {
   const identity = await http<IdentityResponse>('/app/me');
@@ -88,38 +88,147 @@ export async function logout() {
 }
 
 // ─────────────────────────────────────
-// PASSWORD RECOVERY (MOB-UI-04)
+// PASSWORD RECOVERY (MOB-UI-04/05)
 // ─────────────────────────────────────
-import * as Linking from 'expo-linking';
-
 export async function requestPasswordReset(email: string): Promise<void> {
-  const redirectTo = Linking.createURL('/reset-password');
+  let redirectTo: string;
+  try {
+    if (Constants.executionEnvironment === 'storeClient') {
+      // Expo Go — o link precisa ser exp://
+      redirectTo = Linking.createURL('reset-password', { scheme: 'exp' });
+    } else {
+      // Dev client ou build nativo — inframap://
+      redirectTo = Linking.createURL('reset-password');
+    }
+  } catch {
+    redirectTo = 'inframap://reset-password';
+  }
 
-  const { error } = await supabase.auth.resetPasswordForEmail(
-    email.trim().toLowerCase(),
-    { redirectTo },
-  );
+  console.log('[auth.service] redirectTo gerado:', redirectTo);
+
+  try {
+    const { error } = await supabase.auth.resetPasswordForEmail(
+      email.trim().toLowerCase(),
+      { redirectTo },
+    );
+
+    if (error) {
+      const status = (error as { status?: number }).status ?? 0;
+      const code = error.code ?? 'unknown';
+
+      console.error('[auth.service] supabase raw error:', {
+        name: error.name,
+        code,
+        status,
+        message: error.message,
+      });
+
+      if (
+        status === 429 ||
+        code === 'over_email_send_rate_limit' ||
+        code === 'too_many_requests'
+      ) {
+        throw new AppError(
+          429,
+          'TOO_MANY_REQUESTS',
+          'Muitas solicitações. Aguarde alguns minutos.',
+        );
+      }
+
+      if (status >= 500) {
+        throw new AppError(
+          503,
+          'SERVER_UNAVAILABLE',
+          'Serviço temporariamente indisponível. Tente novamente em instantes.',
+        );
+      }
+
+      if (status === 0 || error.name === 'AuthRetryableFetchError') {
+        throw new AppError(500, 'NETWORK_ERROR', 'Erro de conexão.');
+      }
+
+      // Outros (user_not_found, redirect_not_allowed) — absorver para anti-enumeração
+    }
+  } catch (e) {
+    if (e instanceof AppError) throw e;
+    throw new AppError(
+      500,
+      'RESET_FAILED',
+      'Não foi possível enviar o e-mail. Tente novamente em instantes.',
+    );
+  }
+}
+
+// ─────────────────────────────────────
+// UPDATE PASSWORD (MOB-UI-05)
+// ─────────────────────────────────────
+export async function updatePassword(newPassword: string): Promise<void> {
+  const { error } = await supabase.auth.updateUser({ password: newPassword });
 
   if (error) {
-    if (
-      error.code === 'over_email_send_rate_limit' ||
-      error.code === 'too_many_requests'
-    ) {
+    if (error.code === 'weak_password') {
       throw new AppError(
-        429,
-        'TOO_MANY_REQUESTS',
-        'Muitas solicitações. Aguarde alguns minutos.',
+        400,
+        'WEAK_PASSWORD',
+        'Senha muito fraca. Use no mínimo 8 caracteres.',
       );
     }
-    // Falha de rede/timeout — permite retry controlado
-    if (
-      error.name === 'AuthRetryableFetchError' ||
-      (error as { status?: number }).status === 0
-    ) {
-      throw new AppError(500, 'NETWORK_ERROR', 'Erro de conexão.');
+    if (error.code === 'same_password') {
+      throw new AppError(
+        400,
+        'SAME_PASSWORD',
+        'A nova senha deve ser diferente da anterior.',
+      );
     }
-    // Anti-enumeração: qualquer outro erro (incluindo "user not found")
-    // é absorvido. O Supabase por padrão já não revela existência em
-    // resetPasswordForEmail, mas mantemos defensivo.
+    throw new AppError(
+      500,
+      'UPDATE_FAILED',
+      'Não foi possível atualizar a senha. Tente novamente.',
+    );
   }
+}
+
+// ─────────────────────────────────────
+// PARSE RECOVERY URL (MOB-UI-05)
+// ─────────────────────────────────────
+export interface ParsedRecoveryTokens {
+  accessToken: string;
+  refreshToken: string;
+}
+
+export function parseRecoveryUrl(url: string): ParsedRecoveryTokens | null {
+  if (!url.includes('reset-password') && !url.includes('type=recovery')) {
+    return null;
+  }
+
+  const hashIndex = url.indexOf('#');
+  if (hashIndex === -1) return null;
+
+  const fragment = url.slice(hashIndex + 1);
+  const params = new URLSearchParams(fragment);
+
+  const accessToken = params.get('access_token');
+  const refreshToken = params.get('refresh_token');
+  const type = params.get('type');
+
+  if (!accessToken || !refreshToken || type !== 'recovery') return null;
+
+  return { accessToken, refreshToken };
+}
+
+export async function setSessionFromRecoveryUrl(url: string): Promise<boolean> {
+  const parsed = parseRecoveryUrl(url);
+  if (!parsed) return false;
+
+  const { error } = await supabase.auth.setSession({
+    access_token: parsed.accessToken,
+    refresh_token: parsed.refreshToken,
+  });
+
+  if (error) {
+    console.error('[auth.service] setSession failed:', error);
+    return false;
+  }
+
+  return true;
 }

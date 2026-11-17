@@ -27,10 +27,12 @@
 │   │   │   ├── components
 │   │   │   │   └── terms-modal.tsx
 │   │   │   ├── hooks
-│   │   │   │   └── use-auth.tsx
+│   │   │   │   ├── use-auth.tsx
+│   │   │   │   └── use-recovery-link.ts
 │   │   │   ├── schemas
 │   │   │   │   ├── forgot-password-schema.ts
 │   │   │   │   ├── login-schema.ts
+│   │   │   │   ├── reset-password-schema.ts
 │   │   │   │   └── signup-schema.ts
 │   │   │   ├── screens
 │   │   │   │   ├── forgot-password-screen.test.tsx
@@ -39,6 +41,8 @@
 │   │   │   │   ├── login-screen.tsx
 │   │   │   │   ├── register-screen.test.tsx
 │   │   │   │   ├── register-screen.tsx
+│   │   │   │   ├── reset-password-screen.test.tsx
+│   │   │   │   ├── reset-password-screen.tsx
 │   │   │   │   ├── verify-email-screen.tsx
 │   │   │   │   ├── welcome-screen.test.tsx
 │   │   │   │   └── welcome-screen.tsx
@@ -47,12 +51,58 @@
 │   │   │   └── view-models
 │   │   │       ├── use-login-view-model.ts
 │   │   │       ├── use-password-recovery-view-model.ts
+│   │   │       ├── use-reset-password-view-model.ts
 │   │   │       ├── use-signup-view-model.ts
 │   │   │       └── use-welcome-view-model.ts
-│   │   └── map
-│   │       └── screens
-│   │           ├── map-screen.tsx
-│   │           └── public-map-screen.tsx
+│   │   ├── map
+│   │   │   ├── components
+│   │   │   │   ├── category-filter.tsx
+│   │   │   │   ├── occurrence-pin.tsx
+│   │   │   │   ├── occurrence-preview-sheet.test.tsx
+│   │   │   │   └── occurrence-preview-sheet.tsx
+│   │   │   ├── screens
+│   │   │   │   ├── map-screen.tsx
+│   │   │   │   ├── public-map-guest-screen.tsx
+│   │   │   │   ├── public-map-screen.test.tsx
+│   │   │   │   ├── public-map-screen.tsx
+│   │   │   │   └── public-occurrence-detail-placeholder-screen.tsx
+│   │   │   ├── services
+│   │   │   │   └── public-occurrences.service.ts
+│   │   │   └── view-models
+│   │   │       ├── use-occurrence-preview-view-model.test.ts
+│   │   │       ├── use-occurrence-preview-view-model.ts
+│   │   │       ├── use-public-map.test.ts
+│   │   │       └── use-public-map.ts
+│   │   ├── occurrences
+│   │   │   ├── components
+│   │   │   │   ├── occurrence-card.test.tsx
+│   │   │   │   ├── occurrence-card.tsx
+│   │   │   │   └── status-badge.tsx
+│   │   │   ├── screens
+│   │   │   │   ├── my-occurrence-detail-placeholder-screen.tsx
+│   │   │   │   ├── my-occurrences-screen.test.tsx
+│   │   │   │   └── my-occurrences-screen.tsx
+│   │   │   ├── services
+│   │   │   │   └── my-occurrences.service.ts
+│   │   │   └── view-models
+│   │   │       ├── use-my-occurrences-view-model.test.ts
+│   │   │       └── use-my-occurrences-view-model.ts
+│   │   └── profiles
+│   │       ├── components
+│   │       │   ├── change-password-modal.tsx
+│   │       │   ├── delete-account-modal.tsx
+│   │       │   ├── edit-profile-modal.tsx
+│   │       │   └── logout-confirm-modal.tsx
+│   │       ├── schemas
+│   │       │   ├── change-password-schema.ts
+│   │       │   └── profile-schema.ts
+│   │       ├── screens
+│   │       │   └── profile-screen.tsx
+│   │       ├── services
+│   │       │   ├── account.service.ts
+│   │       │   └── profile.service.ts
+│   │       └── view-models
+│   │           └── use-profile-view-model.ts
 │   ├── infrastructure
 │   │   ├── api
 │   │   │   ├── http-client.ts
@@ -61,6 +111,9 @@
 │   ├── navigation
 │   │   ├── AppTabs.tsx
 │   │   ├── AuthStack.tsx
+│   │   ├── MapStack.tsx
+│   │   ├── MyOccurrencesStack.tsx
+│   │   ├── ProfileStack.tsx
 │   │   ├── RootNavigator.tsx
 │   │   └── types.ts
 │   └── shared
@@ -73,9 +126,14 @@
 │       │   └── app-error.ts
 │       ├── theme
 │       │   └── index.ts
-│       └── types
-│           └── api.ts
+│       ├── types
+│       │   └── api.ts
+│       └── utils
+│           ├── format-date.test.ts
+│           └── format-date.ts
+├── tests
+│   └── setup-env.ts
 ├── text.txt
 └── tsconfig.json
 
-23 directories, 56 files
+39 directories, 98 files
