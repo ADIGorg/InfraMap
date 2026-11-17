@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useAdminDashboardViewModel } from './use-admin-dashboard-view-model';
 
 vi.mock('@tanstack/react-query', () => ({ useQuery: vi.fn() }));
+vi.mock('@/infrastructure/api/http-client', () => ({ http: vi.fn() }));
 
 describe('Dashboard MVVM polling', () => {
   it('programa a consulta do dashboard e a lista recente para cada 30 segundos', () => {

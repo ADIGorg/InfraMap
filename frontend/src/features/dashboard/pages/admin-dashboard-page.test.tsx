@@ -6,6 +6,7 @@ import { AdminDashboardPage } from './admin-dashboard-page';
 import type { AdminDashboard } from '../services/dashboard.service';
 
 vi.mock('../view-models/use-admin-dashboard-view-model', () => ({ useAdminDashboardViewModel: vi.fn() }));
+vi.mock('@/infrastructure/api/http-client', () => ({ http: vi.fn() }));
 
 const baseDashboard = {
   counts_by_status: {
