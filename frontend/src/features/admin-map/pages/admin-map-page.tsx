@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { APIProvider } from '@vis.gl/react-google-maps';
-import { MapPinned, RefreshCw } from 'lucide-react';
+import { List, MapPinned, RefreshCw } from 'lucide-react';
 import { env } from '@/config/env';
 import { Button } from '@/shared/components/button';
 import { AdminGoogleMap } from '../components/admin-google-map';
@@ -12,6 +12,7 @@ import { useAdminMapViewModel, describeMapMutationError } from '../view-models/u
 export function AdminMapPage() {
   const vm = useAdminMapViewModel();
   const [mapsError, setMapsError] = useState(false);
+  const [showList, setShowList] = useState(false);
   const onMapsError = useCallback(() => setMapsError(true), []);
   const mapsEnabled = Boolean(env.googleMapsKey) && !mapsError;
   const items = vm.occurrences.data ?? [];
@@ -29,7 +30,7 @@ export function AdminMapPage() {
           </p>
           <Button variant="outline" type="button" onClick={() => void vm.occurrences.refetch()}>Tentar novamente</Button>
         </div>
-      ) : mapsEnabled ? (
+      ) : mapsEnabled && !showList ? (
         <>
           <div className="pointer-events-none absolute left-4 top-4 z-10 rounded-lg bg-brand-primary px-4 py-3 text-xs font-semibold text-white shadow-lg">
             Selecione um marcador para ver o resumo e ajustar a posição
@@ -56,7 +57,9 @@ export function AdminMapPage() {
           onAdjust={vm.startAdjustment}
           reason={mapsError
             ? 'Não foi possível carregar o Google Maps.'
-            : 'A chave pública do Google Maps ainda não foi configurada.'}
+            : showList
+              ? 'Visualização em lista selecionada.'
+              : 'A chave pública do Google Maps ainda não foi configurada.'}
         />
       )}
     </div>
@@ -91,10 +94,19 @@ export function AdminMapPage() {
             Ocorrências ativas, filtros suportados e correção auditável de coordenadas
           </p>
         </div>
-        <Button variant="outline" type="button" onClick={() => void vm.occurrences.refetch()}
-          isLoading={vm.occurrences.isFetching}>
-          <RefreshCw size={16} aria-hidden="true" /> Atualizar ocorrências
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          {mapsEnabled && (
+            <Button variant="outline" type="button" onClick={() => setShowList((value) => !value)}
+              aria-pressed={showList}>
+              <List size={16} aria-hidden="true" />
+              {showList ? 'Ver mapa' : 'Visualizar em lista'}
+            </Button>
+          )}
+          <Button variant="outline" type="button" onClick={() => void vm.occurrences.refetch()}
+            isLoading={vm.occurrences.isFetching}>
+            <RefreshCw size={16} aria-hidden="true" /> Atualizar ocorrências
+          </Button>
+        </div>
       </header>
 
       <div className="flex flex-col lg:flex-row">
@@ -115,7 +127,7 @@ export function AdminMapPage() {
           categories={vm.categories.data}
           categoriesLoading={vm.categories.isPending}
           categoriesError={vm.categories.isError}
-          canSearchArea={mapsEnabled && vm.availableBounds !== null}
+          canSearchArea={mapsEnabled && !showList && vm.availableBounds !== null}
           error={vm.adjusting ? null : vm.inputError}
           onStatusChange={vm.updateStatus}
           onCategoryChange={vm.setCategory}
