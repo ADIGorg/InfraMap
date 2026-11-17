@@ -63,3 +63,7 @@ ATENÇÃO: o Supabase compartilhado usa o mesmo modelo de e-mail para web e mobi
 ## API1-94: dashboard administrativo real
 
 A branch feature/web-ui-02-dashboard implementa seis contadores de status, total HIGH, média de resolução, 2 alertas SLA e as 5 ocorrências mais recentes com polling de 30 segundos. Não existem dados simulados. A série diária do gráfico depende da API1-103 e fica explicitamente indisponível. Ver frontend/docs/API1-94-validation.md.
+
+## API1-95 — Mapa Administrativo
+
+Branch feature/web-ui-03-admin-map: tela MVVM com filtros ativos, paginação, bbox, popup, correção confirmada e fallback textual. Veja frontend/docs/API1-95-validation.md para configuração segura do Google Maps e checklist de QA.
