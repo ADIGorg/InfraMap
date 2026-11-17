@@ -9,6 +9,7 @@ const schema = z.object({
   VITE_SUPABASE_URL: z.url(),
   VITE_SUPABASE_PUBLISHABLE_KEY: z.string().min(1),
   VITE_GOOGLE_MAPS_KEY: z.string().optional(),
+  VITE_GOOGLE_MAP_ID: z.string().optional(),
 });
 
 const config = schema.safeParse(import.meta.env);
@@ -23,4 +24,5 @@ export const env = {
   supabaseUrl: config.data.VITE_SUPABASE_URL,
   supabasePublishableKey: config.data.VITE_SUPABASE_PUBLISHABLE_KEY,
   googleMapsKey: config.data.VITE_GOOGLE_MAPS_KEY ?? '',
+  googleMapId: config.data.VITE_GOOGLE_MAP_ID || 'DEMO_MAP_ID',
 } as const;

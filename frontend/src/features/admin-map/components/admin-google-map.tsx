@@ -1,5 +1,6 @@
 import { AdvancedMarker, InfoWindow, Map, Pin } from '@vis.gl/react-google-maps';
 import { Link } from 'react-router-dom';
+import { env } from '@/config/env';
 import { StatusBadge } from '@/shared/components/status-badge';
 import {
   isActiveStatus,
@@ -29,7 +30,7 @@ export function AdminGoogleMap({
     <Map
       defaultCenter={initialCenter}
       defaultZoom={items.length ? 12 : 4}
-      mapId="DEMO_MAP_ID"
+      mapId={env.googleMapId}
       gestureHandling="greedy"
       className="h-full w-full"
       onIdle={(event) => {
@@ -88,7 +89,7 @@ export function AdjustmentGoogleMap({
     <Map
       defaultCenter={position}
       defaultZoom={16}
-      mapId="DEMO_MAP_ID"
+      mapId={env.googleMapId}
       className="h-full w-full"
       gestureHandling="greedy"
       onClick={(event) => {
