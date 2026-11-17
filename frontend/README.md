@@ -39,7 +39,7 @@ Em 401, o cliente tenta renovar a sessão uma única vez e apenas repete automat
 
 As rotas de dashboard, mapa, lista, notificações e gestão estão ligadas, mas apresentam placeholders intencionais, sem dados falsos. Cada tela será implementada na sua própria branch, com ticket individual:
 
-- API1-93: acabamento de login e recuperação de senha, incluindo deep links, SMTP e UI final.
+- API1-93: login aprimorado e recuperação web por confirmação explícita; conferir frontend/docs/API1-93-validation.md. A configuração compartilhada de e-mail no Supabase ainda exige homologação manual.
 - API1-94: dashboard e indicadores SLA (série diária depende da API1-103).
 - API1-95: mapa, filtros e ajuste de localização (filtros extras dependem da API1-104).
 - API1-92: gestão de órgãos; MASTER para operações de escrita.
@@ -53,3 +53,9 @@ Os screenshots recebidos orientam o visual. Os exports JSON originais do Figma n
 Repositório ADIGorg/Inframap-ai-specs, pasta FRONT; regras RN001–RN070. Consultar código real da API para resolver divergências com OpenAPI.
 
 Nenhuma migration foi aplicada. Para validação efetiva da integração será necessário um ambiente Supabase com dados reais de testes e o backend funcionando.
+
+## API1-93: login e recuperação via e-mail
+
+A branch feature/web-ui-01-login-admin herda a API1-91 sem modificar main. O login protege rotas e valida ADMIN ativo na API. A recuperação web passa pela rota /confirm-recovery e só verifica o token após clique em Continuar recuperação. A rota /reset-password exige essa etapa anterior para oferecer o formulário.
+
+ATENÇÃO: o Supabase compartilhado usa o mesmo modelo de e-mail para web e mobile. O template condicional está documentado em frontend/docs/supabase-password-recovery-template.html e não foi aplicado ao serviço remoto nesta implementação. Não ativar o modelo sem verificar a preservação dos deep links mobile. Antes de testar end-to-end, adicionar a Redirect URL http://localhost:5173/confirm-recovery e aprovar o template com o responsável pelo mobile.
