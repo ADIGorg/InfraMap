@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+vi.mock('@/infrastructure/api/http-client', () => ({ http: vi.fn() }));
 import { AppError } from '@/shared/errors/app-error';
 import { describeMapMutationError } from './use-admin-map-view-model';
 

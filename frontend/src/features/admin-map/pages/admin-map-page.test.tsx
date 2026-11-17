@@ -57,7 +57,7 @@ describe('AdminMapPage', () => {
   it('mostra a lista textual quando a chave Google está ausente, sem dados simulados', () => {
     show();
     expect(screen.getByRole('heading', { name: 'Mapa Administrativo' })).toBeInTheDocument();
-    expect(screen.getByText('A chave pública do Google Maps ainda não foi configurada.')).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('A chave pública do Google Maps ainda não foi configurada.');
     expect(screen.getByText('Vazamento na rua')).toBeInTheDocument();
     expect(screen.getByText(/-12.990000, -38.500000/)).toBeInTheDocument();
     expect(screen.queryByTestId('google-map')).not.toBeInTheDocument();
