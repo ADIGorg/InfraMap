@@ -58,9 +58,10 @@ function ClickToAdjust({ onChange }: { onChange: (value: GeoPoint) => void }) {
 
 function CenterOnPoint({ position }: { position: GeoPoint }) {
   const map = useMap();
+  const { lat, lng } = position;
   useEffect(() => {
-    if (validPoint(position)) map.panTo([position.lat, position.lng]);
-  }, [map, position.lat, position.lng]);
+    if (validPoint({ lat, lng })) map.panTo([lat, lng]);
+  }, [map, lat, lng]);
   return null;
 }
 
