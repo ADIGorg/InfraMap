@@ -46,6 +46,10 @@ function VisibleAreaListener({ onAreaChanged }: { onAreaChanged: (bounds: Bounds
   const map = useMapEvents({
     moveend: () => onAreaChanged(boundsFromLeaflet(map.getBounds())),
   });
+  // A área inicial também pode ser pesquisada, sem exigir que o usuário arraste o mapa.
+  useEffect(() => {
+    onAreaChanged(boundsFromLeaflet(map.getBounds()));
+  }, [map, onAreaChanged]);
   return null;
 }
 

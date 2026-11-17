@@ -116,7 +116,7 @@ export function AdminMapFilters({
       {error && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-800">{error}</p>}
       <div className="space-y-2 border-t border-line pt-5">
         <Button type="button" className="w-full" onClick={onApply}
-          disabled={draft.statuses.length === 0}>Aplicar filtros</Button>
+>Aplicar filtros</Button>
         <Button type="button" className="w-full" variant="outline" onClick={onClear}>
           <RotateCcw size={16} aria-hidden="true" /> Limpar seleção
         </Button>

@@ -30,12 +30,13 @@ export function AdminMapPage() {
         </div>
       ) : mapAvailable && !showList ? (
         <>
-          <div className="pointer-events-none absolute left-4 top-4 z-10 rounded-lg bg-brand-primary px-4 py-3 text-xs font-semibold text-white shadow-lg">
-            Selecione um marcador para ver o resumo e ajustar a posição
-          </div>
+          {items.length > 0 && (
+            <div role="note" className="pointer-events-none absolute left-16 right-3 top-3 z-10 ml-auto w-fit max-w-xs rounded-lg bg-brand-primary px-3 py-2 text-xs font-semibold text-white shadow-lg">
+              Selecione um marcador para ver o resumo e ajustar a posição.
+            </div>
+          )}
           <div className="h-[550px] lg:h-[700px]" aria-label="Mapa administrativo de ocorrências">
             <AdminLeafletMap
-              key={items[0]?.id ?? 'map-empty'}
               items={items}
               selected={vm.selected}
               onSelect={vm.selectOccurrence}
@@ -57,6 +58,7 @@ export function AdminMapPage() {
           reason={tilesUnavailable
             ? 'O serviço de mapas OpenStreetMap não está disponível.'
             : 'Visualização em lista selecionada.'}
+          onRetryMap={tilesUnavailable ? () => setTilesUnavailable(false) : undefined}
         />
       )}
     </div>

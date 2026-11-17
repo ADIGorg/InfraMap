@@ -12,8 +12,8 @@ Sem merge na `main`, migrations, alterações de dados ou segredos versionados.
 - Helpers: `src/features/admin-map/services/map-presentation.ts` converte bounds Leaflet em bbox da API.
 - CSS do Leaflet importado em `src/main.tsx`, pins estilizados em `src/styles/index.css`.
 - Sem Google Maps Platform, faturamento ou credenciais da Google.
-- Alternância voluntária mapa/lista e fallback automático para lista textual quando ocorre `tileerror`.
-- Mapa visível mesmo com 0 ocorrências; nenhum marcador fictício ou placeholder.
+- Alternância voluntária mapa/lista e fallback automático para lista textual quando ocorre `tileerror`, com botão de tentativa manual para voltar ao mapa.
+- Mapa visível mesmo com 0 ocorrências; nenhum marcador fictício ou placeholder. Dica sobre marcadores só aparece quando existem registros e fica afastada dos controles de zoom.
 - Pinos coloridos só para RECEIVED / UNDER_ANALYSIS / CONFIRMED / IN_SERVICE. Popup apresenta dados admin já autorizados, link de detalhe e ajuste.
 - Modal de ajuste: arrastar marcador, clicar no mapa ou digitar latitude/longitude, confirmar em segundo passo, revalidar status antes de PATCH. O RPC backend preserva `location_original` e auditoria.
 
@@ -40,7 +40,7 @@ Manter `VITE_API_BASE_URL`, `VITE_SUPABASE_URL` e `VITE_SUPABASE_PUBLISHABLE_KEY
 - `PATCH /api/v1/admin/occurrences/:id/location` com `{lat,lng}` somente.
 - Resultados paginados até o fim, limite explícito de 100 páginas sem mostrar resultados parciais como se fossem completos.
 - RESOLVED e REJECTED não são pontos ativos; consulta na lista/histórico.
-- Área visível é convertida de `map.getBounds()` para `minLat/maxLat/minLng/maxLng`; bbox que cruza o antimeridiano exige tratamento pela API e é recusada sem emitir 400.
+- Área visível (inclusive a inicial) é convertida de `map.getBounds()` para `minLat/maxLat/minLng/maxLng`; bbox que cruza o antimeridiano exige tratamento pela API e é recusada sem emitir 400.
 - Bairro e período continuam desabilitados até existir filtro global paginado no backend.
 
 ## Política de uso OpenStreetMap
@@ -65,8 +65,9 @@ Documentação React Leaflet 4: https://react-leaflet.js.org/docs/v4/start-insta
 - [ ] Recebido, Em análise, Confirmado, Em atendimento com cores corretas; sem pins terminais.
 - [ ] Clicar pin abre resumo e link /admin/occurrences/:id; a tela de detalhe é ticket separado (API1-97).
 - [ ] Aplicar e limpar filtros status/categoria; testar filtro bbox completo após mover mapa.
-- [ ] API com 0 registros: mapa sem pins e aviso, sem dados simulados.
-- [ ] Bloqueio do tile.openstreetmap.org na aba Network: fallback em lista.
+- [x] API sem registros: tela visualmente validada pelo usuário com mapa OpenStreetMap, sem pins nem dados simulados (17/11/2026).
+- [ ] Confirmar que o zoom +/− permanece livre após a correção do banner informativo.
+- [ ] Bloqueio do tile.openstreetmap.org na aba Network: fallback em lista e botão de tentar novamente.
 - [ ] Botões alternar mapa/lista, incluindo ajuste de coordenadas pela lista.
 - [ ] Modal de ajuste: drag, clique no mapa e números manuais (inclusive campos temporariamente vazios), confirmação explícita.
 - [ ] Validar 403, 400 e 409; mutation nunca marca sucesso em falha.

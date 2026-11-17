@@ -43,7 +43,16 @@ vi.mock('react-leaflet', () => ({
   }),
   Popup: ({ children }: { children: React.ReactNode }) => <div data-testid="map-popup">{children}</div>,
   useMap: () => ({ panTo: vi.fn() }),
-  useMapEvents: () => ({ getBounds: vi.fn() }),
+  useMapEvents: (() => {
+    const bounds = {
+      getSouth: () => -13,
+      getNorth: () => -12,
+      getWest: () => -39,
+      getEast: () => -38,
+    };
+    const map = { getBounds: () => bounds };
+    return () => map;
+  })(),
 }));
 
 const item = {
@@ -58,6 +67,7 @@ const item = {
 
 const onAdjust = vi.fn(), onApply = vi.fn(), onUpdate = vi.fn();
 const onSelect = vi.fn(), onSetPosition = vi.fn(), onRequestConfirmation = vi.fn();
+const onSetBounds = vi.fn();
 
 function configure(overrides: Record<string, unknown> = {}) {
   const vm = {
@@ -73,7 +83,7 @@ function configure(overrides: Record<string, unknown> = {}) {
     mutation: { error: null, isPending: false },
     updateStatus: vi.fn(), setCategory: vi.fn(),
     applyFilters: onApply, clearFilters: vi.fn(), searchVisibleArea: vi.fn(), clearArea: vi.fn(),
-    selectOccurrence: onSelect, setAvailableBounds: vi.fn(),
+    selectOccurrence: onSelect, setAvailableBounds: onSetBounds,
     startAdjustment: onAdjust, cancelAdjustment: vi.fn(), requestConfirmation: onRequestConfirmation,
     setCandidate: onSetPosition, setConfirming: vi.fn(), saveAdjustment: vi.fn(),
     ...overrides,
@@ -100,6 +110,10 @@ describe('AdminMapPage / OpenStreetMap', () => {
       'data-attribution', expect.stringContaining('openstreetmap.org/copyright'),
     );
     expect(screen.getByTitle(/Ocorrência #916e5e03/)).toBeInTheDocument();
+    expect(screen.getByRole('note')).toHaveTextContent('Selecione um marcador');
+    expect(onSetBounds).toHaveBeenCalledWith({
+      minLat: -13, maxLat: -12, minLng: -39, maxLng: -38,
+    });
   });
 
   it('mantém filtro de status ativo, sem bairro/período fictícios', () => {
@@ -138,6 +152,8 @@ describe('AdminMapPage / OpenStreetMap', () => {
     expect(screen.queryByTestId('leaflet-map')).not.toBeInTheDocument();
     expect(screen.getByText(/O serviço de mapas OpenStreetMap não está disponível/)).toBeInTheDocument();
     expect(screen.getByText('Vazamento na rua')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Tentar carregar o mapa novamente' }));
+    expect(screen.getByTestId('leaflet-map')).toBeInTheDocument();
   });
 
   it('não mascara falha da API como lista vazia', () => {
@@ -157,6 +173,14 @@ describe('AdminMapPage / OpenStreetMap', () => {
     expect(screen.getByText('Nenhuma ocorrência ativa corresponde aos filtros.')).toBeInTheDocument();
     expect(screen.queryByTestId('map-marker')).not.toBeInTheDocument();
     expect(screen.getByTestId('leaflet-map')).toBeInTheDocument();
+    expect(screen.queryByRole('note')).not.toBeInTheDocument();
+  });
+
+  it('permite aplicar um filtro de status vazio para mostrar o erro de validação', () => {
+    configure({ draft: { statuses: [], categoryId: '' } });
+    show();
+    fireEvent.click(screen.getByRole('button', { name: 'Aplicar filtros' }));
+    expect(onApply).toHaveBeenCalledOnce();
   });
 
   it('usa marcador arrastável no modal de ajuste e requer confirmação', () => {
