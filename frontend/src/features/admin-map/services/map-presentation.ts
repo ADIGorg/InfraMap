@@ -11,14 +11,17 @@ export function pinColor(status: ActiveStatus): string {
   return STATUS_COLORS[status];
 }
 
-export function boundsFromGoogle(bounds: {
-  north: number; south: number; east: number; west: number;
+export function boundsFromLeaflet(bounds: {
+  getSouth: () => number;
+  getNorth: () => number;
+  getWest: () => number;
+  getEast: () => number;
 }): Bounds {
   return {
-    minLat: bounds.south,
-    maxLat: bounds.north,
-    minLng: bounds.west,
-    maxLng: bounds.east,
+    minLat: bounds.getSouth(),
+    maxLat: bounds.getNorth(),
+    minLng: bounds.getWest(),
+    maxLng: bounds.getEast(),
   };
 }
 
