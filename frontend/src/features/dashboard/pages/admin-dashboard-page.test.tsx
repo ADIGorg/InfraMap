@@ -3,6 +3,7 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { useAdminDashboardViewModel } from '../view-models/use-admin-dashboard-view-model';
 import { AdminDashboardPage } from './admin-dashboard-page';
+import type { AdminDashboard } from '../services/dashboard.service';
 
 vi.mock('../view-models/use-admin-dashboard-view-model', () => ({ useAdminDashboardViewModel: vi.fn() }));
 
@@ -29,8 +30,14 @@ function configure({
   data = baseDashboard,
   isError = false,
   isPending = false,
-  items = [] as typeof baseRecent[],
+  items = [],
   recentError = false,
+}: {
+  data?: AdminDashboard;
+  isError?: boolean;
+  isPending?: boolean;
+  items?: typeof baseRecent[];
+  recentError?: boolean;
 } = {}) {
   vi.mocked(useAdminDashboardViewModel).mockReturnValue({
     dashboard: { data, isError, isPending, isFetching: false },
