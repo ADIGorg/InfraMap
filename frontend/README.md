@@ -11,7 +11,7 @@ Aplicação administrativa React + Vite + TypeScript, com arquitetura MVVM por f
 5. Execute npm install e npm run dev.
 6. Acesse http://localhost:5173/login com um usuário ADMIN ativo.
 
-Somente a chave PUBLICÁVEL do Supabase pode ir no Vite; nunca adicione service_role, Gemini ou segredos de SMTP ao frontend. Chaves VITE_* são públicas. A chave do Google Maps deve ser restrita pelo domínio e API antes da API1-95.
+Somente a chave PUBLICÁVEL do Supabase pode ir no Vite; nunca adicione service_role, Gemini ou segredos de SMTP ao frontend. Chaves VITE_* são públicas. O mapa da API1-95 utiliza Leaflet com dados e tiles do OpenStreetMap; não usa chave do Google nem exige cartão.
 
 ## Verificações
 
@@ -66,4 +66,4 @@ A branch feature/web-ui-02-dashboard implementa seis contadores de status, total
 
 ## API1-95 — Mapa Administrativo
 
-Branch feature/web-ui-03-admin-map: tela MVVM com filtros ativos, paginação, bbox, popup, correção confirmada e fallback textual. Veja frontend/docs/API1-95-validation.md para configuração segura do Google Maps e checklist de QA.
+Branch feature/web-ui-03-admin-map: mapa Leaflet com tiles OpenStreetMap, filtros ativos, paginação, bbox, popups, correção confirmada e fallback textual. Não requer API key; consulte frontend/docs/API1-95-validation.md para configuração, política de tiles, testes e QA.

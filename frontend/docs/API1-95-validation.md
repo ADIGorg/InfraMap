@@ -1,54 +1,77 @@
 # API1-95 — WEB-UI-03 Mapa Administrativo (MVVM)
 
-Branch: feature/web-ui-03-admin-map; base: feature/web-ui-02-dashboard.
-Sem merge na main, alterações em migrations, dados de produção ou chaves versionadas.
+Branch: `feature/web-ui-03-admin-map`; base: `feature/web-ui-02-dashboard`.
+Troca arquitetural aprovada: **React Leaflet v4 + Leaflet v1.9 + OpenStreetMap** em lugar do Google Maps.
+Sem merge na `main`, migrations, alterações de dados ou segredos versionados.
 
-## Implementação
-- View: src/features/admin-map/pages/admin-map-page.tsx e componentes.
-- ViewModel: src/features/admin-map/view-models/use-admin-map-view-model.ts.
-- Model: src/features/admin-map/services/admin-occurrences.service.ts.
-- Usa @vis.gl/react-google-maps para mapa, marcadores e janela de detalhes.
-- Sem chave ou erro do Google: lista textual com coordenadas e link de detalhe.
+## Arquitetura e arquivos
 
-## Contrato real do backend
-- GET /api/v1/admin/occurrences?page=1&pageSize=100&sort=recent&status=RECEIVED,UNDER_ANALYSIS,CONFIRMED,IN_SERVICE
-- Outros parâmetros suportados: categoryId UUID, minLat/maxLat/minLng/maxLng em quarteto completo.
-- GET /api/v1/categories para categorias reais; GET /api/v1/admin/occurrences/:id para revalidar status.
-- PATCH /api/v1/admin/occurrences/:id/location recebe apenas {lat,lng}.
-- Paginação consultada até última página. Se > 100 páginas, erro explícito: nunca contar lista parcial como completa.
-- Apenas status ativos como pins. RESOLVED/REJECTED permanecem na lista/histórico (RN022/RN031).
-- Ao ajustar, revalida estado não terminal antes de PATCH; confirmação explícita; sem atualização otimista.
-- Original da localização e histórico preservados pelo RPC do backend (RN021); frontend não envia locationOriginal.
-- Erros 400, 403, 409 e 401 possuem mensagens distintas e não são tratados como sucesso.
+- View: `src/features/admin-map/pages/admin-map-page.tsx` e `components/admin-leaflet-map.tsx`, `components/adjust-location-dialog.tsx`, `components/admin-map-filters.tsx`.
+- ViewModel: `src/features/admin-map/view-models/use-admin-map-view-model.ts`, sem mudança de regras de negócio.
+- Model: `src/features/admin-map/services/admin-occurrences.service.ts`.
+- Helpers: `src/features/admin-map/services/map-presentation.ts` converte bounds Leaflet em bbox da API.
+- CSS do Leaflet importado em `src/main.tsx`, pins estilizados em `src/styles/index.css`.
+- Sem Google Maps Platform, faturamento ou credenciais da Google.
+- Alternância voluntária mapa/lista e fallback automático para lista textual quando ocorre `tileerror`.
+- Mapa visível mesmo com 0 ocorrências; nenhum marcador fictício ou placeholder.
+- Pinos coloridos só para RECEIVED / UNDER_ANALYSIS / CONFIRMED / IN_SERVICE. Popup apresenta dados admin já autorizados, link de detalhe e ajuste.
+- Modal de ajuste: arrastar marcador, clicar no mapa ou digitar latitude/longitude, confirmar em segundo passo, revalidar status antes de PATCH. O RPC backend preserva `location_original` e auditoria.
 
-## Restrições dos filtros
-- O backend não suporta bairro/período como filtros globais. Controles são desabilitados.
-- Filtro de área usa os quatro limites retornados do Google, validando ordem e coordenadas.
-- Filtros só são aplicados após clique; resultados recentes não fingem busca global.
+## Rodar localmente
 
-## Habilitar Google Maps no ambiente de desenvolvimento
-1. Google Cloud Console: selecione/crie projeto, habilite faturamento e orçamento com alertas.
-2. Ative apenas Maps JavaScript API. Geocoding não foi usado neste ticket.
-3. Crie API Key para navegador com restrição HTTP referrer: http://localhost:5173/* e domínio real aprovado.
-4. Restrinja a chave à Maps JavaScript API.
-5. Crie Map ID próprio para AdvancedMarker (DEMO_MAP_ID apenas para dev).
-6. No frontend/.env ignorado pelo Git, defina VITE_GOOGLE_MAPS_KEY e VITE_GOOGLE_MAP_ID.
-7. Reinicie npm run dev após editar .env.
-8. Em frontend, execute npm install na primeira sincronização para obter a nova dependência.
-9. Chaves VITE_ são públicas no bundle: nunca adicionar segredo/service role, limitar chave por domínio/API.
-10. Monitorar preço e consumo; não presumir gratuidade de requests Google Maps.
+No repositório `InfraMap`:
 
-## Homologação manual
-- [ ] Entrar como ADMIN ativo, abrir /admin/map, validar layout responsivo.
-- [ ] Pin por status ativo e nenhum RESOLVED/REJECTED.
-- [ ] Testar filtro categoria, status, aplicar e limpar.
-- [ ] Testar bbox minLat/maxLat/minLng/maxLng e dados fora da área.
-- [ ] Sem dados: estado vazio. Sem chave/falha Google: lista textual.
-- [ ] Com chave: pin, popup, detalhe, ajuste arrastando marcador.
-- [ ] Alternativa manual de ajuste com latitude e longitude.
-- [ ] Confirmação, PATCH, refresh, histórico e posição original imutável.
-- [ ] Recusas 400/403/409; sessão 401.
-- [ ] Testar com ocorrências autorizadas de QA, não alterar dados de produção sem aprovação.
-- [ ] Validar CI TypeScript, lint, testes e build, revisar Figma.
+1. `git fetch origin`
+2. `git switch feature/web-ui-03-admin-map`
+3. `git pull origin feature/web-ui-03-admin-map` (somente se a árvore local estiver limpa)
+4. `cd frontend`
+5. `npm install` (remove biblioteca Google e instala `leaflet`, `react-leaflet` e `@types/leaflet`)
+6. `npm run dev`
+7. Com backend em execução, acesse `http://localhost:5173/admin/map`.
 
-Dependências: API1-50 e API1-55 entregues; filtro global bairro/período depende de novo contrato backend.
+Manter `VITE_API_BASE_URL`, `VITE_SUPABASE_URL` e `VITE_SUPABASE_PUBLISHABLE_KEY` no `frontend/.env` existente. Não precisa adicionar nenhuma variável de mapa. Variáveis antigas `VITE_GOOGLE_MAPS_KEY` e `VITE_GOOGLE_MAP_ID` são ignoradas e podem ser retiradas do `.env` local quando desejado.
+
+## Contrato do backend (inalterado)
+
+- `GET /api/v1/admin/occurrences?page=1&pageSize=100&sort=recent&status=RECEIVED,UNDER_ANALYSIS,CONFIRMED,IN_SERVICE`
+- Filtros realmente suportados: `categoryId` UUID e `minLat,maxLat,minLng,maxLng` todos informados e válidos.
+- `GET /api/v1/categories`: categorias reais.
+- `GET /api/v1/admin/occurrences/:id`: revalidação de status.
+- `PATCH /api/v1/admin/occurrences/:id/location` com `{lat,lng}` somente.
+- Resultados paginados até o fim, limite explícito de 100 páginas sem mostrar resultados parciais como se fossem completos.
+- RESOLVED e REJECTED não são pontos ativos; consulta na lista/histórico.
+- Área visível é convertida de `map.getBounds()` para `minLat/maxLat/minLng/maxLng`; bbox que cruza o antimeridiano exige tratamento pela API e é recusada sem emitir 400.
+- Bairro e período continuam desabilitados até existir filtro global paginado no backend.
+
+## Política de uso OpenStreetMap
+
+Dados e tiles são gratuitos para uso moderado do projeto acadêmico, mas **servidores públicos são mantidos pela comunidade e não oferecem SLA ou uso ilimitado**.
+
+- URL raster oficial: `https://tile.openstreetmap.org/{z}/{x}/{y}.png`.
+- Atribuição claramente visível: `© OpenStreetMap contributors`, link `https://www.openstreetmap.org/copyright`.
+- Respeitar cache HTTP nativo do navegador; não definir no-cache nem referrer-policy que omita `Referer` nas requisições de tiles.
+- Não fazer bulk-download, offline prefetch, varredura automatizada, requisição de tiles sem necessidade ou distribuição como serviço de tiles.
+- Não usar geocoding reverso público automaticamente em cada movimento; bairro/período não são simulados.
+- Se o tile server falhar ou limitar solicitações, manter a lista textual; nunca expor dados privados do autor em URL pública de tiles.
+- Para escala comercial ou carga mais alta, substituir a fonte de tiles por provedor com termos, limites e disponibilidade adequados ou hospedar tiles próprios.
+
+Fonte oficial: https://operations.osmfoundation.org/policies/tiles/
+Documentação React Leaflet 4: https://react-leaflet.js.org/docs/v4/start-installation/
+
+## Homologação
+
+- [ ] Login ADMIN ativo e rota `/admin/map`; logout bloqueia acesso.
+- [ ] Mapa OSM carrega sem chave, exibe créditos e funciona em desktop e viewport mobile.
+- [ ] Recebido, Em análise, Confirmado, Em atendimento com cores corretas; sem pins terminais.
+- [ ] Clicar pin abre resumo e link /admin/occurrences/:id; a tela de detalhe é ticket separado (API1-97).
+- [ ] Aplicar e limpar filtros status/categoria; testar filtro bbox completo após mover mapa.
+- [ ] API com 0 registros: mapa sem pins e aviso, sem dados simulados.
+- [ ] Bloqueio do tile.openstreetmap.org na aba Network: fallback em lista.
+- [ ] Botões alternar mapa/lista, incluindo ajuste de coordenadas pela lista.
+- [ ] Modal de ajuste: drag, clique no mapa e números manuais (inclusive campos temporariamente vazios), confirmação explícita.
+- [ ] Validar 403, 400 e 409; mutation nunca marca sucesso em falha.
+- [ ] Após ajuste, validar nova posição, localização original preservada e histórico no backend.
+- [ ] `npm run typecheck`, `npm run lint`, `npm test`, `npm run build`.
+- [ ] Revisar fidelidade visual ao Figma; exports JSON originais não estão disponíveis.
+
+Pendências: filtros globais bairro/período requerem backend; validação manual com dados de QA requer registros controlados, sem alterar Supabase real sem autorização.
