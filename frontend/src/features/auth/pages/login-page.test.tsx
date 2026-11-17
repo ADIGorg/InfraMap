@@ -87,6 +87,7 @@ describe('LoginPage', () => {
     vi.mocked(signInAdmin).mockImplementation(() => new Promise<void>((resolve) => { done = resolve; }));
     renderLogin();
     fillAndSubmit();
+    await waitFor(() => expect(signInAdmin).toHaveBeenCalledTimes(1));
     fireEvent.click(screen.getByRole('button', { name: 'Entrar no Painel' }));
     expect(signInAdmin).toHaveBeenCalledTimes(1);
     done?.();
