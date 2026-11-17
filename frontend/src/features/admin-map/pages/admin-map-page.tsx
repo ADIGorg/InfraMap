@@ -1,9 +1,7 @@
 import { useCallback, useState } from 'react';
-import { APIProvider } from '@vis.gl/react-google-maps';
 import { List, MapPinned, RefreshCw } from 'lucide-react';
-import { env } from '@/config/env';
 import { Button } from '@/shared/components/button';
-import { AdminGoogleMap } from '../components/admin-google-map';
+import { AdminLeafletMap } from '../components/admin-leaflet-map';
 import { AdminMapFilters } from '../components/admin-map-filters';
 import { AdminMapTextFallback } from '../components/admin-map-text-fallback';
 import { AdjustLocationDialog } from '../components/adjust-location-dialog';
@@ -11,10 +9,10 @@ import { useAdminMapViewModel, describeMapMutationError } from '../view-models/u
 
 export function AdminMapPage() {
   const vm = useAdminMapViewModel();
-  const [mapsError, setMapsError] = useState(false);
+  const [tilesUnavailable, setTilesUnavailable] = useState(false);
   const [showList, setShowList] = useState(false);
-  const onMapsError = useCallback(() => setMapsError(true), []);
-  const mapsEnabled = Boolean(env.googleMapsKey) && !mapsError;
+  const onTileError = useCallback(() => setTilesUnavailable(true), []);
+  const mapAvailable = !tilesUnavailable;
   const items = vm.occurrences.data ?? [];
 
   const panel = (
@@ -30,19 +28,20 @@ export function AdminMapPage() {
           </p>
           <Button variant="outline" type="button" onClick={() => void vm.occurrences.refetch()}>Tentar novamente</Button>
         </div>
-      ) : mapsEnabled && !showList ? (
+      ) : mapAvailable && !showList ? (
         <>
           <div className="pointer-events-none absolute left-4 top-4 z-10 rounded-lg bg-brand-primary px-4 py-3 text-xs font-semibold text-white shadow-lg">
             Selecione um marcador para ver o resumo e ajustar a posição
           </div>
           <div className="h-[550px] lg:h-[700px]" aria-label="Mapa administrativo de ocorrências">
-            <AdminGoogleMap
+            <AdminLeafletMap
               key={items[0]?.id ?? 'map-empty'}
               items={items}
               selected={vm.selected}
               onSelect={vm.selectOccurrence}
               onAdjust={vm.startAdjustment}
               onAreaChanged={vm.setAvailableBounds}
+              onTileError={onTileError}
             />
           </div>
           {items.length === 0 && (
@@ -55,31 +54,12 @@ export function AdminMapPage() {
         <AdminMapTextFallback
           items={items}
           onAdjust={vm.startAdjustment}
-          reason={mapsError
-            ? 'Não foi possível carregar o Google Maps.'
-            : showList
-              ? 'Visualização em lista selecionada.'
-              : 'A chave pública do Google Maps ainda não foi configurada.'}
+          reason={tilesUnavailable
+            ? 'O serviço de mapas OpenStreetMap não está disponível.'
+            : 'Visualização em lista selecionada.'}
         />
       )}
     </div>
-  );
-
-  const modal = (
-    <AdjustLocationDialog
-      item={vm.adjusting}
-      position={vm.candidate}
-      canUseGoogleMap={mapsEnabled}
-      confirming={vm.confirming}
-      isSaving={vm.mutation.isPending}
-      error={vm.mutation.error
-        ? describeMapMutationError(vm.mutation.error) : vm.inputError}
-      onSetPosition={vm.setCandidate}
-      onCancel={vm.cancelAdjustment}
-      onRequestConfirmation={vm.requestConfirmation}
-      onReturnToEdit={() => vm.setConfirming(false)}
-      onSave={vm.saveAdjustment}
-    />
   );
 
   return (
@@ -95,7 +75,7 @@ export function AdminMapPage() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          {mapsEnabled && (
+          {mapAvailable && (
             <Button variant="outline" type="button" onClick={() => setShowList((value) => !value)}
               aria-pressed={showList}>
               <List size={16} aria-hidden="true" />
@@ -110,24 +90,14 @@ export function AdminMapPage() {
       </header>
 
       <div className="flex flex-col lg:flex-row">
-        {env.googleMapsKey ? (
-          <APIProvider apiKey={env.googleMapsKey} language="pt-BR" region="BR" onError={onMapsError}>
-            {panel}
-            {modal}
-          </APIProvider>
-        ) : (
-          <>
-            {panel}
-            {modal}
-          </>
-        )}
+        {panel}
         <AdminMapFilters
           draft={vm.draft}
           appliedBounds={vm.applied.bbox}
           categories={vm.categories.data}
           categoriesLoading={vm.categories.isPending}
           categoriesError={vm.categories.isError}
-          canSearchArea={mapsEnabled && !showList && vm.availableBounds !== null}
+          canSearchArea={mapAvailable && !showList && vm.availableBounds !== null}
           error={vm.adjusting ? null : vm.inputError}
           onStatusChange={vm.updateStatus}
           onCategoryChange={vm.setCategory}
@@ -137,16 +107,27 @@ export function AdminMapPage() {
           onClearArea={vm.clearArea}
         />
       </div>
+
+      <AdjustLocationDialog
+        item={vm.adjusting}
+        position={vm.candidate}
+        canUseMap={mapAvailable}
+        onTileError={onTileError}
+        confirming={vm.confirming}
+        isSaving={vm.mutation.isPending}
+        error={vm.mutation.error
+          ? describeMapMutationError(vm.mutation.error) : vm.inputError}
+        onSetPosition={vm.setCandidate}
+        onCancel={vm.cancelAdjustment}
+        onRequestConfirmation={vm.requestConfirmation}
+        onReturnToEdit={() => vm.setConfirming(false)}
+        onSave={vm.saveAdjustment}
+      />
+
       {!vm.occurrences.isPending && !vm.occurrences.isError && (
         <p className="border-t border-line bg-white px-5 py-3 text-xs text-ink-secondary">
           {items.length.toLocaleString('pt-BR')} ocorrências ativas retornadas pela API, considerando os filtros aplicados.
           O mapa não exibe ocorrências resolvidas ou rejeitadas.
-        </p>
-      )}
-      {!env.googleMapsKey && (
-        <p className="px-5 py-4 text-xs text-ink-secondary">
-          Para habilitar o mapa interativo, configure VITE_GOOGLE_MAPS_KEY no frontend/.env.
-          Nunca utilize uma chave secreta nesta variável.
         </p>
       )}
     </div>

@@ -3,12 +3,13 @@ import { AlertTriangle, Crosshair, X } from 'lucide-react';
 import { Button } from '@/shared/components/button';
 import { type AdminMapOccurrence, type GeoPoint } from '../services/admin-occurrences.service';
 import { formatCoords, validPoint } from '../services/map-presentation';
-import { AdjustmentGoogleMap } from './admin-google-map';
+import { AdjustmentLeafletMap } from './admin-leaflet-map';
 
 interface AdjustLocationDialogProps {
   item: AdminMapOccurrence | null;
   position: GeoPoint | null;
-  canUseGoogleMap: boolean;
+  canUseMap: boolean;
+  onTileError: () => void;
   confirming: boolean;
   error: string | null;
   isSaving: boolean;
@@ -20,7 +21,7 @@ interface AdjustLocationDialogProps {
 }
 
 export function AdjustLocationDialog({
-  item, position, canUseGoogleMap, confirming,
+  item, position, canUseMap, onTileError, confirming,
   error, isSaving, onSetPosition,
   onCancel, onRequestConfirmation, onReturnToEdit, onSave,
 }: AdjustLocationDialogProps) {
@@ -66,13 +67,13 @@ export function AdjustLocationDialog({
                   <p className="mb-3 flex items-center gap-2 text-sm font-semibold">
                     <Crosshair size={17} aria-hidden="true" /> Arraste o marcador ou selecione coordenadas.
                   </p>
-                  {canUseGoogleMap ? (
+                  {canUseMap ? (
                     <div className="h-[240px] overflow-hidden rounded-xl border border-line" aria-label="Mapa de correção da localização">
-                      <AdjustmentGoogleMap position={position} onChange={onSetPosition} />
+                      <AdjustmentLeafletMap key={item.id} position={position} onChange={onSetPosition} onTileError={onTileError} />
                     </div>
                   ) : (
                     <p className="rounded-lg bg-surface-info p-3 text-xs text-brand-primary">
-                      Sem Google Maps: ajuste as coordenadas manualmente.
+                      Mapa indisponível: ajuste as coordenadas manualmente.
                     </p>
                   )}
                   <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
