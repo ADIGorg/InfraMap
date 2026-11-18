@@ -1,32 +1,29 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
-import { Marker } from 'react-native-maps';
+import { Marker } from '@maplibre/maplibre-react-native';
 import { Feather } from '@expo/vector-icons';
 import type { PublicOccurrenceListItem } from '@/shared/types/api';
-import { colors } from '@/shared/theme';
+import { colors, radius } from '@/shared/theme';
 
-interface Props {
+interface OccurrencePinProps {
   occurrence: PublicOccurrenceListItem;
   onPress: (occurrence: PublicOccurrenceListItem) => void;
 }
 
-const PIN_COLORS: Record<PublicOccurrenceListItem['status'], string> = {
-  CONFIRMED: colors.status.CONFIRMED,
-  IN_SERVICE: colors.status.IN_SERVICE,
-};
+export function OccurrencePin({ occurrence, onPress }: OccurrencePinProps) {
+  const pinColor =
+    occurrence.status === 'CONFIRMED'
+      ? colors.status.CONFIRMED
+      : colors.status.IN_SERVICE;
 
-export function OccurrencePin({ occurrence, onPress }: Props) {
   return (
     <Marker
-      coordinate={{
-        latitude: occurrence.location.lat,
-        longitude: occurrence.location.lng,
-      }}
+      id={occurrence.id}
+      lngLat={[occurrence.location.lng, occurrence.location.lat]}
       onPress={() => onPress(occurrence)}
-      tracksViewChanges={false}
     >
-      <View style={[styles.pin, { backgroundColor: PIN_COLORS[occurrence.status] }]}>
-        <Feather name="map-pin" size={14} color="#fff" />
+      <View style={[styles.pin, { backgroundColor: pinColor }]}>
+        <Feather name="alert-circle" size={14} color={colors.text.inverse} />
       </View>
     </Marker>
   );
@@ -34,17 +31,17 @@ export function OccurrencePin({ occurrence, onPress }: Props) {
 
 const styles = StyleSheet.create({
   pin: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 32,
+    height: 32,
+    borderRadius: radius.full,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: '#fff',
+    borderColor: colors.text.inverse,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
-    shadowRadius: 4,
+    shadowRadius: 3,
     elevation: 4,
   },
 });

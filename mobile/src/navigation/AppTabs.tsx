@@ -5,6 +5,8 @@ import { MapStack } from './MapStack';
 import { MyOccurrencesStack } from './MyOccurrencesStack';
 import { ProfileStack } from './ProfileStack';
 import { colors } from '@/shared/theme';
+import { NewOccurrenceStack } from './NewOccurrenceStack';
+import { View } from 'react-native';
 
 const Tab = createBottomTabNavigator();
 
@@ -43,6 +45,26 @@ export function AppTabs() {
           tabBarLabel: 'Minhas',
           tabBarIcon: ({ color, size }) => (
             <Feather name="file-text" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="NewOccurrence"
+        component={NewOccurrenceStack}
+        options={{
+          tabBarLabel: 'Nova',
+          tabBarIcon: ({ color }) => (
+            <View style={{
+              width: 56,
+              height: 56,
+              marginTop: -24,
+              borderRadius: 28,
+              backgroundColor: colors.brand.primary,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}>
+              <Feather name="plus" size={28} color={colors.text.inverse} />
+            </View>
           ),
         }}
       />

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { AuthStackParamList } from '@/navigation/types';
@@ -7,6 +7,7 @@ import {
   getPublicOccurrences,
   getCategories,
 } from '@/features/occurrences/services/public-occurrences.service';
+import type { RegionChangeEvent } from '@/features/map/components/osm-map-view';
 import type {
   PublicOccurrenceListItem,
   PublicMapFilters,
@@ -15,26 +16,16 @@ import type {
 
 type NavigationProp = NativeStackNavigationProp<AuthStackParamList, 'PublicMap'>;
 
-export interface MapRegion {
-  latitude: number;
-  longitude: number;
-  latitudeDelta: number;
-  longitudeDelta: number;
-}
-
-const DEFAULT_REGION: MapRegion = {
-  latitude: -23.5505,
-  longitude: -46.6333,
-  latitudeDelta: 0.1,
-  longitudeDelta: 0.1,
-};
-
+const DEFAULT_CENTER: [number, number] = [-46.6333, -23.5505]; // [lng, lat]
+const DEFAULT_ZOOM = 12;
 const DEBOUNCE_MS = 500;
 
 export function usePublicMapViewModel() {
   const navigation = useNavigation<NavigationProp>();
+  void navigation;
 
-  const [region, setRegion] = useState<MapRegion>(DEFAULT_REGION);
+  const [centerCoordinate, setCenterCoordinate] = useState<[number, number]>(DEFAULT_CENTER);
+  const [zoomLevel, setZoomLevel] = useState(DEFAULT_ZOOM);
   const [bbox, setBbox] = useState<PublicMapFilters['bbox']>();
   const [categoryId, setCategoryId] = useState<string | undefined>();
   const [categories, setCategories] = useState<CategorySummary[]>([]);
@@ -50,19 +41,29 @@ export function usePublicMapViewModel() {
   // Carregar categorias uma vez
   useEffect(() => {
     let cancelled = false;
-    setIsLoadingCategories(true);
-    getCategories()
-      .then((cats) => {
-        if (!cancelled) setCategories(cats);
-      })
-      .catch(() => {
-        if (!cancelled) setCategories([]);
-      })
-      .finally(() => {
-        if (!cancelled) setIsLoadingCategories(false);
-      });
+
+    const loadTimer = setTimeout(() => {
+      void getCategories()
+        .then((loadedCategories) => {
+          if (!cancelled) {
+            setCategories(loadedCategories);
+          }
+        })
+        .catch(() => {
+          if (!cancelled) {
+            setCategories([]);
+          }
+        })
+        .finally(() => {
+          if (!cancelled) {
+            setIsLoadingCategories(false);
+          }
+        });
+    }, 0);
+
     return () => {
       cancelled = true;
+      clearTimeout(loadTimer);
     };
   }, []);
 
@@ -76,7 +77,6 @@ export function usePublicMapViewModel() {
       setError(null);
       try {
         const res = await getPublicOccurrences({ categoryId, bbox });
-        // Defensivo: só CONFIRMED/IN_SERVICE (API já filtra, mas garantimos)
         const filtered = res.data.filter(
           (o) => o.status === 'CONFIRMED' || o.status === 'IN_SERVICE',
         );
@@ -94,17 +94,42 @@ export function usePublicMapViewModel() {
     };
   }, [bbox, categoryId]);
 
-  const onRegionChangeComplete = useCallback((newRegion: MapRegion) => {
-    setRegion(newRegion);
-    const latDelta = newRegion.latitudeDelta / 2;
-    const lngDelta = newRegion.longitudeDelta / 2;
+  // Handler do MapLibre (v11): payload vem em event.nativeEvent.properties
+  const onRegionDidChange = useCallback((event: RegionChangeEvent) => {
+    const { visibleBounds, zoomLevel: z, center } = event.nativeEvent.properties;
+    const [eastLng, northLat, westLng, southLat] = visibleBounds;
+
+    setCenterCoordinate(center);
+    setZoomLevel(z);
     setBbox({
-      minLat: newRegion.latitude - latDelta,
-      maxLat: newRegion.latitude + latDelta,
-      minLng: newRegion.longitude - lngDelta,
-      maxLng: newRegion.longitude + lngDelta,
+      minLat: southLat,
+      maxLat: northLat,
+      minLng: westLng,
+      maxLng: eastLng,
     });
   }, []);
+
+  // Compatibilidade com testes existentes (assinatura antiga)
+  // Será removida quando os testes forem migrados para a nova API
+  const onRegionChangeComplete = useCallback(
+    (region: {
+      latitude: number;
+      longitude: number;
+      latitudeDelta: number;
+      longitudeDelta: number;
+    }) => {
+      const latDelta = region.latitudeDelta / 2;
+      const lngDelta = region.longitudeDelta / 2;
+      setCenterCoordinate([region.longitude, region.latitude]);
+      setBbox({
+        minLat: region.latitude - latDelta,
+        maxLat: region.latitude + latDelta,
+        minLng: region.longitude - lngDelta,
+        maxLng: region.longitude + lngDelta,
+      });
+    },
+    [],
+  );
 
   const requestLocation = useCallback(async () => {
     try {
@@ -117,19 +142,21 @@ export function usePublicMapViewModel() {
       const pos = await Location.getCurrentPositionAsync({
         accuracy: Location.Accuracy.Balanced,
       });
-      const newRegion: MapRegion = {
-        latitude: pos.coords.latitude,
-        longitude: pos.coords.longitude,
-        latitudeDelta: 0.05,
-        longitudeDelta: 0.05,
-      };
-      setRegion(newRegion);
-      // Disparar mudança de bbox
-      onRegionChangeComplete(newRegion);
+
+      setCenterCoordinate([pos.coords.longitude, pos.coords.latitude]);
+      setZoomLevel(14);
+
+      const delta = 0.01;
+      setBbox({
+        minLat: pos.coords.latitude - delta,
+        maxLat: pos.coords.latitude + delta,
+        minLng: pos.coords.longitude - delta,
+        maxLng: pos.coords.longitude + delta,
+      });
     } catch {
       setLocationPermission('denied');
     }
-  }, [onRegionChangeComplete]);
+  }, []);
 
   const selectPin = useCallback((pin: PublicOccurrenceListItem | null) => {
     setSelectedPin(pin);
@@ -140,7 +167,8 @@ export function usePublicMapViewModel() {
   }, []);
 
   return {
-    region,
+    centerCoordinate,
+    zoomLevel,
     bbox,
     occurrences,
     selectedPin,
@@ -151,7 +179,8 @@ export function usePublicMapViewModel() {
     error,
     locationPermission,
     setCategoryId,
-    onRegionChangeComplete,
+    onRegionDidChange,
+    onRegionChangeComplete, // legado (compat com testes)
     requestLocation,
     selectPin,
     clearFilters,

@@ -4,29 +4,27 @@ import { PublicOccurrenceDetailScreen } from './public-occurrence-detail-screen'
 import * as VM from '../view-models/use-public-occurrence-detail-view-model';
 import { useRoute } from '@react-navigation/native';
 
+jest.mock('@react-navigation/native', () => ({
+  ...jest.requireActual('@react-navigation/native'),
+  useRoute: jest.fn(),
+}));
+
 jest.mock('../view-models/use-public-occurrence-detail-view-model', () => ({
   usePublicOccurrenceDetailViewModel: jest.fn(),
 }));
 
-jest.mock('@react-navigation/native', () => ({
-  useRoute: jest.fn(),
-}));
+jest.mock('@/features/occurrences/components/mini-map', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  return {
+    MiniMap: (props: any) =>
+      React.createElement(View, { testID: 'mini-map', ...props }),
+  };
+});
 
 jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
 }));
-
-jest.mock('react-native-maps', () => {
-  const React = require('react');
-  const { View } = require('react-native');
-  const MockMap = (props: any) => <View testID="mini-map" {...props} />;
-  return {
-    __esModule: true,
-    default: MockMap,
-    Marker: (props: any) => <View testID="mini-map-marker" {...props} />,
-    PROVIDER_GOOGLE: 'google',
-  };
-});
 
 const makeDetail = () => ({
   id: 'occ-1',

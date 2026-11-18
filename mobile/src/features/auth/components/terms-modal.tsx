@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Modal, View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
 import { colors, typography, spacing, radius } from '@/shared/theme';
 
@@ -10,10 +10,6 @@ interface TermsModalProps {
 
 export function TermsModal({ visible, onClose, initialTab = 'terms' }: TermsModalProps) {
   const [tab, setTab] = useState<'terms' | 'privacy'>(initialTab);
-
-  useEffect(() => {
-    if (visible) setTab(initialTab);
-  }, [visible, initialTab]);
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>

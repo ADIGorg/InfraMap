@@ -11,27 +11,41 @@
       "**/*"
     ],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.anonymous.mobile"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "package": "com.anonymous.mobile"
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
       [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "O InfraMap usa sua localização para identificar a área do problema registrado."
+        }
+      ],
+      [
+          "expo-camera",
+          {
+            "cameraPermission": "O InfraMap usa a câmera para registrar evidências fotográficas de problemas urbanos. Suas fotos ficam privadas até você autorizar a exibição pública."
+          }
+      ],
+      [
         "expo-splash-screen",
         {
           "image": "./assets/splash-icon.png",
-          "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
         }
-      ]
+      ],
+      "@maplibre/maplibre-react-native"
     ],
     "experiments": {
       "tsconfigPaths": true

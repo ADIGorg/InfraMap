@@ -62,7 +62,13 @@ export function useProfileViewModel() {
   }, []);
 
   useEffect(() => {
-    loadProfile();
+  const loadTimer = setTimeout(() => {
+    void loadProfile();
+  }, 0);
+
+  return () => {
+      clearTimeout(loadTimer);
+    };
   }, [loadProfile]);
 
   // ─── Edit ───

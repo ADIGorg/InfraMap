@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, fireEvent, waitFor } from '@testing-library/react-native';
+import { render, waitFor } from '@testing-library/react-native';
 import { PublicMapScreen } from './public-map-screen';
 import * as usePublicMap from '../view-models/use-public-map';
 
@@ -7,23 +7,29 @@ jest.mock('../view-models/use-public-map', () => ({
   usePublicMapViewModel: jest.fn(),
 }));
 
-
 jest.mock('@react-navigation/native', () => ({
   useNavigation: () => ({ navigate: jest.fn() }),
 }));
 
-jest.mock('react-native-maps', () => {
+// Mock do nosso wrapper — evita carregar a lib nativa no jsdom
+jest.mock('../components/osm-map-view', () => {
   const React = require('react');
   const { View } = require('react-native');
-  const MockMapView = React.forwardRef((props: any, ref: any) => (
-    <View testID="map-view" {...props} />
-  ));
-  const MockMarker = (props: any) => <View testID="map-marker" {...props} />;
   return {
-    __esModule: true,
-    default: MockMapView,
+    OSMMapView: ({ children }: { children: React.ReactNode }) =>
+      React.createElement(View, { testID: 'map-view' }, children),
+  };
+});
+
+jest.mock('@maplibre/maplibre-react-native', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+
+  const MockMarker = ({ children }: any) =>
+    React.createElement(View, { testID: 'map-marker' }, children);
+
+  return {
     Marker: MockMarker,
-    PROVIDER_GOOGLE: 'google',
   };
 });
 
@@ -31,7 +37,9 @@ describe('PublicMapScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (usePublicMap.usePublicMapViewModel as jest.Mock).mockReturnValue({
-      region: { latitude: -23.55, longitude: -46.63, latitudeDelta: 0.1, longitudeDelta: 0.1 },
+      centerCoordinate: [-46.63, -23.55],
+      zoomLevel: 12,
+      bbox: undefined,
       occurrences: [],
       selectedPin: null,
       categoryId: undefined,
@@ -41,6 +49,7 @@ describe('PublicMapScreen', () => {
       error: null,
       locationPermission: 'unknown',
       setCategoryId: jest.fn(),
+      onRegionDidChange: jest.fn(),
       onRegionChangeComplete: jest.fn(),
       requestLocation: jest.fn(),
       selectPin: jest.fn(),

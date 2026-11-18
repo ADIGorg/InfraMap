@@ -10,6 +10,5 @@ const envSchema = z.object({
 export const env = envSchema.parse({
   apiBaseUrl: process.env.EXPO_PUBLIC_API_BASE_URL,
   supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL,
-  supabasePublishableKey: process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
-  googleMapsKey: process.env.EXPO_PUBLIC_GOOGLE_MAPS_KEY,
+  supabasePublishableKey: process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY
 });

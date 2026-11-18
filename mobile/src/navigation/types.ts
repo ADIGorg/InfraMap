@@ -26,6 +26,7 @@ export type AppTabsParamList = {
   MyOccurrences: NavigatorScreenParams<MyOccurrencesStackParamList>;
   Profile: NavigatorScreenParams<ProfileStackParamList>;
   Notifications: undefined;
+  NewOccurrence: NavigatorScreenParams<NewOccurrenceStackParamList>;
 };
 
 export type RootStackParamList = {
@@ -34,4 +35,12 @@ export type RootStackParamList = {
   ResetPassword: undefined;
   PublicOccurrenceDetail: { id: string };
   MyOccurrenceDetail: { id: string };
+};
+
+export type NewOccurrenceStackParamList = {
+  CaptureEvidence: undefined;
+  Analysis: undefined;
+  Review: undefined;
+  Location: undefined;
+  Success: { occurrenceId: string };
 };

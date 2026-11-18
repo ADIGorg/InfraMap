@@ -1,5 +1,76 @@
 .
 ├── AGENTS.md
+├── android
+│   ├── app
+│   │   ├── build.gradle
+│   │   ├── debug.keystore
+│   │   ├── proguard-rules.pro
+│   │   └── src
+│   │       ├── debug
+│   │       │   └── AndroidManifest.xml
+│   │       ├── debugOptimized
+│   │       │   └── AndroidManifest.xml
+│   │       └── main
+│   │           ├── AndroidManifest.xml
+│   │           ├── java
+│   │           │   └── com
+│   │           │       └── anonymous
+│   │           │           └── mobile
+│   │           │               ├── MainActivity.kt
+│   │           │               └── MainApplication.kt
+│   │           └── res
+│   │               ├── drawable
+│   │               │   ├── ic_launcher_background.xml
+│   │               │   └── rn_edit_text_material.xml
+│   │               ├── drawable-hdpi
+│   │               │   └── splashscreen_logo.png
+│   │               ├── drawable-mdpi
+│   │               │   └── splashscreen_logo.png
+│   │               ├── drawable-xhdpi
+│   │               │   └── splashscreen_logo.png
+│   │               ├── drawable-xxhdpi
+│   │               │   └── splashscreen_logo.png
+│   │               ├── drawable-xxxhdpi
+│   │               │   └── splashscreen_logo.png
+│   │               ├── mipmap-anydpi-v26
+│   │               │   ├── ic_launcher_round.xml
+│   │               │   └── ic_launcher.xml
+│   │               ├── mipmap-hdpi
+│   │               │   ├── ic_launcher_foreground.webp
+│   │               │   ├── ic_launcher_round.webp
+│   │               │   └── ic_launcher.webp
+│   │               ├── mipmap-mdpi
+│   │               │   ├── ic_launcher_foreground.webp
+│   │               │   ├── ic_launcher_round.webp
+│   │               │   └── ic_launcher.webp
+│   │               ├── mipmap-xhdpi
+│   │               │   ├── ic_launcher_foreground.webp
+│   │               │   ├── ic_launcher_round.webp
+│   │               │   └── ic_launcher.webp
+│   │               ├── mipmap-xxhdpi
+│   │               │   ├── ic_launcher_foreground.webp
+│   │               │   ├── ic_launcher_round.webp
+│   │               │   └── ic_launcher.webp
+│   │               ├── mipmap-xxxhdpi
+│   │               │   ├── ic_launcher_foreground.webp
+│   │               │   ├── ic_launcher_round.webp
+│   │               │   └── ic_launcher.webp
+│   │               ├── values
+│   │               │   ├── colors.xml
+│   │               │   ├── strings.xml
+│   │               │   └── styles.xml
+│   │               └── values-night
+│   │                   └── colors.xml
+│   ├── build.gradle
+│   ├── .gitignore
+│   ├── gradle
+│   │   └── wrapper
+│   │       ├── gradle-wrapper.jar
+│   │       └── gradle-wrapper.properties
+│   ├── gradle.properties
+│   ├── gradlew
+│   ├── gradlew.bat
+│   └── settings.gradle
 ├── app.json
 ├── App.tsx
 ├── assets
@@ -13,9 +84,88 @@
 ├── eslint.config.js
 ├── .expo
 │   ├── devices.json
-│   └── README.md
+│   ├── README.md
+│   └── web
+│       └── cache
+│           └── production
+│               └── images
+│                   ├── android-adaptive-foreground
+│                   │   └── android-adaptive-foreground-9e3d0315a33c6799de601dd34cd8bf8cc3a8d16f3bf75592baec2ceb7240b391-cover-transparent
+│                   │       ├── icon_108.png
+│                   │       ├── icon_162.png
+│                   │       ├── icon_216.png
+│                   │       ├── icon_324.png
+│                   │       └── icon_432.png
+│                   ├── android-standard-circle
+│                   │   └── android-standard-circle-119462bb78eb240a65c869fc067ee599639b3cb5a41953f25c07b17d2a8c7e0f-cover-transparent
+│                   │       ├── icon_144.png
+│                   │       ├── icon_192.png
+│                   │       ├── icon_48.png
+│                   │       ├── icon_72.png
+│                   │       └── icon_96.png
+│                   ├── android-standard-square
+│                   │   └── android-standard-square-119462bb78eb240a65c869fc067ee599639b3cb5a41953f25c07b17d2a8c7e0f-cover-transparent
+│                   │       ├── icon_144.png
+│                   │       ├── icon_192.png
+│                   │       ├── icon_48.png
+│                   │       ├── icon_72.png
+│                   │       └── icon_96.png
+│                   ├── iconsuniversal-icon
+│                   │   └── iconsuniversal-icon-119462bb78eb240a65c869fc067ee599639b3cb5a41953f25c07b17d2a8c7e0f-cover-#ffffff
+│                   │       └── App-Icon-1024x1024@1x.png
+│                   ├── splash-android
+│                   │   └── splash-android-5f4c0a732b6325bf4071d9124d2ae67e037cb24fcc9c482ef82bea742109a3b8-contain
+│                   │       ├── icon_100.png
+│                   │       ├── icon_150.png
+│                   │       ├── icon_200.png
+│                   │       ├── icon_300.png
+│                   │       ├── icon_400.png
+│                   │       ├── icon_600.png
+│                   │       └── icon_800.png
+│                   └── splash-ios
+│                       └── splash-ios-5f4c0a732b6325bf4071d9124d2ae67e037cb24fcc9c482ef82bea742109a3b8-contain
+│                           ├── icon_100.png
+│                           ├── icon_200.png
+│                           └── icon_300.png
 ├── .gitignore
 ├── index.ts
+├── ios
+│   ├── .gitignore
+│   ├── mobile
+│   │   ├── AppDelegate.swift
+│   │   ├── Images.xcassets
+│   │   │   ├── AppIcon.appiconset
+│   │   │   │   ├── App-Icon-1024x1024@1x.png
+│   │   │   │   └── Contents.json
+│   │   │   ├── Contents.json
+│   │   │   ├── SplashScreenBackground.colorset
+│   │   │   │   └── Contents.json
+│   │   │   └── SplashScreenLogo.imageset
+│   │   │       ├── Contents.json
+│   │   │       ├── image@2x.png
+│   │   │       ├── image@3x.png
+│   │   │       └── image.png
+│   │   ├── Info.plist
+│   │   ├── mobile-Bridging-Header.h
+│   │   ├── mobile.entitlements
+│   │   ├── SceneDelegate.swift
+│   │   ├── SplashScreen.storyboard
+│   │   └── Supporting
+│   │       └── Expo.plist
+│   ├── mobile.xcodeproj
+│   │   ├── project.pbxproj
+│   │   ├── project.xcworkspace
+│   │   │   ├── contents.xcworkspacedata
+│   │   │   └── xcshareddata
+│   │   │       └── IDEWorkspaceChecks.plist
+│   │   └── xcshareddata
+│   │       └── xcschemes
+│   │           └── mobile.xcscheme
+│   ├── Podfile
+│   ├── Podfile.properties.json
+│   └── .xcode.env
+├── jest.config.js
+├── jest.setup.js
 ├── LICENSE
 ├── package.json
 ├── package-lock.json
@@ -59,15 +209,15 @@
 │   │   │   │   ├── category-filter.tsx
 │   │   │   │   ├── occurrence-pin.tsx
 │   │   │   │   ├── occurrence-preview-sheet.test.tsx
-│   │   │   │   └── occurrence-preview-sheet.tsx
+│   │   │   │   ├── occurrence-preview-sheet.tsx
+│   │   │   │   └── osm-map-view.tsx
 │   │   │   ├── screens
 │   │   │   │   ├── map-screen.tsx
 │   │   │   │   ├── public-map-guest-screen.tsx
 │   │   │   │   ├── public-map-screen.test.tsx
-│   │   │   │   ├── public-map-screen.tsx
-│   │   │   │   └── public-occurrence-detail-placeholder-screen.tsx
+│   │   │   │   └── public-map-screen.tsx
 │   │   │   ├── services
-│   │   │   │   └── public-occurrences.service.ts
+│   │   │   │   └── geocoding.service.ts
 │   │   │   └── view-models
 │   │   │       ├── use-occurrence-preview-view-model.test.ts
 │   │   │       ├── use-occurrence-preview-view-model.ts
@@ -75,18 +225,27 @@
 │   │   │       └── use-public-map.ts
 │   │   ├── occurrences
 │   │   │   ├── components
+│   │   │   │   ├── mini-map.tsx
 │   │   │   │   ├── occurrence-card.test.tsx
 │   │   │   │   ├── occurrence-card.tsx
-│   │   │   │   └── status-badge.tsx
+│   │   │   │   ├── photo-gallery.tsx
+│   │   │   │   ├── status-badge.tsx
+│   │   │   │   └── vote-button.tsx
 │   │   │   ├── screens
 │   │   │   │   ├── my-occurrence-detail-placeholder-screen.tsx
 │   │   │   │   ├── my-occurrences-screen.test.tsx
-│   │   │   │   └── my-occurrences-screen.tsx
+│   │   │   │   ├── my-occurrences-screen.tsx
+│   │   │   │   ├── public-occurrence-detail-screen.test.tsx
+│   │   │   │   └── public-occurrence-detail-screen.tsx
 │   │   │   ├── services
-│   │   │   │   └── my-occurrences.service.ts
+│   │   │   │   ├── my-occurrences.service.ts
+│   │   │   │   ├── public-occurrences.service.ts
+│   │   │   │   └── votes.service.ts
 │   │   │   └── view-models
 │   │   │       ├── use-my-occurrences-view-model.test.ts
-│   │   │       └── use-my-occurrences-view-model.ts
+│   │   │       ├── use-my-occurrences-view-model.ts
+│   │   │       ├── use-public-occurrence-detail-view-model.test.ts
+│   │   │       └── use-public-occurrence-detail-view-model.ts
 │   │   └── profiles
 │   │       ├── components
 │   │       │   ├── change-password-modal.tsx
@@ -97,11 +256,13 @@
 │   │       │   ├── change-password-schema.ts
 │   │       │   └── profile-schema.ts
 │   │       ├── screens
+│   │       │   ├── profile-screen.test.tsx
 │   │       │   └── profile-screen.tsx
 │   │       ├── services
 │   │       │   ├── account.service.ts
 │   │       │   └── profile.service.ts
 │   │       └── view-models
+│   │           ├── use-profile-view-model.test.ts
 │   │           └── use-profile-view-model.ts
 │   ├── infrastructure
 │   │   ├── api
@@ -136,4 +297,4 @@
 ├── text.txt
 └── tsconfig.json
 
-39 directories, 98 files
+94 directories, 204 files

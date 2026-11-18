@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { colors, typography, spacing, radius } from '@/shared/theme';
+import { colors, typography, radius } from '@/shared/theme';
 
 interface AuthToggleProps {
   activeTab: 'login' | 'register';

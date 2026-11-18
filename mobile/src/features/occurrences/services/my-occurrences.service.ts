@@ -1,5 +1,6 @@
 import { http } from '@/infrastructure/api/http-client';
 import type {
+  MyOccurrenceDetail,
   MyOccurrencesResponse,
   MyOccurrencesFilters,
 } from '@/shared/types/api';
@@ -14,7 +15,14 @@ export async function getMyOccurrences(
   if (filters.categoryId) params.set('categoryId', filters.categoryId);
   if (filters.sort) params.set('sort', filters.sort);
 
+  const query = params.toString();
   return http<MyOccurrencesResponse>(
-    `/occurrences/mine?${params.toString()}`,
+    `/occurrences/mine${query ? `?${query}` : ''}`,
   );
+}
+
+export async function getMyOccurrenceById(
+  id: string,
+): Promise<MyOccurrenceDetail> {
+  return http<MyOccurrenceDetail>(`/occurrences/mine/${id}`);
 }

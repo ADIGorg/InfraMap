@@ -3,6 +3,7 @@
 .env.local
 .env.development
 .env.production
+jest.setup.js
 
 # Dependências
 node_modules/
@@ -44,3 +45,15 @@ yarn-error.*
 
 # Testes
 coverage/
+
+# Native
+/android
+/ios
+*.jks
+*.keystore
+*.mobileprovision
+*.p8
+*.p12
+*.key
+*.cer
+*.pemandroid/local.properties

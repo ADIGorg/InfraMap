@@ -124,6 +124,39 @@ export interface MyOccurrencesFilters {
   sort?: 'recent' | 'oldest' | 'most_liked';
 }
 
+export interface OccurrencePhoto {
+  storagePath: string;
+  mimeType: 'image/jpeg' | 'image/png';
+  sizeBytes: number;
+  position: number;
+}
+
+export interface OccurrencePhotoWithUrl extends OccurrencePhoto {
+  url: string;
+  expiresAt: string;
+  expiresInSeconds: number;
+}
+
+export interface MyOccurrenceDetail extends MyOccurrenceListItem {
+  photos: OccurrencePhoto[];
+  photoUrls: OccurrencePhotoWithUrl[];
+}
+
+export interface HistoryEvent {
+  id: string;
+  actorId: string | null;
+  action: string;
+  actorType: 'USER' | 'SYSTEM';
+  previousData: Record<string, unknown> | null;
+  newData: Record<string, unknown> | null;
+  details: Record<string, unknown> | null;
+  createdAt: string;
+}
+
+export interface HistoryListResponse {
+  data: HistoryEvent[];
+}
+
 // ─────────────────────────────────────
 // Detalhe público + votos (MOB-UI-10)
 // ─────────────────────────────────────

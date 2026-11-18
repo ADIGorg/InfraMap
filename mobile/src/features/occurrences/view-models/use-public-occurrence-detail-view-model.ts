@@ -34,52 +34,99 @@ export function usePublicOccurrenceDetailViewModel({ id }: Params) {
 
   const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const clearRefreshTimer = () => {
-    if (refreshTimerRef.current) {
+  const clearRefreshTimer = useCallback(() => {
+    if (refreshTimerRef.current !== null) {
       clearTimeout(refreshTimerRef.current);
       refreshTimerRef.current = null;
     }
-  };
+  }, []);
 
-  const load = useCallback(async () => {
-    setIsLoading(true);
+  const load = useCallback(
+  async (showLoader = true): Promise<void> => {
+    if (showLoader) {
+      setIsLoading(true);
+    }
+
     setLoadError(null);
-    try {
-      const d = await getPublicOccurrenceById(id);
-      // Defesa em profundidade (RN022) — backend já filtra
-      if (d.status !== 'CONFIRMED' && d.status !== 'IN_SERVICE') {
-        throw new AppError(404, 'NOT_FOUND', 'Ocorrência não disponível.');
-      }
-      setDetail(d);
 
-      // Agenda refetch antes da expiração das signed URLs (RN017)
-      clearRefreshTimer();
-      const expiresIn = d.photoUrls.length
-        ? Math.min(...d.photoUrls.map((p) => p.expiresInSeconds))
-        : 300;
-      const delayMs = Math.max(expiresIn - 10, MIN_REFRESH_SECONDS) * 1000;
-      refreshTimerRef.current = setTimeout(() => {
-        load();
-      }, delayMs);
+    try {
+      const occurrence = await getPublicOccurrenceById(id);
+
+      // Defesa adicional conforme RN022.
+      if (
+        occurrence.status !== 'CONFIRMED' &&
+        occurrence.status !== 'IN_SERVICE'
+      ) {
+        throw new AppError(
+          404,
+          'NOT_FOUND',
+          'Ocorrência não disponível.',
+        );
+      }
+
+      setDetail(occurrence);
     } catch (err) {
-      if (err instanceof AppError && err.statusCode === 404) {
+      if (
+        err instanceof AppError &&
+        err.statusCode === 404
+      ) {
+        setDetail(null);
         navigation.goBack();
         return;
       }
+
       setLoadError(
         err instanceof AppError
           ? err.message
           : 'Não foi possível carregar a ocorrência.',
       );
     } finally {
-      setIsLoading(false);
-    }
-  }, [id, navigation]);
+          if (showLoader) {
+            setIsLoading(false);
+          }
+        }
+  }, [id, navigation],);
 
   useEffect(() => {
-    load();
-    return () => clearRefreshTimer();
+    const loadTimer = setTimeout(() => {
+      void load();
+    }, 0);
+
+    return () => {
+      clearTimeout(loadTimer);
+    };
   }, [load]);
+
+  useEffect(() => {
+    clearRefreshTimer();
+
+    if (!detail?.photoUrls.length) {
+      return undefined;
+    }
+
+    const shortestExpirationSeconds = Math.min(
+      ...detail.photoUrls.map(
+        (photo) => photo.expiresInSeconds,
+      ),
+    );
+
+    // Mantém a regra anterior deste ViewModel:
+    // renovação 10 segundos antes, com mínimo de 30 segundos.
+    const refreshAfterSeconds = Math.max(
+      shortestExpirationSeconds - 10,
+      MIN_REFRESH_SECONDS,
+    );
+
+    refreshTimerRef.current = setTimeout(() => {
+      void load(false);
+    }, refreshAfterSeconds * 1000);
+
+    return clearRefreshTimer;
+  }, [
+    detail?.photoUrls,
+    load,
+    clearRefreshTimer,
+  ]);
 
   const handleVoteToggle = useCallback(async () => {
     if (!session) {

@@ -55,7 +55,13 @@ export function useMyOccurrencesViewModel() {
   }, []);
 
   useEffect(() => {
-    load(true, 1);
+    const loadTimer = setTimeout(() => {
+      void load(true, 1);
+    }, 0);
+
+    return () => {
+      clearTimeout(loadTimer);
+    };
   }, [load]);
 
   const refresh = useCallback(() => {

@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React from 'react';
 import {
   View,
   Text,
@@ -6,11 +6,11 @@ import {
   TouchableOpacity,
   ActivityIndicator,
 } from 'react-native';
-import MapView, { PROVIDER_GOOGLE } from 'react-native-maps';
 import { Feather } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { usePublicMapViewModel } from '../view-models/use-public-map';
+import { OSMMapView } from '../components/osm-map-view';
 import { OccurrencePin } from '../components/occurrence-pin';
 import { OccurrencePreviewSheet } from '../components/occurrence-preview-sheet';
 import { CategoryFilter } from '../components/category-filter';
@@ -19,22 +19,16 @@ import type { RootStackParamList } from '@/navigation/types';
 
 type NavProp = NativeStackNavigationProp<RootStackParamList>;
 
-
 export function PublicMapScreen() {
-  const mapRef = useRef<MapView>(null);
   const navigation = useNavigation<NavProp>();
   const vm = usePublicMapViewModel();
 
   return (
     <View style={styles.container}>
-      <MapView
-        ref={mapRef}
-        style={StyleSheet.absoluteFill}
-        provider={PROVIDER_GOOGLE}
-        initialRegion={vm.region}
-        onRegionChangeComplete={vm.onRegionChangeComplete}
-        showsUserLocation={vm.locationPermission === 'granted'}
-        showsMyLocationButton={false}
+      <OSMMapView
+        centerCoordinate={vm.centerCoordinate}
+        zoomLevel={vm.zoomLevel}
+        onRegionDidChange={vm.onRegionDidChange}
       >
         {vm.occurrences.map((occ) => (
           <OccurrencePin
@@ -43,7 +37,7 @@ export function PublicMapScreen() {
             onPress={vm.selectPin}
           />
         ))}
-      </MapView>
+      </OSMMapView>
 
       <View style={styles.topOverlay} pointerEvents="box-none">
         <View style={styles.headerCard}>
@@ -96,12 +90,7 @@ export function PublicMapScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.surface.page },
-  topOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-  },
+  topOverlay: { position: 'absolute', top: 0, left: 0, right: 0 },
   headerCard: {
     backgroundColor: colors.surface.card,
     borderBottomLeftRadius: radius.lg,
@@ -139,10 +128,7 @@ const styles = StyleSheet.create({
   },
   centerOverlay: {
     position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
+    top: 0, left: 0, right: 0, bottom: 0,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -165,10 +151,7 @@ const styles = StyleSheet.create({
   },
   emptyOverlay: {
     position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
+    top: 0, left: 0, right: 0, bottom: 0,
     justifyContent: 'center',
     alignItems: 'center',
   },

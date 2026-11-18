@@ -1,6 +1,5 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { colors } from '@/shared/theme';
 
 export function MapScreen() {
   return (

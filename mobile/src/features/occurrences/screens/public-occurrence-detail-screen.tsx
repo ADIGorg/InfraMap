@@ -42,7 +42,7 @@ export function PublicOccurrenceDetailScreen() {
         <Text style={styles.errorText}>{vm.loadError}</Text>
         <TouchableOpacity
           style={styles.retryButton}
-          onPress={vm.reload}
+          onPress={() => void vm.reload()}
           accessibilityRole="button"
         >
           <Text style={styles.retryText}>Tentar novamente</Text>
