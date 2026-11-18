@@ -8,6 +8,7 @@ import { ResetPasswordPage } from '@/features/auth/pages/reset-password-page';
 import { FeaturePlaceholder } from '@/shared/components/feature-placeholder';
 import { AdminDashboardPage } from '@/features/dashboard/pages/admin-dashboard-page';
 import { AdminMapPage } from '@/features/admin-map/pages/admin-map-page';
+import { AgenciesPage } from '@/features/agencies/pages/agencies-page';
 import { ProtectedRoute } from './protected-route';
 import { MasterRoute } from './master-route';
 
@@ -38,9 +39,7 @@ export function AppRouter() {
             <Route path="/admin/notifications" element={<FeaturePlaceholder
               title="Notificações" ticket="API1-98"
               description="Alertas administrativos derivados de dados reais." />} />
-            <Route path="/admin/agencies" element={<FeaturePlaceholder
-              title="Gestão de Órgãos" ticket="API1-92"
-              description="Consulta disponível a todos os ADMINs ativos; mutações exigirão MASTER." />} />
+            <Route path="/admin/agencies" element={<AgenciesPage />} />
             <Route element={<MasterRoute />}>
               <Route path="/admin/admins" element={<FeaturePlaceholder
                 title="Administradores do Sistema" ticket="API1-99"
