@@ -8,6 +8,7 @@ import { FeaturePlaceholder } from '@/shared/components/feature-placeholder';
 import { ProtectedRoute } from './protected-route';
 import { MasterRoute } from './master-route';
 import { AdminOccurrencesPage } from '@/features/occurrences/pages/admin-occurrences-page';
+import { AdminOccurrenceDetailPage } from '@/features/occurrences/pages/admin-occurrence-detail-page';
 
 export function AppRouter() {
   return (
@@ -31,9 +32,7 @@ export function AppRouter() {
               title="Mapa Administrativo" ticket="API1-95"
               description="Visualização de ocorrências ativas, filtros e ajuste de localização." />} />
             <Route path="/admin/occurrences" element={<AdminOccurrencesPage />} />
-            <Route path="/admin/occurrences/:id" element={<FeaturePlaceholder
-              title="Detalhes da Ocorrência" ticket="API1-97"
-              description="Moderação, observações, histórico e encaminhamento." />} />
+            <Route path="/admin/occurrences/:id" element={<AdminOccurrenceDetailPage />} />
             <Route path="/admin/notifications" element={<FeaturePlaceholder
               title="Notificações" ticket="API1-98"
               description="Alertas administrativos derivados de dados reais." />} />

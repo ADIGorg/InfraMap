@@ -43,7 +43,7 @@ export function serializeFilters(filters: AdminOccurrenceFilters) {
   return params;
 }
 const categorySchema = z.object({ id: z.string(), code: z.string(), name: z.string() });
-const itemSchema = z.object({
+export const itemSchema = z.object({
   id: z.uuid(), category: categorySchema, description: z.string(),
   status: statusSchema, priority: z.enum(['LOW', 'MEDIUM', 'HIGH']).nullable(),
   location: z.object({ lat: z.number().finite().min(-90).max(90), lng: z.number().finite().min(-180).max(180) }),
