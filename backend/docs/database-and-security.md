@@ -89,3 +89,14 @@ Se alterar o modelo, estender os testes SQL *antes* de aprovar a migration. Manu
 - Rollback de migrations aplicadas deve ser planejado como **nova migration** compatível, com backup e avaliação de impacto.
 - Para segurança, documentar impacto do GRANT, owner SECURITY DEFINER e comportamento por role. Não assumir que o banco remoto e o local têm grants idênticos sem verificar.
 - Não executar diretamente no prod SQL sugerido por mensagens de erro sem inspecionar RLS.
+
+
+## API1-100 — Contrato de identidade e privilégios administrativos
+
+`GET /api/v1/admin/me` recebe JWT validado, busca `user_roles` usando o cliente Supabase do usuário autenticado e retorna `{ id, role: 'ADMIN', is_active: true, admin_level: 'MASTER' | 'OPERATIONAL' }`. A RLS `user_roles_select_own` isola a linha consultada; `GRANT SELECT` já existe na migration inicial.
+
+`GET /api/v1/app/me` mantém `{ id, role: 'CITIZEN', is_active: true }` sem expor `admin_level`. Um ADMIN sem nível válido não recebe resposta 200. Usuários sem sessão, de outro papel ou inativos são bloqueados.
+
+**Não foi necessária nova migration.** O tipo `public.admin_level`, a coluna `public.user_roles.admin_level`, a constraint `user_roles_role_level_check` e a RLS já existem em `20261101202618_create_profiles_and_user_roles.sql`. A autorização de escrita continua obrigatoriamente no backend (`requireMaster`) e nas RPC/RLS; o campo retornado ao cliente serve somente para a interface esconder ou apresentar opções.
+
+A branch API1-100 ainda requer teste de integração **em Supabase local ou homologação**, com MASTER, OPERATIONAL, CITIZEN e ADMIN inativo. Não executar SQL de teste na base compartilhada/produção.
