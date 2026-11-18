@@ -15,7 +15,8 @@ export const rejectOccurrenceSchema = z.object({
       .trim()
       .min(10, "A justificativa deve ter pelo menos 10 caracteres.")
       .max(2000, "A justificativa deve ter no máximo 2000 caracteres."),
-  }),
+    agencyResponse: z.string().trim().min(10).max(2000).optional(),
+  }).strict(),
 });
 
 export const setPrioritySchema = z.object({

@@ -150,13 +150,14 @@ export class SupabaseOccurrenceModerationRepository
     occurrenceId: string,
     newStatus: OccurrenceStatus,
     justification?: string,
+    agencyResponse?: string,
   ): Promise<void> {
     const { error } = await this.supabase.rpc("transition_occurrence", {
       p_occurrence_id: occurrenceId,
       p_new_status: newStatus,
       p_reason: justification ?? null,
       p_priority: null,
-      p_action: null,
+      p_action: agencyResponse ?? null,
     });
     if (error) mapPgError(error);
   }

@@ -538,8 +538,16 @@ paths:
   /admin/occurrences/{id}/reject:
     post:
       tags: [Moderation]
-      summary: Rejeitar ocorrência (UNDER_ANALYSIS → REJECTED)
-      description: Justificativa obrigatória (RN037), mínimo 10 caracteres.
+      summary: Rejeitar ocorrência (UNDER_ANALYSIS/CONFIRMED → REJECTED)
+      description: |
+        UNDER_ANALYSIS: rejeição por invalidade com justificativa (10-2000 caracteres).
+        CONFIRMED: encerramento por impossibilidade de atendimento, após
+        encaminhamento SENT a um órgão responsável. Exige agencyResponse (10-2000)
+        registrando a declaração do órgão e justification (10-2000).
+        O backend preserva a rejeição terminal, histórico e notificação.
+        O administrador deve verificar se o encaminhamento foi para o órgão
+        correto; se foi equivocado, deve reenviar em vez de rejeitar.
+        Nunca liberar a ação na UI antes de aplicar a migration API1-101.
       operationId: rejectOccurrence
       security: [{ bearerAuth: [] }]
       parameters:
