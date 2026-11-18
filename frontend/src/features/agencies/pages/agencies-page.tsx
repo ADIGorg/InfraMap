@@ -83,10 +83,11 @@ export function AgenciesPage() {
         </div>
       </header>
 
-      {!vm.canManage && (
+      {!vm.canManage && !vm.identity.isPending && (
         <p role="note" className="rounded-xl border border-blue-200 bg-surface-info p-4 text-sm text-brand-primary">
-          Consulta disponível para administradores ativos. Cadastro, edição e desativação exigem nível
-          MASTER confirmado pela API. Até a entrega da API1-100, essas ações permanecem bloqueadas.
+          {vm.identity.data?.admin_level === 'OPERATIONAL'
+            ? 'Você está conectado como administrador OPERATIONAL. É possível consultar os órgãos, mas cadastrar, editar, desativar e reativar são ações exclusivas de administradores MASTER.'
+            : 'Permissão de gestão não confirmada. Cadastro, edição, desativação e reativação exigem nível MASTER validado pela API.'}
         </p>
       )}
       {vm.notice && (

@@ -49,7 +49,22 @@ describe('AgenciesPage', () => {
     expect(screen.getAllByText('Somente consulta')).toHaveLength(2);
     expect(screen.queryByRole('button', { name: 'Cadastrar órgão' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Editar' })).not.toBeInTheDocument();
-    expect(screen.getByRole('note')).toHaveTextContent('API1-100');
+    expect(screen.getByRole('note')).toHaveTextContent('Permissão de gestão não confirmada');
+  });
+  it('apresenta permissões de consulta para OPERATIONAL sem citar bloqueio obsoleto da API1-100', () => {
+    setup({ identity: {
+      data: { role: 'ADMIN', is_active: true, admin_level: 'OPERATIONAL' },
+      isPending: false,
+    } });
+    render(<AgenciesPage />);
+    expect(screen.getByRole('note')).toHaveTextContent('Você está conectado como administrador OPERATIONAL');
+    expect(screen.getByRole('note')).not.toHaveTextContent('API1-100');
+    expect(screen.queryByRole('button', { name: 'Cadastrar órgão' })).not.toBeInTheDocument();
+  });
+  it('não mostra aviso de permissão durante verificação da identidade', () => {
+    setup({ identity: { data: undefined, isPending: true } });
+    render(<AgenciesPage />);
+    expect(screen.queryByRole('note')).not.toBeInTheDocument();
   });
   it('oculta órgãos inativos e atualiza a consulta', () => {
     render(<AgenciesPage />);
