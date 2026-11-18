@@ -14,6 +14,8 @@ Sem merge na `main`, migrations, alterações de dados ou segredos versionados.
 - Sem Google Maps Platform, faturamento ou credenciais da Google.
 - Alternância voluntária mapa/lista e fallback automático para lista textual quando ocorre `tileerror`, com botão de tentativa manual para voltar ao mapa.
 - Mapa visível mesmo com 0 ocorrências; nenhum marcador fictício ou placeholder. Dica sobre marcadores só aparece quando existem registros e fica afastada dos controles de zoom.
+- No desktop o painel usa a altura disponível da viewport e a coluna de filtros tem rolagem própria, evitando que os controles +/− saiam da tela durante a interação. Em tela estreita o layout segue vertical e rolável.
+- Centro e zoom são mantidos no ViewModel enquanto a tela permanece aberta, inclusive após alternar mapa/lista, refetch e retorno de erro de tiles. O filtro bbox aplicado permanece independente da viewport: mover o mapa não altera resultados até o clique em Buscar nesta área.
 - Pinos coloridos só para RECEIVED / UNDER_ANALYSIS / CONFIRMED / IN_SERVICE. Popup apresenta dados admin já autorizados, link de detalhe e ajuste.
 - Modal de ajuste: arrastar marcador, clicar no mapa ou digitar latitude/longitude, confirmar em segundo passo, revalidar status antes de PATCH. O RPC backend preserva `location_original` e auditoria.
 
@@ -66,7 +68,9 @@ Documentação React Leaflet 4: https://react-leaflet.js.org/docs/v4/start-insta
 - [ ] Clicar pin abre resumo e link /admin/occurrences/:id; a tela de detalhe é ticket separado (API1-97).
 - [ ] Aplicar e limpar filtros status/categoria; testar filtro bbox completo após mover mapa.
 - [x] API sem registros: tela visualmente validada pelo usuário com mapa OpenStreetMap, sem pins nem dados simulados (17/11/2026).
-- [ ] Confirmar que o zoom +/− permanece livre após a correção do banner informativo.
+- [ ] Confirmar em navegador desktop que os controles +/− permanecem visíveis ao clicar e que o painel lateral rola independentemente.
+- [ ] Mover/zoom, alternar lista/mapa e aplicar filtros para confirmar preservação do centro e do zoom.
+- [ ] Confirmar que filtro bbox anterior não muda ao movimentar mapa e que o aviso de regiões distintas aparece.
 - [ ] Bloqueio do tile.openstreetmap.org na aba Network: fallback em lista e botão de tentar novamente.
 - [ ] Botões alternar mapa/lista, incluindo ajuste de coordenadas pela lista.
 - [ ] Modal de ajuste: drag, clique no mapa e números manuais (inclusive campos temporariamente vazios), confirmação explícita.

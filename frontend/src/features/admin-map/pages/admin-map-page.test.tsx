@@ -11,8 +11,16 @@ vi.mock('../view-models/use-admin-map-view-model', () => ({
 }));
 vi.mock('@/infrastructure/api/http-client', () => ({ http: vi.fn() }));
 vi.mock('react-leaflet', () => ({
-  MapContainer: ({ children }: { children: React.ReactNode }) => (
-    <div data-testid="leaflet-map">{children}</div>
+  MapContainer: ({
+    children, center, zoom,
+  }: {
+    children: React.ReactNode;
+    center: [number, number];
+    zoom: number;
+  }) => (
+    <div data-testid="leaflet-map" data-center={center.join(',')} data-zoom={zoom}>
+      {children}
+    </div>
   ),
   TileLayer: ({ url, attribution, eventHandlers }: {
     url: string;
@@ -50,7 +58,7 @@ vi.mock('react-leaflet', () => ({
       getWest: () => -39,
       getEast: () => -38,
     };
-    const map = { getBounds: () => bounds };
+    const map = { getBounds: () => bounds, getCenter: () => ({ lat: -12.5, lng: -38.5 }), getZoom: () => 12 };
     return () => map;
   })(),
 }));
@@ -67,7 +75,7 @@ const item = {
 
 const onAdjust = vi.fn(), onApply = vi.fn(), onUpdate = vi.fn();
 const onSelect = vi.fn(), onSetPosition = vi.fn(), onRequestConfirmation = vi.fn();
-const onSetBounds = vi.fn();
+const onSetBounds = vi.fn(), onSetViewport = vi.fn();
 
 function configure(overrides: Record<string, unknown> = {}) {
   const vm = {
@@ -78,7 +86,7 @@ function configure(overrides: Record<string, unknown> = {}) {
     occurrences: { data: [item], isPending: false, isError: false, isFetching: false, refetch: onUpdate },
     draft: { statuses: ['RECEIVED', 'UNDER_ANALYSIS', 'CONFIRMED', 'IN_SERVICE'], categoryId: '' },
     applied: { statuses: ['RECEIVED', 'UNDER_ANALYSIS', 'CONFIRMED', 'IN_SERVICE'], categoryId: '', bbox: null },
-    selected: null, availableBounds: null,
+    selected: null, availableBounds: null, viewport: null, setViewport: onSetViewport,
     adjusting: null, candidate: null, confirming: false, inputError: null,
     mutation: { error: null, isPending: false },
     updateStatus: vi.fn(), setCategory: vi.fn(),
@@ -114,6 +122,10 @@ describe('AdminMapPage / OpenStreetMap', () => {
     expect(onSetBounds).toHaveBeenCalledWith({
       minLat: -13, maxLat: -12, minLng: -39, maxLng: -38,
     });
+    expect(onSetViewport).toHaveBeenCalledWith({
+      center: { lat: -12.5, lng: -38.5 }, zoom: 12,
+    });
+    expect(screen.getByTestId('leaflet-map')).toHaveAttribute('data-zoom', '12');
   });
 
   it('mantém filtro de status ativo, sem bairro/período fictícios', () => {
@@ -136,6 +148,41 @@ describe('AdminMapPage / OpenStreetMap', () => {
     expect(onAdjust).toHaveBeenCalledWith(item);
     fireEvent.click(screen.getByRole('button', { name: 'Ver mapa' }));
     expect(screen.getByTestId('leaflet-map')).toBeInTheDocument();
+  });
+
+  it('restaura o centro e o zoom guardados no ViewModel após alternar mapa/lista', () => {
+    configure({ viewport: { center: { lat: -12.85, lng: -38.45 }, zoom: 15 } });
+    show();
+    const map = screen.getByTestId('leaflet-map');
+    expect(map).toHaveAttribute('data-center', '-12.85,-38.45');
+    expect(map).toHaveAttribute('data-zoom', '15');
+    fireEvent.click(screen.getByRole('button', { name: 'Visualizar em lista' }));
+    expect(screen.queryByTestId('leaflet-map')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Ver mapa' }));
+    expect(screen.getByTestId('leaflet-map')).toHaveAttribute('data-center', '-12.85,-38.45');
+    expect(screen.getByTestId('leaflet-map')).toHaveAttribute('data-zoom', '15');
+  });
+
+  it('mostra separadamente a área visível e o filtro geográfico aplicado', () => {
+    configure({
+      availableBounds: { minLat: -13, maxLat: -12, minLng: -39, maxLng: -38 },
+      applied: {
+        statuses: ['RECEIVED', 'UNDER_ANALYSIS', 'CONFIRMED', 'IN_SERVICE'],
+        categoryId: '',
+        bbox: { minLat: -16, maxLat: -15, minLng: -42, maxLng: -41 },
+      },
+    });
+    show();
+    expect(screen.getByText(/Área atualmente visível/)).toBeInTheDocument();
+    expect(screen.getByText(/O mapa foi movimentado desde a última busca por região/)).toBeInTheDocument();
+    expect(screen.getByText(/Região do mapa aplicada/)).toBeInTheDocument();
+  });
+
+  it('restringe a rolagem ao painel de filtros em desktop, preservando os controles de zoom', () => {
+    show();
+    const title = screen.getByRole('heading', { name: 'Mapa Administrativo' });
+    expect(title.closest('header')?.parentElement).toHaveClass('lg:overflow-hidden');
+    expect(screen.getByLabelText('Filtros avançados')).toHaveClass('lg:overflow-y-auto');
   });
 
   it('abre popup do marcador e apresenta ação de ajuste', () => {
