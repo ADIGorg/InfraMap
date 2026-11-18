@@ -14,6 +14,11 @@ jobs:
   mobile-registration:
     name: TypeScript, lint and Jest (mobile)
     runs-on: ubuntu-latest
+    env:
+      # Local test-only values. No connection to production is made by Jest.
+      EXPO_PUBLIC_API_BASE_URL: http://127.0.0.1:3000/api/v1
+      EXPO_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
+      EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: test-only-public-key
     defaults:
       run:
         working-directory: mobile
