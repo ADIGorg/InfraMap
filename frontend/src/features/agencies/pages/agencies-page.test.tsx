@@ -3,6 +3,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { AgenciesPage } from './agencies-page';
 import { useAgenciesManagementViewModel } from '../view-models/use-agencies-management-view-model';
 
+vi.mock('@/infrastructure/api/http-client', () => ({ http: vi.fn() }));
 vi.mock('../view-models/use-agencies-management-view-model', () => ({
   useAgenciesManagementViewModel: vi.fn(),
 }));
