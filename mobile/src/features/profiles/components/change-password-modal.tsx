@@ -10,23 +10,52 @@ import {
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { colors, typography, spacing, radius } from '@/shared/theme';
+import { InputField } from '@/shared/components/input-field';
 
 interface Props {
   visible: boolean;
+
+  currentPassword: string;
   newPassword: string;
   confirmPassword: string;
-  errors: { newPassword?: string; confirmPassword?: string; general?: string };
+
+  errors: {
+    currentPassword?: string;
+    newPassword?: string;
+    confirmPassword?: string;
+    general?: string;
+  };
+
   isLoading: boolean;
   isSuccess: boolean;
-  onChangeNewPassword: (v: string) => void;
-  onChangeConfirmPassword: (v: string) => void;
-  onClearError: (field: 'newPassword' | 'confirmPassword') => void;
+
+  setCurrentPassword: (
+    value: string,
+  ) => void;
+
+  onChangeNewPassword: (
+    value: string,
+  ) => void;
+
+  onChangeConfirmPassword: (
+    value: string,
+  ) => void;
+
+  onClearError: (
+    field:
+      | 'currentPassword'
+      | 'newPassword'
+      | 'confirmPassword'
+  ) => void;
+
   onCancel: () => void;
   onSubmit: () => void;
 }
 
 export function ChangePasswordModal({
   visible,
+  currentPassword, 
+  setCurrentPassword,
   newPassword,
   confirmPassword,
   errors,
@@ -75,6 +104,23 @@ export function ChangePasswordModal({
                   <Text style={styles.errorBannerText}>{errors.general}</Text>
                 </View>
               )}
+
+              <InputField
+                label="Senha atual"
+                value={currentPassword}
+                onChangeText={(value) => {
+                  setCurrentPassword(value);
+                  onClearError('currentPassword');
+                }}
+                placeholder="Digite sua senha atual"
+                secureTextEntry
+                autoCapitalize="none"
+                autoCorrect={false}
+                textContentType="password"
+                error={errors.currentPassword}
+                editable={!isLoading}
+                accessibilityLabel="Senha atual"
+              />
 
               <Text style={styles.label}>Nova senha</Text>
               <TextInput

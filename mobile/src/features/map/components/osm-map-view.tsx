@@ -1,30 +1,37 @@
+
 import React from 'react';
-import { StyleSheet, View, Text, Linking, TouchableOpacity } from 'react-native';
 import {
-  Map,
+  Linking,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+
+import {
   Camera,
-  RasterSource,
-  Layer,
+  Map,
 } from '@maplibre/maplibre-react-native';
+
 import { colors } from '@/shared/theme';
 
-// ⚠️ Servidor público do OSM 
-// Para produção, use MapTiler, Stadia Maps ou self-hosted.
-const OSM_TILE_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+const OSM_VECTOR_STYLE_URL =
+  'https://tiles.openfreemap.org/styles/liberty';
 
-export interface RegionChangeEvent {
+export type RegionChangeEvent = {
   nativeEvent: {
-    properties: {
-      // Ordem: [East, North, West, South] — confirmado na doc do MapLibre
-      visibleBounds: [number, number, number, number];
-      zoomLevel: number;
-      center: [number, number]; // [lng, lat]
-    };
+    center: [number, number];
+    zoom: number;
+    bounds: [number, number, number, number];
+    bearing: number;
+    pitch: number;
+    animated: boolean;
+    userInteraction: boolean;
   };
-}
+};
 
 interface OSMMapViewProps {
-  centerCoordinate: [number, number]; // [lng, lat]
+  centerCoordinate: [number, number];
   zoomLevel?: number;
   onRegionDidChange?: (event: RegionChangeEvent) => void;
   children?: React.ReactNode;
@@ -36,42 +43,52 @@ export function OSMMapView({
   onRegionDidChange,
   children,
 }: OSMMapViewProps) {
+  const handleOpenAttribution = () => {
+    void Linking.openURL(
+      'https://www.openstreetmap.org/copyright',
+    );
+  };
+
   return (
-    <View style={styles.container} testID="osm-map-view">
+    <View
+      style={styles.container}
+      testID="osm-map-view"
+    >
       <Map
         style={styles.map}
-        mapStyle=""                       // vazio = nenhum estilo vetorial base
+        mapStyle={OSM_VECTOR_STYLE_URL}
         logo={false}
         attribution={false}
         compass
+        dragPan
         touchZoom
+        doubleTapZoom
         touchRotate
         touchPitch={false}
-        onRegionDidChange={onRegionDidChange as any}
+        onRegionDidChange={onRegionDidChange as never}
       >
         <Camera
           center={centerCoordinate}
           zoom={zoomLevel}
-          duration={300}
-          easing="fly"
+          duration={500}
+          easing="ease"
         />
-        <RasterSource
-          id="osm-tiles"
-          tiles={[OSM_TILE_URL]}
-          tileSize={256}
-        >
-          <Layer type="raster" id="osm-layer" source="osm-tiles" />
-        </RasterSource>
+
         {children}
       </Map>
 
-      {/* Atribuição OSM — obrigatória pela licença ODbL */}
-      <View style={styles.attribution} pointerEvents="box-none">
+      <View
+        style={styles.attribution}
+        pointerEvents="box-none"
+      >
         <TouchableOpacity
-          onPress={() => Linking.openURL('https://www.openstreetmap.org/copyright')}
+          onPress={handleOpenAttribution}
           accessibilityRole="link"
+          accessibilityLabel="Direitos autorais do OpenStreetMap"
         >
-          <Text style={styles.attributionText}>© OpenStreetMap contributors</Text>
+          <Text style={styles.attributionText}>
+            © OpenStreetMap contributors
+          </Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -79,16 +96,26 @@ export function OSMMapView({
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  map: { flex: 1 },
+  container: {
+    flex: 1,
+  },
+
+  map: {
+    flex: 1,
+  },
+
   attribution: {
     position: 'absolute',
-    bottom: 8,
     right: 8,
-    backgroundColor: 'rgba(255,255,255,0.9)',
+    bottom: 8,
     paddingHorizontal: 6,
-    paddingVertical: 2,
+    paddingVertical: 3,
     borderRadius: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
   },
-  attributionText: { fontSize: 10, color: colors.text.secondary },
+
+  attributionText: {
+    fontSize: 10,
+    color: colors.text.secondary,
+  },
 });

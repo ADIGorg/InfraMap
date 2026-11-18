@@ -26,6 +26,13 @@
     },
     "plugins": [
       [
+        "expo-navigation-bar",
+        {
+          "hidden": true,
+          "style": "light"
+        }
+      ],
+      [
         "expo-location",
         {
           "locationWhenInUsePermission": "O InfraMap usa sua localização para identificar a área do problema registrado."

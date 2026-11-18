@@ -74,9 +74,46 @@ export function useCaptureEvidenceViewModel() {
     try {
       setPreview(await capturePhoto(cameraRef.current));
     } catch (caught) {
-      setError(caught instanceof AppError ? caught.message : 'Falha ao capturar foto. Tente novamente.');
-      setIsCameraOpen(false);
-    } finally {
+    console.error(
+      '[CaptureEvidence] Falha no upload:',
+      caught,
+    );
+
+    if (caught instanceof AppError) {
+      console.error(
+        '[CaptureEvidence] Detalhes:',
+        {
+          statusCode: caught.statusCode,
+          code: caught.code,
+          message: caught.message,
+        },
+      );
+
+      setError(caught.message);
+    } else if (caught instanceof Error) {
+      console.error(
+        '[CaptureEvidence] Error:',
+        {
+          name: caught.name,
+          message: caught.message,
+          stack: caught.stack,
+        },
+      );
+
+      setError(
+        'Erro ao enviar as fotos. Tente novamente.',
+      );
+    } else {
+      console.error(
+        '[CaptureEvidence] Erro desconhecido:',
+        caught,
+      );
+
+      setError(
+        'Erro ao enviar as fotos. Tente novamente.',
+      );
+    }
+  } finally {
       setIsCapturing(false);
     }
   }, [isCapturing]);

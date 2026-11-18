@@ -22,23 +22,16 @@ export async function getPublicOccurrences(
 
   return http<PublicOccurrenceListResponse>(
     `/occurrences/public?${params.toString()}`,
-    { auth: false },
+    { auth: false, raw: true  },
   );
 }
 
 export async function getPublicOccurrenceById(
   id: string,
 ): Promise<PublicOccurrenceDetail> {
-  const res = await http<{ data: PublicOccurrenceDetail }>(
-    `/occurrences/public/${id}`,
-    { auth: false },
-  );
-  return res.data;
+  return http<PublicOccurrenceDetail>(`/occurrences/public/${id}`, { auth: false });
 }
 
 export async function getCategories(): Promise<CategorySummary[]> {
-  const res = await http<{ data: CategorySummary[] }>('/categories', {
-    auth: false,
-  });
-  return res.data;
+  return http<CategorySummary[]>('/categories', { auth: false });
 }

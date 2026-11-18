@@ -8,8 +8,15 @@ import { useLoginViewModel } from '@/features/auth/view-models/use-login-view-mo
 import { InputField } from '@/shared/components/input-field';
 import { AuthToggle } from '@/shared/components/auth-toggle';
 import { colors, typography, spacing, radius } from '@/shared/theme';
+import { useRoute, } from '@react-navigation/native'; 
+import type { RouteProp, } from '@react-navigation/native'; 
+import type { AuthStackParamList, } from '@/navigation/types';
+
+type LoginRoute = RouteProp< AuthStackParamList, 'Login' >;
 
 export function LoginScreen() {
+  const route = useRoute<LoginRoute>(); 
+  const emailConfirmed = route.params ?.emailConfirmed === true;
   const {
     email, setEmail,
     password, setPassword,
@@ -39,6 +46,25 @@ export function LoginScreen() {
 
           {/* Texto de boas-vindas */}
           <Text style={styles.welcomeText}>Bem-vindo de volta! Acesse sua conta.</Text>
+
+          {emailConfirmed ? (
+            <View
+              style={styles.successBanner}
+              accessibilityRole="alert"
+            >
+              <View style={styles.successIcon}>
+                <Feather
+                  name="check"
+                  size={16}
+                  color={colors.text.inverse}
+                />
+              </View>
+
+              <Text style={styles.successBannerText}>
+                E-mail confirmado com sucesso. Agora você já pode entrar.
+              </Text>
+            </View>
+          ) : null}
 
           {/* Erro geral */}
           {formErrors.general && (
@@ -197,5 +223,31 @@ const styles = StyleSheet.create({
     color: colors.brand.primary,
     fontSize: typography.sizes.base,
     fontWeight: typography.weights.bold,
+  },
+  successBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.base,
+    padding: spacing.md,
+    borderRadius: radius.md,
+    borderLeftWidth: 4,
+    borderLeftColor: colors.status.RESOLVED,
+    backgroundColor: '#EAFAF1',
+  },
+  successIcon: {
+    width: 26,
+    height: 26,
+    marginRight: spacing.sm,
+    borderRadius: radius.full,
+    backgroundColor: colors.status.RESOLVED,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  successBannerText: {
+    flex: 1,
+    fontSize: typography.sizes.sm,
+    fontWeight: typography.weights.medium,
+    lineHeight: 19,
+    color: '#196F3D',
   },
 });

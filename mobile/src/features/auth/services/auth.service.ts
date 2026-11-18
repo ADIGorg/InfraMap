@@ -33,39 +33,118 @@ export async function loginWithPassword(email: string, password: string) {
 // ─────────────────────────────────────
 // SIGNUP
 // ─────────────────────────────────────
-export async function signup(input: { name: string; email: string; password: string }) {
-  const { data, error } = await supabase.auth.signUp({
-    email: input.email.trim().toLowerCase(),
+export async function signup(input: {
+  name: string;
+  email: string;
+  password: string;
+}) {
+  const emailRedirectTo = Linking.createURL(
+    'verify-email',
+    {
+      queryParams: {
+        confirmed: 'true',
+      },
+    },
+  );
+
+  console.log( '[auth.service] signup redirect:', emailRedirectTo, );
+
+  const {
+    data,
+    error,
+  } = await supabase.auth.signUp({
+    email: input.email
+      .trim()
+      .toLowerCase(),
     password: input.password,
     options: {
-      data: { name: input.name.trim() },
+      data: {
+        name: input.name.trim(),
+      },
+      emailRedirectTo,
     },
   });
 
   if (error) {
     if (error.code === 'user_already_exists') {
-      throw new AppError(409, 'EMAIL_EXISTS', 'Este e-mail já está cadastrado.');
+      throw new AppError(
+        409,
+        'EMAIL_EXISTS',
+        'Este e-mail já está cadastrado.',
+      );
     }
+
     if (error.code === 'weak_password') {
-      throw new AppError(400, 'WEAK_PASSWORD', 'Senha muito fraca. Use no mínimo 8 caracteres.');
+      throw new AppError(
+        400,
+        'WEAK_PASSWORD',
+        'Senha muito fraca. Use no mínimo 8 caracteres.',
+      );
     }
-    throw new AppError(400, 'SIGNUP_FAILED', error.message);
+
+    throw new AppError(
+      400,
+      'SIGNUP_FAILED',
+      error.message,
+    );
   }
 
   if (!data.user) {
-    throw new AppError(500, 'SIGNUP_FAILED', 'Erro ao criar conta. Tente novamente.');
+    throw new AppError(
+      500,
+      'SIGNUP_FAILED',
+      'Erro ao criar conta. Tente novamente.',
+    );
   }
 
-  return { user: data.user, session: data.session };
+  return {
+    user: data.user,
+    session: data.session,
+  };
 }
 
-export async function resendConfirmationEmail(email: string) {
-  const { error } = await supabase.auth.resend({
+export async function resendConfirmationEmail(
+  email: string,
+): Promise<void> {
+  const emailRedirectTo = Linking.createURL(
+    'verify-email',
+    {
+      queryParams: {
+        confirmed: 'true',
+      },
+    },
+  );
+
+  const {
+    error,
+  } = await supabase.auth.resend({
     type: 'signup',
-    email: email.trim().toLowerCase(),
+    email: email
+      .trim()
+      .toLowerCase(),
+    options: {
+      emailRedirectTo,
+    },
   });
+
   if (error) {
-    throw new AppError(400, 'RESEND_FAILED', 'Não foi possível reenviar. Tente novamente.');
+    if (
+      error.status === 429 ||
+      error.code === 'over_email_send_rate_limit' ||
+      error.code === 'too_many_requests'
+    ) {
+      throw new AppError(
+        429,
+        'TOO_MANY_REQUESTS',
+        'Muitas solicitações. Aguarde alguns minutos.',
+      );
+    }
+
+    throw new AppError(
+      error.status ?? 400,
+      error.code ?? 'RESEND_FAILED',
+      'Não foi possível reenviar o e-mail. Tente novamente.',
+    );
   }
 }
 
@@ -160,30 +239,76 @@ export async function requestPasswordReset(email: string): Promise<void> {
 }
 
 // ─────────────────────────────────────
-// UPDATE PASSWORD (MOB-UI-05)
+// UPDATE PASSWORD — RECOVERY FLOW
 // ─────────────────────────────────────
-export async function updatePassword(newPassword: string): Promise<void> {
-  const { error } = await supabase.auth.updateUser({ password: newPassword });
+
+export async function updatePassword(
+  newPassword: string,
+): Promise<void> {
+  const {
+    error,
+  } = await supabase.auth.updateUser({
+    password: newPassword,
+  });
 
   if (error) {
-    if (error.code === 'weak_password') {
-      throw new AppError(
-        400,
-        'WEAK_PASSWORD',
-        'Senha muito fraca. Use no mínimo 8 caracteres.',
-      );
-    }
-    if (error.code === 'same_password') {
-      throw new AppError(
-        400,
-        'SAME_PASSWORD',
-        'A nova senha deve ser diferente da anterior.',
-      );
-    }
     throw new AppError(
-      500,
-      'UPDATE_FAILED',
-      'Não foi possível atualizar a senha. Tente novamente.',
+      error.status ?? 400,
+      error.code ?? 'PASSWORD_UPDATE_FAILED',
+      error.message || 'Não foi possível alterar a senha.',
+    );
+  }
+}
+
+// ─────────────────────────────────────
+// CHANGE PASSWORD — AUTHENTICATED USER
+// ─────────────────────────────────────
+
+export async function changePassword(
+  currentPassword: string,
+  newPassword: string,
+): Promise<void> {
+  const {
+    data: userData,
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  const email = userData.user?.email;
+
+  if (userError || !email) {
+    throw new AppError(
+      401,
+      'UNAUTHORIZED',
+      'Sessão expirada. Faça login novamente.',
+    );
+  }
+
+  const {
+    error: authenticationError,
+  } = await supabase.auth.signInWithPassword({
+    email,
+    password: currentPassword,
+  });
+
+  if (authenticationError) {
+    throw new AppError(
+      400,
+      'CURRENT_PASSWORD_MISMATCH',
+      'A senha atual está incorreta.',
+    );
+  }
+
+  const {
+    error: updateError,
+  } = await supabase.auth.updateUser({
+    password: newPassword,
+  });
+
+  if (updateError) {
+    throw new AppError(
+      updateError.status ?? 400,
+      updateError.code ?? 'PASSWORD_UPDATE_FAILED',
+      updateError.message || 'Não foi possível alterar a senha.',
     );
   }
 }

@@ -2,10 +2,21 @@ import type { NavigatorScreenParams } from '@react-navigation/native';
 
 export type AuthStackParamList = {
   Welcome: undefined;
-  Login: undefined;
+
+  Login:
+    | {
+        emailConfirmed?: boolean;
+      }
+    | undefined;
+
   Register: undefined;
   ForgotPassword: undefined;
-  VerifyEmail: { email: string };
+
+  VerifyEmail: {
+    email?: string;
+    confirmed?: boolean;
+  };
+
   PublicMap: undefined;
 };
 

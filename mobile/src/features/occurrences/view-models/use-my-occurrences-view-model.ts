@@ -30,16 +30,35 @@ export function useMyOccurrencesViewModel() {
         sort: 'recent',
       });
       // Deduplicação por id (proteção contra sobreposição de páginas)
-      setItems((prev) => {
-        const source = reset ? res.data : [...prev, ...res.data];
-        const seen = new Set<string>();
-        return source.filter((item) => {
-          if (seen.has(item.id)) return false;
-          seen.add(item.id);
-          return true;
-        });
+      const pageItems = Array.isArray(res.data)
+  ? res.data
+  : [];
+
+    setItems((previousItems) => {
+      const source = reset
+        ? pageItems
+        : [...previousItems, ...pageItems];
+
+      const seen = new Set<string>();
+
+      return source.filter((item) => {
+        if (!item?.id || seen.has(item.id)) {
+          return false;
+        }
+
+        seen.add(item.id);
+        return true;
       });
-      setHasMore(res.pagination.page < res.pagination.totalPages);
+    });
+
+    const pagination = res.pagination;
+
+    setHasMore(
+      Boolean(
+        pagination &&
+        pagination.page < pagination.totalPages,
+      ),
+    );
       setPage(currentPage);
     } catch (err) {
       if (err instanceof AppError) {

@@ -14,26 +14,33 @@ interface Props {
   onChange: (id: string | undefined) => void;
 }
 
-export function CategoryFilter({ categories, selectedId, onChange }: Props) {
-  return (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      contentContainerStyle={styles.container}
-    >
-      <Chip label="Todas" active={!selectedId} onPress={() => onChange(undefined)} />
-      {categories.map((cat) => (
-        <Chip
-          key={cat.id}
-          label={cat.name}
-          active={selectedId === cat.id}
-          onPress={() => onChange(cat.id)}
-        />
-      ))}
-    </ScrollView>
-  );
-}
+  export function CategoryFilter({ categories, selectedId, onChange }: Props) {
+    const safeCategories = Array.isArray(categories) ? categories : [];
 
+    return (
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.container}
+      >
+        <Chip
+          label="Todas"
+          active={!selectedId}
+          onPress={() => onChange(undefined)}
+        />
+
+        {safeCategories.map((cat) => (
+          <Chip
+            key={cat.id}
+            label={cat.name}
+            active={selectedId === cat.id}
+            onPress={() => onChange(cat.id)}
+          />
+        ))}
+      </ScrollView>
+    );
+  }
+  
 function Chip({
   label,
   active,

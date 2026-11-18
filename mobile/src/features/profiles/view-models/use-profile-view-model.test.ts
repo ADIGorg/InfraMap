@@ -10,9 +10,9 @@ import type { AccountProfile } from '@/shared/types/api';
 
 jest.mock('../services/profile.service');
 jest.mock('../services/account.service');
-jest.mock('@/features/auth/services/auth.service', () => ({
-  updatePassword: jest.fn(),
-}));
+jest.mock( '@/features/auth/services/auth.service', () => ({ 
+  changePassword: jest.fn(), 
+}), );
 jest.mock('@/infrastructure/query-client', () => ({
   queryClient: { clear: jest.fn() },
 }));
@@ -136,28 +136,16 @@ describe('useProfileViewModel', () => {
   });
 
   // ─── Senha ───
-  it('submitPassword bloqueia senhas divergentes', async () => {
-    const { result } = await renderHook(() => useProfileViewModel());
-    await waitFor(() => expect(result.current.isLoading).toBe(false));
+  it(
+  'submitPassword bloqueia quando a senha atual não foi informada',
+  async () => {
+    const { result } = await renderHook(
+      () => useProfileViewModel(),
+    );
 
-    await act(async () => {
-      result.current.openPassword();
-      result.current.setNewPassword('senha12345');
-      result.current.setConfirmPassword('outra');
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
     });
-
-    await act(async () => {
-      await result.current.submitPassword();
-    });
-
-    expect(result.current.passwordErrors.confirmPassword).toBe('Senhas não coincidem');
-    expect(AuthService.updatePassword).not.toHaveBeenCalled();
-  });
-
-  it('submitPassword sucesso marca passwordSuccess', async () => {
-    (AuthService.updatePassword as jest.Mock).mockResolvedValueOnce(undefined);
-    const { result } = await renderHook(() => useProfileViewModel());
-    await waitFor(() => expect(result.current.isLoading).toBe(false));
 
     await act(async () => {
       result.current.openPassword();
@@ -169,10 +157,246 @@ describe('useProfileViewModel', () => {
       await result.current.submitPassword();
     });
 
-    expect(AuthService.updatePassword).toHaveBeenCalledWith('novaSenha123');
-    expect(result.current.passwordSuccess).toBe(true);
-  });
+    expect(
+      result.current.passwordErrors.currentPassword,
+    ).toBe('Informe sua senha atual');
 
+    expect(AuthService.changePassword).not.toHaveBeenCalled();
+    expect(result.current.isPasswordOpen).toBe(true);
+  },
+);
+
+it(
+  'submitPassword bloqueia senhas divergentes',
+  async () => {
+    const { result } = await renderHook(
+      () => useProfileViewModel(),
+    );
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    await act(async () => {
+      result.current.openPassword();
+      result.current.setCurrentPassword('senhaAtual123');
+      result.current.setNewPassword('senhaNova123');
+      result.current.setConfirmPassword('outraSenha123');
+    });
+
+    await act(async () => {
+      await result.current.submitPassword();
+    });
+
+    expect(
+      result.current.passwordErrors.confirmPassword,
+    ).toBe('Senhas não coincidem');
+
+    expect(AuthService.changePassword).not.toHaveBeenCalled();
+  },
+);
+
+it(
+  'submitPassword bloqueia nova senha igual à senha atual',
+  async () => {
+    const { result } = await renderHook(
+      () => useProfileViewModel(),
+    );
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    await act(async () => {
+      result.current.openPassword();
+      result.current.setCurrentPassword('mesmaSenha123');
+      result.current.setNewPassword('mesmaSenha123');
+      result.current.setConfirmPassword('mesmaSenha123');
+    });
+
+    await act(async () => {
+      await result.current.submitPassword();
+    });
+
+    expect(
+      result.current.passwordErrors.newPassword,
+    ).toBe('A nova senha deve ser diferente da senha atual');
+
+    expect(AuthService.changePassword).not.toHaveBeenCalled();
+  },
+);
+
+it(
+  'submitPassword mostra erro no campo quando a senha atual está incorreta',
+  async () => {
+    (
+      AuthService.changePassword as jest.Mock
+    ).mockRejectedValueOnce(
+      new AppError(
+        400,
+        'CURRENT_PASSWORD_MISMATCH',
+        'A senha atual está incorreta.',
+      ),
+    );
+
+    const { result } = await renderHook(
+      () => useProfileViewModel(),
+    );
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    await act(async () => {
+      result.current.openPassword();
+      result.current.setCurrentPassword('senhaErrada123');
+      result.current.setNewPassword('novaSenha123');
+      result.current.setConfirmPassword('novaSenha123');
+    });
+
+    await act(async () => {
+      await result.current.submitPassword();
+    });
+
+    expect(AuthService.changePassword).toHaveBeenCalledWith(
+      'senhaErrada123',
+      'novaSenha123',
+    );
+
+    expect(
+      result.current.passwordErrors.currentPassword,
+    ).toBe('A senha atual está incorreta.');
+
+    expect(
+      result.current.passwordErrors.general,
+    ).toBeUndefined();
+
+    expect(result.current.isPasswordOpen).toBe(true);
+    expect(result.current.passwordSuccess).toBe(false);
+    expect(result.current.isChangingPassword).toBe(false);
+  },
+);
+
+it(
+  'submitPassword exibe erro geral quando o serviço falha',
+  async () => {
+    (
+     AuthService.changePassword as jest.Mock
+    ).mockRejectedValueOnce(
+      new AppError(
+        500,
+        'PASSWORD_UPDATE_FAILED',
+        'Não foi possível alterar a senha.',
+      ),
+    );
+
+    const { result } = await renderHook(
+      () => useProfileViewModel(),
+    );
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    await act(async () => {
+      result.current.openPassword();
+      result.current.setCurrentPassword('senhaAtual123');
+      result.current.setNewPassword('novaSenha123');
+      result.current.setConfirmPassword('novaSenha123');
+    });
+
+    await act(async () => {
+      await result.current.submitPassword();
+    });
+
+    expect(
+      result.current.passwordErrors.general,
+    ).toBe('Não foi possível alterar a senha.');
+
+    expect(result.current.isPasswordOpen).toBe(true);
+    expect(result.current.passwordSuccess).toBe(false);
+  },
+);
+
+it(
+  'submitPassword envia senha atual e nova senha ao serviço',
+  async () => {
+    (
+      AuthService.changePassword as jest.Mock
+    ).mockResolvedValueOnce(undefined);
+
+    const { result } = await renderHook(
+      () => useProfileViewModel(),
+    );
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    await act(async () => {
+      result.current.openPassword();
+      result.current.setCurrentPassword('senhaAtual123');
+      result.current.setNewPassword('novaSenha123');
+      result.current.setConfirmPassword('novaSenha123');
+    });
+
+    await act(async () => {
+      await result.current.submitPassword();
+    });
+
+    expect(AuthService.changePassword).toHaveBeenCalledTimes(1);
+
+    expect(AuthService.changePassword).toHaveBeenCalledWith(
+      'senhaAtual123',
+      'novaSenha123',
+    );
+
+    expect(result.current.passwordSuccess).toBe(true);
+    expect(result.current.passwordErrors).toEqual({});
+    expect(result.current.currentPassword).toBe('');
+    expect(result.current.newPassword).toBe('');
+    expect(result.current.confirmPassword).toBe('');
+  },
+);
+
+it(
+  'openPassword limpa os campos e erros anteriores',
+  async () => {
+    const { result } = await renderHook(
+      () => useProfileViewModel(),
+    );
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    await act(async () => {
+      result.current.openPassword();
+      result.current.setCurrentPassword('senhaAtual123');
+      result.current.setNewPassword('novaSenha123');
+      result.current.setConfirmPassword('outraSenha123');
+    });
+
+    await act(async () => {
+      await result.current.submitPassword();
+    });
+
+    expect(
+      result.current.passwordErrors.confirmPassword,
+    ).toBe('Senhas não coincidem');
+
+    await act(async () => {
+      result.current.closePassword();
+      result.current.openPassword();
+    });
+
+    expect(result.current.currentPassword).toBe('');
+    expect(result.current.newPassword).toBe('');
+    expect(result.current.confirmPassword).toBe('');
+    expect(result.current.passwordErrors).toEqual({});
+    expect(result.current.passwordSuccess).toBe(false);
+  },
+);
   // ─── Exclusão ───
   it('confirmDelete sem acknowledged não faz nada', async () => {
     const { result } = await renderHook(() => useProfileViewModel());

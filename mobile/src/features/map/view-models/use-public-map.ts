@@ -1,53 +1,121 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { useNavigation } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type { AuthStackParamList } from '@/navigation/types';
-import * as Location from 'expo-location';
 import {
-  getPublicOccurrences,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
+import * as Location from 'expo-location';
+
+import {
   getCategories,
+  getPublicOccurrences,
 } from '@/features/occurrences/services/public-occurrences.service';
 import type { RegionChangeEvent } from '@/features/map/components/osm-map-view';
 import type {
-  PublicOccurrenceListItem,
-  PublicMapFilters,
   CategorySummary,
+  PublicMapFilters,
+  PublicOccurrenceListItem,
 } from '@/shared/types/api';
 
-type NavigationProp = NativeStackNavigationProp<AuthStackParamList, 'PublicMap'>;
+const DEFAULT_CENTER: [number, number] = [
+  -38.9663,
+  -12.2664,
+];
 
-const DEFAULT_CENTER: [number, number] = [-46.6333, -23.5505]; // [lng, lat]
-const DEFAULT_ZOOM = 12;
+const DEFAULT_ZOOM = 13;
+const LOCATION_ZOOM = 15;
 const DEBOUNCE_MS = 500;
+const INITIAL_DELTA = 0.05;
+const LOCATION_DELTA = 0.015;
+
+type LocationPermissionState =
+  | 'unknown'
+  | 'granted'
+  | 'denied';
+
+function createBoundingBox(
+  longitude: number,
+  latitude: number,
+  delta: number,
+): NonNullable<PublicMapFilters['bbox']> {
+  return {
+    minLat: latitude - delta,
+    maxLat: latitude + delta,
+    minLng: longitude - delta,
+    maxLng: longitude + delta,
+  };
+}
 
 export function usePublicMapViewModel() {
-  const navigation = useNavigation<NavigationProp>();
-  void navigation;
+  const [centerCoordinate, setCenterCoordinate] =
+    useState<[number, number]>(DEFAULT_CENTER);
 
-  const [centerCoordinate, setCenterCoordinate] = useState<[number, number]>(DEFAULT_CENTER);
-  const [zoomLevel, setZoomLevel] = useState(DEFAULT_ZOOM);
-  const [bbox, setBbox] = useState<PublicMapFilters['bbox']>();
-  const [categoryId, setCategoryId] = useState<string | undefined>();
-  const [categories, setCategories] = useState<CategorySummary[]>([]);
-  const [occurrences, setOccurrences] = useState<PublicOccurrenceListItem[]>([]);
-  const [selectedPin, setSelectedPin] = useState<PublicOccurrenceListItem | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isLoadingCategories, setIsLoadingCategories] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [locationPermission, setLocationPermission] = useState<'unknown' | 'granted' | 'denied'>('unknown');
+  const [zoomLevel, setZoomLevel] =
+    useState(DEFAULT_ZOOM);
 
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [bbox, setBbox] =
+    useState<PublicMapFilters['bbox']>(() =>
+      createBoundingBox(
+        DEFAULT_CENTER[0],
+        DEFAULT_CENTER[1],
+        INITIAL_DELTA,
+      ),
+    );
 
-  // Carregar categorias uma vez
+  const [categoryId, setCategoryId] =
+    useState<string | undefined>();
+
+  const [categories, setCategories] =
+    useState<CategorySummary[]>([]);
+
+  const [occurrences, setOccurrences] =
+    useState<PublicOccurrenceListItem[]>([]);
+
+  const [selectedPin, setSelectedPin] =
+    useState<PublicOccurrenceListItem | null>(
+      null,
+    );
+
+  const [isLoading, setIsLoading] =
+    useState(true);
+
+  const [
+    isLoadingCategories,
+    setIsLoadingCategories,
+  ] = useState(true);
+
+  const [error, setError] =
+    useState<string | null>(null);
+
+  const [
+    locationPermission,
+    setLocationPermission,
+  ] = useState<LocationPermissionState>(
+    'unknown',
+  );
+
+  const debounceRef =
+    useRef<ReturnType<typeof setTimeout> | null>(
+      null,
+    );
+
+  const occurrenceRequestRef = useRef(0);
+
   useEffect(() => {
     let cancelled = false;
 
     const loadTimer = setTimeout(() => {
       void getCategories()
         .then((loadedCategories) => {
-          if (!cancelled) {
-            setCategories(loadedCategories);
+          if (cancelled) {
+            return;
           }
+
+          setCategories(
+            Array.isArray(loadedCategories)
+              ? loadedCategories
+              : [],
+          );
         })
         .catch(() => {
           if (!cancelled) {
@@ -67,100 +135,231 @@ export function usePublicMapViewModel() {
     };
   }, []);
 
-  // Buscar ocorrências quando bbox/categoria mudam (com debounce)
-  useEffect(() => {
-    if (!bbox) return;
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-
-    debounceRef.current = setTimeout(async () => {
-      setIsLoading(true);
-      setError(null);
+  const requestLocation = useCallback(
+    async () => {
       try {
-        const res = await getPublicOccurrences({ categoryId, bbox });
-        const filtered = res.data.filter(
-          (o) => o.status === 'CONFIRMED' || o.status === 'IN_SERVICE',
+        const permission =
+          await Location.requestForegroundPermissionsAsync();
+
+        if (permission.status !== 'granted') {
+          setLocationPermission('denied');
+          return;
+        }
+
+        setLocationPermission('granted');
+
+        const position =
+          await Location.getCurrentPositionAsync({
+            accuracy: Location.Accuracy.High,
+          });
+
+        const longitude =
+          position.coords.longitude;
+
+        const latitude =
+          position.coords.latitude;
+
+        setCenterCoordinate([
+          longitude,
+          latitude,
+        ]);
+
+        setZoomLevel(LOCATION_ZOOM);
+
+        setBbox(
+          createBoundingBox(
+            longitude,
+            latitude,
+            LOCATION_DELTA,
+          ),
         );
-        setOccurrences(filtered);
       } catch {
-        setError('Não foi possível carregar as ocorrências. Tente novamente.');
-        setOccurrences([]);
-      } finally {
-        setIsLoading(false);
+        setLocationPermission('denied');
       }
-    }, DEBOUNCE_MS);
+    },
+    [],
+  );
+
+  /*
+   * Solicita a localização uma vez ao abrir o mapa.
+   * O timer evita atualização síncrona dentro do efeito
+   * segundo as regras do React Compiler.
+   */
+  useEffect(() => {
+    const locationTimer = setTimeout(() => {
+      void requestLocation();
+    }, 0);
 
     return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
+      clearTimeout(locationTimer);
+    };
+  }, [requestLocation]);
+
+  useEffect(() => {
+    if (!bbox) {
+      return undefined;
+    }
+
+    if (debounceRef.current !== null) {
+      clearTimeout(debounceRef.current);
+    }
+
+    const requestId =
+      occurrenceRequestRef.current + 1;
+
+    occurrenceRequestRef.current =
+      requestId;
+
+    debounceRef.current = setTimeout(
+      async () => {
+        setIsLoading(true);
+        setError(null);
+
+        try {
+          const response =
+            await getPublicOccurrences({
+              categoryId,
+              bbox,
+            });
+
+          if (
+            requestId !==
+            occurrenceRequestRef.current
+          ) {
+            return;
+          }
+
+          const data = Array.isArray(
+            response.data,
+          )
+            ? response.data
+            : [];
+
+          setOccurrences(
+            data.filter(
+              (occurrence) =>
+                occurrence.status ===
+                  'CONFIRMED' ||
+                occurrence.status ===
+                  'IN_SERVICE',
+            ),
+          );
+        } catch {
+          if (
+            requestId !==
+            occurrenceRequestRef.current
+          ) {
+            return;
+          }
+
+          setError(
+            'Não foi possível carregar as ocorrências. Tente novamente.',
+          );
+
+          setOccurrences([]);
+        } finally {
+          if (
+            requestId ===
+            occurrenceRequestRef.current
+          ) {
+            setIsLoading(false);
+          }
+        }
+      },
+      DEBOUNCE_MS,
+    );
+
+    return () => {
+      if (debounceRef.current !== null) {
+        clearTimeout(debounceRef.current);
+        debounceRef.current = null;
+      }
     };
   }, [bbox, categoryId]);
 
-  // Handler do MapLibre (v11): payload vem em event.nativeEvent.properties
-  const onRegionDidChange = useCallback((event: RegionChangeEvent) => {
-    const { visibleBounds, zoomLevel: z, center } = event.nativeEvent.properties;
-    const [eastLng, northLat, westLng, southLat] = visibleBounds;
+  const onRegionDidChange = useCallback(
+    (event: RegionChangeEvent) => {
+      const { bounds } = event.nativeEvent;
 
-    setCenterCoordinate(center);
-    setZoomLevel(z);
-    setBbox({
-      minLat: southLat,
-      maxLat: northLat,
-      minLng: westLng,
-      maxLng: eastLng,
-    });
-  }, []);
+      if (
+        !Array.isArray(bounds) ||
+        bounds.length !== 4
+      ) {
+        return;
+      }
 
-  // Compatibilidade com testes existentes (assinatura antiga)
-  // Será removida quando os testes forem migrados para a nova API
-  const onRegionChangeComplete = useCallback(
-    (region: {
-      latitude: number;
-      longitude: number;
-      latitudeDelta: number;
-      longitudeDelta: number;
-    }) => {
-      const latDelta = region.latitudeDelta / 2;
-      const lngDelta = region.longitudeDelta / 2;
-      setCenterCoordinate([region.longitude, region.latitude]);
+      const [
+        westLng,
+        southLat,
+        eastLng,
+        northLat,
+      ] = bounds;
+
+      if (
+        !Number.isFinite(westLng) ||
+        !Number.isFinite(southLat) ||
+        !Number.isFinite(eastLng) ||
+        !Number.isFinite(northLat)
+      ) {
+        return;
+      }
+
+      /*
+       * Não atualize centerCoordinate nem zoomLevel
+       * neste callback.
+       *
+       * O usuário já moveu o mapa nativamente.
+       * Atualizar a Camera novamente criaria um ciclo
+       * controlado e animações sucessivas.
+       */
       setBbox({
-        minLat: region.latitude - latDelta,
-        maxLat: region.latitude + latDelta,
-        minLng: region.longitude - lngDelta,
-        maxLng: region.longitude + lngDelta,
+        minLat: southLat,
+        maxLat: northLat,
+        minLng: westLng,
+        maxLng: eastLng,
       });
     },
     [],
   );
 
-  const requestLocation = useCallback(async () => {
-    try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        setLocationPermission('denied');
-        return;
-      }
-      setLocationPermission('granted');
-      const pos = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-      });
+  const onRegionChangeComplete =
+    useCallback(
+      (region: {
+        latitude: number;
+        longitude: number;
+        latitudeDelta: number;
+        longitudeDelta: number;
+      }) => {
+        const latitudeDelta =
+          region.latitudeDelta / 2;
 
-      setCenterCoordinate([pos.coords.longitude, pos.coords.latitude]);
-      setZoomLevel(14);
+        const longitudeDelta =
+          region.longitudeDelta / 2;
 
-      const delta = 0.01;
-      setBbox({
-        minLat: pos.coords.latitude - delta,
-        maxLat: pos.coords.latitude + delta,
-        minLng: pos.coords.longitude - delta,
-        maxLng: pos.coords.longitude + delta,
-      });
-    } catch {
-      setLocationPermission('denied');
-    }
-  }, []);
+        setBbox({
+          minLat:
+            region.latitude - latitudeDelta,
+          maxLat:
+            region.latitude + latitudeDelta,
+          minLng:
+            region.longitude - longitudeDelta,
+          maxLng:
+            region.longitude + longitudeDelta,
+        });
+      },
+      [],
+    );
 
-  const selectPin = useCallback((pin: PublicOccurrenceListItem | null) => {
-    setSelectedPin(pin);
-  }, []);
+  const selectPin = useCallback(
+    (
+      pin:
+        | PublicOccurrenceListItem
+        | null,
+    ) => {
+      setSelectedPin(pin);
+    },
+    [],
+  );
 
   const clearFilters = useCallback(() => {
     setCategoryId(undefined);
@@ -180,7 +379,7 @@ export function usePublicMapViewModel() {
     locationPermission,
     setCategoryId,
     onRegionDidChange,
-    onRegionChangeComplete, // legado (compat com testes)
+    onRegionChangeComplete,
     requestLocation,
     selectPin,
     clearFilters,

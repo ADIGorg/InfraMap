@@ -138,11 +138,13 @@ export function ProfileScreen() {
 
       <ChangePasswordModal
         visible={vm.isPasswordOpen}
+        currentPassword={vm.currentPassword}
         newPassword={vm.newPassword}
         confirmPassword={vm.confirmPassword}
         errors={vm.passwordErrors}
         isLoading={vm.isChangingPassword}
         isSuccess={vm.passwordSuccess}
+        setCurrentPassword={vm.setCurrentPassword}
         onChangeNewPassword={vm.setNewPassword}
         onChangeConfirmPassword={vm.setConfirmPassword}
         onClearError={vm.clearPasswordError}

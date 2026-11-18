@@ -16,12 +16,25 @@ import { OccurrencePreviewSheet } from '../components/occurrence-preview-sheet';
 import { CategoryFilter } from '../components/category-filter';
 import { colors, typography, spacing, radius } from '@/shared/theme';
 import type { RootStackParamList } from '@/navigation/types';
+import { useAuth } from '@/features/auth/hooks/use-auth';
 
 type NavProp = NativeStackNavigationProp<RootStackParamList>;
 
 export function PublicMapScreen() {
   const navigation = useNavigation<NavProp>();
   const vm = usePublicMapViewModel();
+  const { session } = useAuth();
+
+  const handleGoBack = () => {
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+      return;
+    }
+
+    navigation.navigate('AuthStack', {
+      screen: 'Welcome',
+    });
+  };
 
   return (
     <View style={styles.container}>
@@ -41,7 +54,33 @@ export function PublicMapScreen() {
 
       <View style={styles.topOverlay} pointerEvents="box-none">
         <View style={styles.headerCard}>
-          <Text style={styles.headerTitle}>Mapa de ocorrências</Text>
+          <View style={styles.headerRow}>
+            {!session ? (
+              <TouchableOpacity
+                style={styles.backButton}
+                onPress={handleGoBack}
+                accessibilityRole="button"
+                accessibilityLabel="Voltar"
+                hitSlop={{
+                  top: 12,
+                  right: 12,
+                  bottom: 12,
+                  left: 12,
+                }}
+              >
+                <Feather
+                  name="arrow-left"
+                  size={24}
+                  color={colors.brand.primary}
+                />
+              </TouchableOpacity>
+            ) : null}
+
+            <Text style={styles.headerTitle}>
+              Mapa de ocorrências
+            </Text>
+          </View>
+
           <CategoryFilter
             categories={vm.categories}
             selectedId={vm.categoryId}
@@ -103,12 +142,29 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
+  headerRow: {
+  minHeight: 40,
+  flexDirection: 'row',
+  alignItems: 'center',
+  paddingHorizontal: spacing.base,
+  marginBottom: spacing.sm,
+  },
+
+  backButton: {
+    width: 40,
+    height: 40,
+    marginRight: spacing.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radius.full,
+    backgroundColor: colors.surface.page,
+  },
+
   headerTitle: {
+    flex: 1,
     fontSize: typography.sizes.lg,
     fontWeight: typography.weights.bold,
     color: colors.brand.primary,
-    paddingHorizontal: spacing.base,
-    marginBottom: spacing.sm,
   },
   locationButton: {
     position: 'absolute',

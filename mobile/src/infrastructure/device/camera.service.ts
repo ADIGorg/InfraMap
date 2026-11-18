@@ -1,6 +1,7 @@
 import type { CameraView } from 'expo-camera';
 import { AppError } from '@/shared/errors/app-error';
 import type { CapturedPhoto, PhotoMimeType } from '@/shared/types/registration';
+import { File } from 'expo-file-system';
 
 export const MAX_PHOTO_SIZE_BYTES = 5 * 1024 * 1024;
 export const MAX_PHOTOS = 3;
@@ -45,12 +46,32 @@ function mimeTypeFromUri(uri: string): PhotoMimeType {
   return 'image/jpeg';
 }
 
-async function getFileSize(uri: string): Promise<number> {
+function getFileSize(uri: string): number {
   try {
-    const response = await fetch(uri);
-    const blob = await response.blob();
-    return blob.size;
-  } catch {
+    const file = new File(uri);
+
+    if (!file.exists) {
+      throw new AppError(
+        400,
+        'PHOTO_NOT_FOUND',
+        'A foto capturada não está mais disponível.',
+      );
+    }
+
+    if (file.size <= 0) {
+      throw new AppError(
+        400,
+        'EMPTY_PHOTO',
+        'A foto capturada está vazia.',
+      );
+    }
+
+    return file.size;
+  } catch (error) {
+    if (error instanceof AppError) {
+      throw error;
+    }
+
     throw new AppError(
       500,
       'PHOTO_METADATA_FAILED',
@@ -81,7 +102,7 @@ export async function capturePhoto(
   }
 
   const mimeType = mimeTypeFromUri(result.uri);
-  const sizeBytes = await getFileSize(result.uri);
+  const sizeBytes = getFileSize(result.uri);
   validatePhoto(mimeType, sizeBytes);
 
   return {
