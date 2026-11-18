@@ -26,9 +26,17 @@ Migrações históricas não são modificadas. O timestamp e a versão ficam NUL
 
 ## QA
 
-- [ ] Backend: `npm run build && npm run lint && npm run test:unit && npm run test:integration`.
-- [ ] Mobile: `npm test -- --runInBand` e `npx tsc --noEmit`.
-- [ ] Supabase **local descartável**: pgTAP, Auth, Storage e E2E com consentimento TRUE/FALSE, anônimo, autor, terceiro e ADMIN.
+- [x] Backend: build, lint, 215 testes unitários e 77 testes de integração aprovados no CI.
+- [x] Mobile: typecheck, 148 testes Jest em 27 suites e lint aprovados no CI.
+- [x] Supabase **local descartável**: pgTAP, Auth, Storage e 23 testes E2E aprovados, incluindo consentimento TRUE/FALSE, anônimo, autor, terceiro e ADMIN.
 - [ ] Em homologação: confirmar carga com registros antigos, manipulação de foto UUID, URL expirada e concorrência de recuperação de fotos (retry consent inalterado).
 - [ ] Revisar o texto de consentimento com orientação jurídica/encarregado LGPD antes do deploy.
 - [ ] Não aplicar migration na base real sem autorização e janela de integração.
+
+## Evidências CI
+
+- Backend e Supabase local: https://github.com/ADIGorg/InfraMap/actions/runs/44350128768
+- Mobile: https://github.com/ADIGorg/InfraMap/actions/runs/44350128387
+- PR isolado: https://github.com/ADIGorg/InfraMap/pull/12
+
+Validação de integração com o Supabase remoto e revisão jurídica permanecem pendentes; testes em produção não foram executados.
