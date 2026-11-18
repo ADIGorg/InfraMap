@@ -6,6 +6,7 @@ import { ForgotPasswordPage } from '@/features/auth/pages/forgot-password-page';
 import { ConfirmRecoveryPage } from '@/features/auth/pages/confirm-recovery-page';
 import { ResetPasswordPage } from '@/features/auth/pages/reset-password-page';
 import { FeaturePlaceholder } from '@/shared/components/feature-placeholder';
+import { AdminDashboardPage } from '@/features/dashboard/pages/admin-dashboard-page';
 import { ProtectedRoute } from './protected-route';
 import { MasterRoute } from './master-route';
 import { AdminOccurrencesPage } from '@/features/occurrences/pages/admin-occurrences-page';
@@ -27,9 +28,7 @@ export function AppRouter() {
         <Route element={<ProtectedRoute />}>
           <Route element={<AdminLayout />}>
             <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
-            <Route path="/admin/dashboard" element={<FeaturePlaceholder
-              title="Visão Geral do Saneamento" ticket="API1-94"
-              description="Dashboard com indicadores, alertas SLA e ocorrências recentes." />} />
+            <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
             <Route path="/admin/map" element={<FeaturePlaceholder
               title="Mapa Administrativo" ticket="API1-95"
               description="Visualização de ocorrências ativas, filtros e ajuste de localização." />} />

@@ -59,3 +59,7 @@ Nenhuma migration foi aplicada. Para validação efetiva da integração será n
 A branch feature/web-ui-01-login-admin herda a API1-91 sem modificar main. O login protege rotas e valida ADMIN ativo na API. A recuperação web passa pela rota /confirm-recovery e só verifica o token após clique em Continuar recuperação. A rota /reset-password exige essa etapa anterior para oferecer o formulário.
 
 ATENÇÃO: o Supabase compartilhado usa o mesmo modelo de e-mail para web e mobile. O template condicional está documentado em frontend/docs/supabase-password-recovery-template.html e não foi aplicado ao serviço remoto nesta implementação. Não ativar o modelo sem verificar a preservação dos deep links mobile. Antes de testar end-to-end, adicionar a Redirect URL http://localhost:5173/confirm-recovery e aprovar o template com o responsável pelo mobile.
+
+## API1-94: dashboard administrativo real
+
+A branch feature/web-ui-02-dashboard implementa seis contadores de status, total HIGH, média de resolução, 2 alertas SLA e as 5 ocorrências mais recentes com polling de 30 segundos. Não existem dados simulados. A série diária do gráfico depende da API1-103 e fica explicitamente indisponível. Ver frontend/docs/API1-94-validation.md.
