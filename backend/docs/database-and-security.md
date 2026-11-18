@@ -89,3 +89,14 @@ Se alterar o modelo, estender os testes SQL *antes* de aprovar a migration. Manu
 - Rollback de migrations aplicadas deve ser planejado como **nova migration** compatível, com backup e avaliação de impacto.
 - Para segurança, documentar impacto do GRANT, owner SECURITY DEFINER e comportamento por role. Não assumir que o banco remoto e o local têm grants idênticos sem verificar.
 - Não executar diretamente no prod SQL sugerido por mensagens de erro sem inspecionar RLS.
+
+
+## API1-102 — Consentimento de fotografias e Storage privado
+
+A migration `20261118000000_photo_public_consent.sql` acrescenta `photo_public_consent BOOLEAN NOT NULL DEFAULT FALSE` e metadados de aceite (`photo_public_consent_at`, `photo_consent_notice_version`). Dados anteriores à migration permanecem privados. A RPC `finalize_occurrence` é recriada (sem overload ambíguo) aceitando parâmetro final opcional `p_photo_public_consent BOOLEAN DEFAULT FALSE`, com persistência e histórico atômicos. Não há URL pública permanente nem bucket público. `is_occurrence_visible`, usado na RLS das fotografias, aplica consentimento para terceiros; autor e admins ativos preservam acesso.
+
+A consulta pública primeiro valida a ocorrência pela view de coordenadas aproximadas e só depois busca o consentimento com service_role. O serviço de URLs assinadas também faz a verificação, impedindo que um cliente contorne o DTO público por conhecer o UUID da foto. URLs já emitidas antes de uma mudança de permissão podem continuar válidas até sua expiração: TTL atual de 300 segundos, sem revogação instantânea; não há endpoint de revogação no escopo.
+
+O texto de consentimento exibido no mobile (revisão RN017-2026-11-15) explica escolha pública/privada, finalidade, momento da publicidade e acesso de autor/admin. A opção não vem pré-selecionada; a tela exige escolha antes da captura e o envio carrega o campo booleano.
+
+Atenção: a segurança depende de publicar simultaneamente migration, backend e mobile. NÃO atualizar somente o mobile na base antiga nem aplicar esta migration sem validação no Supabase local. Testar anonimato, cidadão terceiro, autor e ADMIN, URL assinada, acesso direto via Storage e RLS. Não executar testes de escrita no projeto compartilhado.

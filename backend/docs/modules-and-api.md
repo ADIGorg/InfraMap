@@ -92,3 +92,12 @@ A UI de documentação está sob `/api/docs`. As respostas de sucesso podem usar
 6. Atualizar OpenAPI, este documento, tests e QA CI; não alterar branch `main` sem PR/aprovação.
 
 Referências: [Arquitetura](architecture.md), [Banco e RLS](database-and-security.md), [Testes/CI](qa-and-operations.md).
+
+
+## API1-102 — Publicidade de fotos por consentimento (RN017/RN018/RN022)
+
+- `POST /occurrences/finalize` passa a receber o booleano opcional `photoPublicConsent`; ausência = `false`, garantindo compatibilidade com versões antigas do app e proteção por padrão.
+- `public.occurrences.photo_public_consent` é persistido pela RPC transacional; `photo_public_consent_at` e `photo_consent_notice_version` só são preenchidos para consentimento público explícito.
+- O bucket `occurrence-photos` continua **privado**. `GET /occurrences/public/:id` e `GET /occurrences/public/:id/photos/:photoId` nunca assinam URLs de fotos privadas, mesmo com ocorrência `CONFIRMED`; `storage_path` e dados internos de consentimento não são devolvidos no DTO público.
+- Autor via `/occurrences/mine/:id/photos/:photoId` e ADMIN ativo via `/admin/occurrences/:id/photos/:photoId` continuam com acesso autorizado à evidência privada; outros usuários têm acesso recusado pela API e pela policy de metadados em `occurrence_photos`.
+- Não modificar o estado `public_visible` da ocorrência nem a visibilidade de seu ponto no mapa: consentimento controla **foto**, não a ocorrência validada.
