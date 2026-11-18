@@ -5,6 +5,7 @@ import {
 } from "../../../../shared/errors/app-error.js";
 
 import type {
+  AdminLevel,
   IdentityRole,
 } from "../../domain/entities/user-profile.entity.js";
 
@@ -12,11 +13,9 @@ import type {
   ProfileReader,
 } from "../../domain/repositories/identity.repository.js";
 
-export interface IdentityResponse {
-  id: string;
-  role: IdentityRole;
-  is_active: boolean;
-}
+export type IdentityResponse =
+  | { id: string; role: "CITIZEN"; is_active: true }
+  | { id: string; role: "ADMIN"; is_active: true; admin_level: AdminLevel };
 
 export class GetCurrentUserUseCase {
   constructor(
@@ -53,10 +52,23 @@ export class GetCurrentUserUseCase {
       );
     }
 
+    if (requiredRole === "ADMIN") {
+      if (profile.admin_level !== "MASTER" && profile.admin_level !== "OPERATIONAL") {
+        throw new ForbiddenError("Nível administrativo indisponível.");
+      }
+      return {
+        id: profile.id,
+        role: "ADMIN",
+        is_active: true,
+        admin_level: profile.admin_level,
+      };
+    }
+
+    // /app/me mantém contrato anterior; não expõe propriedade administrativa.
     return {
       id: profile.id,
-      role: requiredRole,
-      is_active: profile.is_active,
+      role: "CITIZEN",
+      is_active: true,
     };
   }
 }
