@@ -45,13 +45,13 @@ export function AgenciesPage() {
       key: 'actions', title: 'Ações',
       render: (item) => vm.canManage ? (
         <div className="flex flex-wrap gap-2">
-          <button type="button" className="font-semibold text-brand-primary underline"
+          <button type="button" aria-label={"Editar " + item.name} className="font-semibold text-brand-primary underline"
             onClick={() => vm.openEdit(item)}>Editar</button>
           {item.is_active ? (
-            <button type="button" className="font-semibold text-red-700 underline"
+            <button type="button" aria-label={"Desativar " + item.name} className="font-semibold text-red-700 underline"
               onClick={() => vm.startDeactivate(item)}>Desativar</button>
           ) : (
-            <button type="button" className="font-semibold text-green-700 underline"
+            <button type="button" aria-label={"Reativar " + item.name} className="font-semibold text-green-700 underline"
               disabled={vm.edit.isPending} onClick={() => vm.activate(item)}>Reativar</button>
           )}
         </div>

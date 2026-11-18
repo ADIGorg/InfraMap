@@ -75,7 +75,7 @@ describe('AgenciesPage', () => {
     render(<AgenciesPage />);
     fireEvent.click(screen.getByRole('button', { name: 'Cadastrar órgão' }));
     expect(openCreate).toHaveBeenCalledOnce();
-    fireEvent.click(screen.getByRole('button', { name: 'Editar' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Editar Secretaria de Obras' }));
     expect(openEdit).toHaveBeenCalledWith(agency);
   });
 });
