@@ -92,3 +92,25 @@ A UI de documentação está sob `/api/docs`. As respostas de sucesso podem usar
 6. Atualizar OpenAPI, este documento, tests e QA CI; não alterar branch `main` sem PR/aprovação.
 
 Referências: [Arquitetura](architecture.md), [Banco e RLS](database-and-security.md), [Testes/CI](qa-and-operations.md).
+
+
+## API1-101 — Rejeição de CONFIRMED após encaminhamento
+
+A migration `20261116000000_add_confirmed_to_rejected_transition.sql` amplia a
+RPC transacional `transition_occurrence` para permitir `CONFIRMED → REJECTED`
+somente quando há um encaminhamento `SENT` registrado e o administrador informa
+uma justificativa (`justification`) e o texto explícito da resposta do órgão
+(`agencyResponse`), ambos entre 10 e 2000 caracteres.
+
+`UNDER_ANALYSIS → REJECTED` permanece compatível com o contrato anterior,
+sem `agencyResponse`. A rejeição é terminal, grava `occurrence_history` com
+`forwarding_id`, `agency_id`, `agency_response`, `rejection_type` e
+`reason`, e notifica o cidadão na mesma transação.
+
+**Limitação de autenticidade:** envio `SENT` e resposta textual registrada
+pelo administrador não comprovam automaticamente que o órgão estava correto
+ou que houve resposta institucional autêntica. Antes do clique, o administrador
+deve conferir o órgão e sua declaração; envio equivocado exige encaminhar
+novamente. Integração com resposta digital assinada do órgão está fora do
+escopo desta API. Não habilitar a UI até a migration ser aplicada e validada
+em homologação com registros controlados.

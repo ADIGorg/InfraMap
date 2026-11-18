@@ -1663,6 +1663,11 @@ components:
       additionalProperties: false
       properties:
         justification: { type: string, minLength: 10, maxLength: 2000 }
+        agencyResponse:
+          type: string
+          minLength: 10
+          maxLength: 2000
+          description: Obrigatório somente para rejeitar CONFIRMED, como evidência da resposta do órgão responsável.
 
     SetPriorityRequest:
       type: object
