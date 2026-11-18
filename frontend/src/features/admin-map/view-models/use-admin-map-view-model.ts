@@ -17,7 +17,7 @@ import {
   type GeoPoint,
   type MapFilters,
 } from '../services/admin-occurrences.service';
-import { validPoint } from '../services/map-presentation';
+import { validPoint, type MapViewport } from '../services/map-presentation';
 
 type Draft = Pick<MapFilters, 'statuses' | 'categoryId'>;
 
@@ -40,6 +40,8 @@ export function useAdminMapViewModel() {
   const [draft, setDraft] = useState<Draft>(freshDraft);
   const [applied, setApplied] = useState<MapFilters>(DEFAULT_FILTERS);
   const [availableBounds, setAvailableBounds] = useState<Bounds | null>(null);
+  // A ViewModel preserva o enquadramento mesmo se o mapa for desmontado para exibir a lista.
+  const [viewport, setViewport] = useState<MapViewport | null>(null);
   const [selection, setSelection] = useState<string | null>(null);
   const [adjusting, setAdjusting] = useState<AdminMapOccurrence | null>(null);
   const [candidate, setCandidate] = useState<GeoPoint | null>(null);
@@ -162,7 +164,7 @@ export function useAdminMapViewModel() {
 
   return {
     categories, occurrences, draft, applied, selected, selection,
-    availableBounds, setAvailableBounds, inputError, setInputError,
+    availableBounds, setAvailableBounds, viewport, setViewport, inputError, setInputError,
     setCategory: (categoryId: string) => setDraft((old) => ({ ...old, categoryId })),
     updateStatus, applyFilters, clearFilters, searchVisibleArea, clearArea,
     selectOccurrence: setSelection,

@@ -11,7 +11,7 @@ import {
   type GeoPoint,
 } from '../services/admin-occurrences.service';
 import {
-  boundsFromLeaflet, pinColor, safeDescription, shortOccurrenceId, validPoint,
+  boundsFromLeaflet, pinColor, safeDescription, shortOccurrenceId, validPoint, type MapViewport,
 } from '../services/map-presentation';
 
 // Tile padrão oficial; use com cache HTTP e a atribuição exigida pela OSMF.
@@ -42,14 +42,25 @@ const ACTIVE_ICONS: Record<ActiveStatus, ReturnType<typeof divIcon>> = {
 };
 const EDIT_ICON = createPin('#1B5275');
 
-function VisibleAreaListener({ onAreaChanged }: { onAreaChanged: (bounds: Bounds) => void }) {
+function VisibleAreaListener({
+  onAreaChanged, onViewportChanged,
+}: {
+  onAreaChanged: (bounds: Bounds) => void;
+  onViewportChanged: (viewport: MapViewport) => void;
+}) {
   const map = useMapEvents({
-    moveend: () => onAreaChanged(boundsFromLeaflet(map.getBounds())),
+    moveend: () => {
+      const center = map.getCenter();
+      onAreaChanged(boundsFromLeaflet(map.getBounds()));
+      onViewportChanged({ center: { lat: center.lat, lng: center.lng }, zoom: map.getZoom() });
+    },
   });
-  // A área inicial também pode ser pesquisada, sem exigir que o usuário arraste o mapa.
+  // Registrar também a primeira viewport; controles +/− do Leaflet geram moveend.
   useEffect(() => {
+    const center = map.getCenter();
     onAreaChanged(boundsFromLeaflet(map.getBounds()));
-  }, [map, onAreaChanged]);
+    onViewportChanged({ center: { lat: center.lat, lng: center.lng }, zoom: map.getZoom() });
+  }, [map, onAreaChanged, onViewportChanged]);
   return null;
 }
 
@@ -71,6 +82,8 @@ function CenterOnPoint({ position }: { position: GeoPoint }) {
 
 interface AdminLeafletMapProps {
   items: AdminMapOccurrence[];
+  viewport: MapViewport | null;
+  onViewportChanged: (viewport: MapViewport) => void;
   selected: AdminMapOccurrence | null;
   onSelect: (id: string | null) => void;
   onAdjust: (item: AdminMapOccurrence) => void;
@@ -79,15 +92,17 @@ interface AdminLeafletMapProps {
 }
 
 export function AdminLeafletMap({
-  items, selected, onSelect, onAdjust, onAreaChanged, onTileError,
+  items, viewport, onViewportChanged, selected, onSelect, onAdjust, onAreaChanged, onTileError,
 }: AdminLeafletMapProps) {
   const initialCenter = items[0]?.location;
   return (
     <MapContainer
-      center={initialCenter
-        ? [initialCenter.lat, initialCenter.lng]
-        : BRAZIL_CENTER}
-      zoom={initialCenter ? 12 : 4}
+      center={viewport
+        ? [viewport.center.lat, viewport.center.lng]
+        : initialCenter
+          ? [initialCenter.lat, initialCenter.lng]
+          : BRAZIL_CENTER}
+      zoom={viewport?.zoom ?? (initialCenter ? 12 : 4)}
       minZoom={3}
       maxZoom={19}
       scrollWheelZoom
@@ -99,7 +114,7 @@ export function AdminLeafletMap({
         maxZoom={19}
         eventHandlers={{ tileerror: onTileError }}
       />
-      <VisibleAreaListener onAreaChanged={onAreaChanged} />
+      <VisibleAreaListener onAreaChanged={onAreaChanged} onViewportChanged={onViewportChanged} />
       {items.filter((item) => isActiveStatus(item.status)).map((item) => (
         <Marker
           key={item.id}

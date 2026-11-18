@@ -19,6 +19,7 @@ const COLORS: Record<ActiveStatus, string> = {
 interface MapFiltersProps {
   draft: { statuses: ActiveStatus[]; categoryId: string };
   appliedBounds: Bounds | null;
+  visibleBounds: Bounds | null;
   categories?: MapCategory[];
   categoriesLoading: boolean;
   categoriesError: boolean;
@@ -33,12 +34,17 @@ interface MapFiltersProps {
 }
 
 export function AdminMapFilters({
-  draft, appliedBounds, categories, categoriesLoading, categoriesError,
+  draft, appliedBounds, visibleBounds, categories, categoriesLoading, categoriesError,
   canSearchArea, error, onStatusChange, onCategoryChange,
   onApply, onClear, onSearchArea, onClearArea,
 }: MapFiltersProps) {
+  const viewportDiffers = Boolean(
+    visibleBounds && appliedBounds &&
+    (['minLat', 'maxLat', 'minLng', 'maxLng'] as const)
+      .some((key) => Math.abs(visibleBounds[key] - appliedBounds[key]) > 0.0001),
+  );
   return (
-    <aside aria-label="Filtros avançados" className="w-full shrink-0 space-y-5 border-t border-line bg-white p-5 lg:w-[320px] lg:border-l lg:border-t-0">
+    <aside aria-label="Filtros avançados" className="w-full shrink-0 space-y-5 border-t border-line bg-white p-5 lg:h-full lg:min-h-0 lg:w-[320px] lg:overflow-y-auto lg:overscroll-contain lg:border-l lg:border-t-0">
       <h2 className="flex items-center gap-2 text-lg font-bold text-ink-primary">
         <SlidersHorizontal size={20} aria-hidden="true" />
         Filtros avançados
@@ -88,6 +94,19 @@ export function AdminMapFilters({
           </p>
         ) : (
           <p className="text-xs text-ink-secondary">Sem filtro geográfico: todas as áreas disponíveis.</p>
+        )}
+        {visibleBounds && (
+          <p className="rounded-lg border border-line bg-white p-3 text-xs text-ink-secondary">
+            Área atualmente visível (não aplicada automaticamente):{' '}
+            {visibleBounds.minLat.toFixed(3)} a {visibleBounds.maxLat.toFixed(3)} latitude,
+            {' '}{visibleBounds.minLng.toFixed(3)} a {visibleBounds.maxLng.toFixed(3)} longitude.
+          </p>
+        )}
+        {viewportDiffers && (
+          <p role="note" className="text-xs text-amber-800">
+            O mapa foi movimentado desde a última busca por região.
+            Os resultados ainda usam a área aplicada anteriormente.
+          </p>
         )}
         <Button type="button" className="w-full" variant="outline"
           onClick={onSearchArea} disabled={!canSearchArea}>

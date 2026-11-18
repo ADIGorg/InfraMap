@@ -1,5 +1,7 @@
 import type { AdminMapOccurrence, Bounds, GeoPoint, ActiveStatus } from './admin-occurrences.service';
 
+export type MapViewport = { center: GeoPoint; zoom: number };
+
 const STATUS_COLORS: Record<ActiveStatus, string> = {
   RECEIVED: '#95A5A6',
   UNDER_ANALYSIS: '#F1C40F',

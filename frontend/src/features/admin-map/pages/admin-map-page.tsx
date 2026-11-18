@@ -16,13 +16,16 @@ export function AdminMapPage() {
   const items = vm.occurrences.data ?? [];
 
   const panel = (
-    <div className="relative min-h-[450px] flex-1 lg:min-h-[650px]">
+    <div className={
+      'relative flex min-h-[450px] min-w-0 flex-1 flex-col lg:min-h-0 ' +
+      (showList || tilesUnavailable ? 'lg:overflow-y-auto' : 'lg:overflow-hidden')
+    }>
       {vm.occurrences.isPending ? (
-        <div role="status" className="flex h-full min-h-[450px] items-center justify-center p-8 text-sm text-ink-secondary">
+        <div role="status" className="flex h-full min-h-[450px] items-center justify-center p-8 text-sm text-ink-secondary lg:min-h-0">
           Carregando ocorrências ativas…
         </div>
       ) : vm.occurrences.isError ? (
-        <div role="alert" className="flex h-full min-h-[450px] flex-col items-center justify-center gap-3 p-8">
+        <div role="alert" className="flex h-full min-h-[450px] flex-col items-center justify-center gap-3 p-8 lg:min-h-0">
           <p className="max-w-md text-center text-red-800">
             Não foi possível consultar as ocorrências. Nenhum marcador ou registro fictício foi criado.
           </p>
@@ -35,9 +38,11 @@ export function AdminMapPage() {
               Selecione um marcador para ver o resumo e ajustar a posição.
             </div>
           )}
-          <div className="h-[550px] lg:h-[700px]" aria-label="Mapa administrativo de ocorrências">
+          <div className="h-[550px] lg:h-auto lg:min-h-0 lg:flex-1" aria-label="Mapa administrativo de ocorrências">
             <AdminLeafletMap
               items={items}
+              viewport={vm.viewport}
+              onViewportChanged={vm.setViewport}
               selected={vm.selected}
               onSelect={vm.selectOccurrence}
               onAdjust={vm.startAdjustment}
@@ -46,7 +51,7 @@ export function AdminMapPage() {
             />
           </div>
           {items.length === 0 && (
-            <p role="status" className="border-t border-line bg-white p-3 text-sm text-ink-secondary">
+            <p role="status" className="shrink-0 border-t border-line bg-white p-3 text-sm text-ink-secondary">
               Nenhuma ocorrência ativa corresponde aos filtros.
             </p>
           )}
@@ -65,8 +70,8 @@ export function AdminMapPage() {
   );
 
   return (
-    <div className="w-full">
-      <header className="flex flex-wrap items-center justify-between gap-4 border-b border-line bg-white px-4 py-5 md:px-8">
+    <div className="w-full lg:flex lg:h-[calc(100dvh-72px)] lg:min-h-0 lg:flex-col lg:overflow-hidden">
+      <header className="flex shrink-0 flex-wrap items-center justify-between gap-4 border-b border-line bg-white px-4 py-5 md:px-8">
         <div>
           <h1 className="flex items-center gap-2 text-2xl font-bold text-brand-primary">
             <MapPinned size={25} aria-hidden="true" />
@@ -91,11 +96,12 @@ export function AdminMapPage() {
         </div>
       </header>
 
-      <div className="flex flex-col lg:flex-row">
+      <div className="flex flex-col lg:min-h-0 lg:flex-1 lg:flex-row">
         {panel}
         <AdminMapFilters
           draft={vm.draft}
           appliedBounds={vm.applied.bbox}
+          visibleBounds={mapAvailable && !showList ? vm.availableBounds : null}
           categories={vm.categories.data}
           categoriesLoading={vm.categories.isPending}
           categoriesError={vm.categories.isError}
@@ -127,7 +133,7 @@ export function AdminMapPage() {
       />
 
       {!vm.occurrences.isPending && !vm.occurrences.isError && (
-        <p className="border-t border-line bg-white px-5 py-3 text-xs text-ink-secondary">
+        <p className="shrink-0 border-t border-line bg-white px-5 py-3 text-xs text-ink-secondary">
           {items.length.toLocaleString('pt-BR')} ocorrências ativas retornadas pela API, considerando os filtros aplicados.
           O mapa não exibe ocorrências resolvidas ou rejeitadas.
         </p>
