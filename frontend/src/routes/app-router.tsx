@@ -3,6 +3,7 @@ import { AuthLayout } from '@/layouts/auth-layout';
 import { AdminLayout } from '@/layouts/admin-layout';
 import { LoginPage } from '@/features/auth/pages/login-page';
 import { ForgotPasswordPage } from '@/features/auth/pages/forgot-password-page';
+import { ConfirmRecoveryPage } from '@/features/auth/pages/confirm-recovery-page';
 import { ResetPasswordPage } from '@/features/auth/pages/reset-password-page';
 import { FeaturePlaceholder } from '@/shared/components/feature-placeholder';
 import { ProtectedRoute } from './protected-route';
@@ -20,6 +21,7 @@ export function AppRouter() {
         <Route element={<AuthLayout />}>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/confirm-recovery" element={<ConfirmRecoveryPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
         </Route>
         <Route element={<ProtectedRoute />}>
