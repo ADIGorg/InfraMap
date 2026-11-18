@@ -16,7 +16,7 @@ const photo={
   photoId:"photo-1",occurrenceId:id,
   storagePath:`occurrences/${id}/photo-1.jpg`,mimeType:"image/jpeg",
   sizeBytes:1200,position:1,occurrenceStatus:"CONFIRMED" as const,
-  occurrenceAuthorId:author,occurrencePublicVisible:true,
+  occurrenceAuthorId:author,occurrencePublicVisible:true,occurrencePhotoPublicConsent:true,
 };
 
 function setup(status=photo.occurrenceStatus) {
@@ -53,6 +53,21 @@ describe("OCC-03 / RN017, RN022: foto privada e URL assinada",()=>{
       .rejects.toHaveProperty("statusCode",403);
     expect(urls.generate).not.toHaveBeenCalled();
   });
+  it("terceiros nunca obtêm URL assinada quando não há opt-in, mesmo em CONFIRMED", async () => {
+    const {useCase, repo, urls}=setup("CONFIRMED");
+    repo.getPhotoInfo.mockResolvedValue({...photo, occurrencePhotoPublicConsent:false});
+    await expect(useCase.execute({role:"PUBLIC"},id,photo.photoId))
+      .rejects.toHaveProperty("statusCode",403);
+    expect(urls.generate).not.toHaveBeenCalled();
+  });
+  it("autor e ADMIN seguem autorizados quando foto está privada", async () => {
+    const {useCase, repo}=setup("CONFIRMED");
+    repo.getPhotoInfo.mockResolvedValue({...photo, occurrencePhotoPublicConsent:false});
+    await expect(useCase.execute({role:"OWNER",userId:author},id,photo.photoId))
+      .resolves.toEqual(signed);
+    await expect(useCase.execute({role:"ADMIN"},id,photo.photoId))
+      .resolves.toEqual(signed);
+  });
   it("autor vê foto própria independentemente do status",async()=>{
     const {useCase}=setup("RECEIVED");
     await expect(useCase.execute({role:"OWNER",userId:author},id,photo.photoId)).resolves.toEqual(signed);
@@ -87,6 +102,7 @@ describe("OCC-03: DTO público nunca expõe storagePath",()=>{
     location:{lat:-12.27,lng:-38.98},votesCount:2,
     createdAt:"2026-11-12T10:00:00Z",
     photos:[{storagePath:photo.storagePath,mimeType:"image/jpeg",sizeBytes:1200,position:1}],
+    photoPublicConsent:true,
   };
   it("retorna somente URL assinada, sem path interno",async()=>{
     const {urls}=setup();
@@ -97,6 +113,17 @@ describe("OCC-03: DTO público nunca expõe storagePath",()=>{
     expect(result.photoUrls).toEqual([{
       mimeType:"image/jpeg",sizeBytes:1200,position:1,...signed,
     }]);
+    expect(JSON.stringify(result)).not.toContain(photo.storagePath);
+    expect(result).not.toHaveProperty("photoPublicConsent");
+  });
+  it("não gera URLs em detalhe público quando o consentimento é FALSE", async () => {
+    const {urls}=setup();
+    const repository={getPublic:vi.fn().mockResolvedValue({...mockDetail, photoPublicConsent:false})};
+    const result=await new GetPublicOccurrenceUseCase(
+      repository as unknown as IOccurrenceQueryRepository,urls as unknown as IPhotoUrlService,
+    ).execute(id);
+    expect(result.photoUrls).toEqual([]);
+    expect(urls.generateBatch).not.toHaveBeenCalled();
     expect(JSON.stringify(result)).not.toContain(photo.storagePath);
   });
   it("não gera URL de foto se ocorrência não é pública",async()=>{
