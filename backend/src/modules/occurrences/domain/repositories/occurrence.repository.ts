@@ -33,6 +33,8 @@ export interface FinalizeOccurrenceInput {
   categorySource: DataSource;
   descriptionSource: DataSource;
   photos: PhotoInput[];
+  /** RN017: explicit opt-in for sharing all photos of this occurrence. Absent = private. */
+  photoPublicConsent?: boolean;
   /** GPS (padrão) ou MANUAL — RPC exige. */
   locationSource?: LocationSource;
   /** Precisão em metros (opcional). */

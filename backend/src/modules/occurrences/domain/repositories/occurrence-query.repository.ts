@@ -59,7 +59,10 @@ export interface PublicOccurrenceItem {
   createdAt: string;
 }
 
-export type PublicOccurrenceDetail = PublicOccurrenceItem;
+export interface PublicOccurrenceDetail extends PublicOccurrenceItem {
+  /** Internal security gate; removed from outgoing public DTO. */
+  photoPublicConsent: boolean;
+}
 
 // MINE
 export interface MyOccurrenceItem {

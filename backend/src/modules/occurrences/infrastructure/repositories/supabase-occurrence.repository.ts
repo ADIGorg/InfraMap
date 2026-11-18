@@ -104,6 +104,7 @@ export class SupabaseOccurrenceRepository implements IOccurrenceRepository {
       p_location_source: input.locationSource ?? "GPS",
       p_location_accuracy_m: input.locationAccuracyM ?? null,
       p_photos: input.photos.map(p => ({ mime_type: p.mimeType, size_bytes: p.sizeBytes })),
+      p_photo_public_consent: input.photoPublicConsent === true,
     });
 
     if (error) mapPgError(error);
@@ -139,7 +140,7 @@ export class SupabaseOccurrenceRepository implements IOccurrenceRepository {
       { data: rows, error: metadataError },
       { data: analysis, error: analysisError }] = await Promise.all([
       this.adminClient.from("occurrences")
-        .select("id,author_id,ai_analysis_id,category_id,description,category_source,description_source")
+        .select("id,author_id,ai_analysis_id,category_id,description,category_source,description_source,photo_public_consent")
         .eq("id", occurrenceId).maybeSingle(),
       this.adminClient.from("occurrence_photos")
         .select("storage_path,mime_type,size_bytes,position")
@@ -158,6 +159,7 @@ export class SupabaseOccurrenceRepository implements IOccurrenceRepository {
         occurrence.description !== input.description ||
         occurrence.category_source !== input.categorySource ||
         occurrence.description_source !== input.descriptionSource ||
+        occurrence.photo_public_consent !== (input.photoPublicConsent === true) ||
         rows.length !== input.photos.length) {
       throw new ConflictError("A tentativa de recuperação não corresponde à ocorrência original.");
     }
