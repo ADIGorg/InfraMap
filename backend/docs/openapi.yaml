@@ -223,6 +223,11 @@ paths:
         ocorrência em status `RECEIVED` (RN026). Categoria e descrição
         precisam ser coerentes com `categorySource`/`descriptionSource`
         (RN068). 1 a 3 fotos JPEG/PNG com até 5 MB cada (RN010).
+        RN017: photoPublicConsent precisa ser TRUE para autorizar explicitamente
+        exibição futura de fotos públicas após moderação; FALSE ou omissão
+        persiste fotos privadas. A escolha é registrada no banco e no histórico.
+        URLs assinadas só são emitidas para terceiros quando status/visibilidade
+        pública e consentimento estão confirmados.
       operationId: finalizeOccurrence
       security: [{ bearerAuth: [] }]
       requestBody:
@@ -239,6 +244,7 @@ paths:
                 lng: -46.6333
               categorySource: AI_CONFIRMED
               descriptionSource: AI_EDITED
+              photoPublicConsent: false
               photos:
                 - storagePath: temporary/181227d2-89d7-4ceb-8dff-85b623aeee5b/3fa85f64-5717-4562-b3fc-2c963f66afa6/photo-1.jpg
                   mimeType: image/jpeg
@@ -1605,6 +1611,14 @@ components:
         location: { $ref: "#/components/schemas/GeoPoint" }
         categorySource: { $ref: "#/components/schemas/DataSource" }
         descriptionSource: { $ref: "#/components/schemas/DataSource" }
+        photoPublicConsent:
+          type: boolean
+          default: false
+          description: |
+            Consentimento explícito RN017 para tornar públicas as fotos quando
+            a ocorrência estiver CONFIRMED ou IN_SERVICE e public_visible for
+            TRUE. A ausência ou FALSE é sempre privada. Versão do aviso:
+            RN017-2026-11-15. O mobile exige seleção antes de capturar.
         photos:
           type: array
           minItems: 1

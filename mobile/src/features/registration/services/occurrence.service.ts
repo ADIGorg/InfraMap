@@ -15,6 +15,8 @@ export interface FinalizeOccurrenceInput {
   categorySource: DataSource;
   descriptionSource: DataSource;
   photos: FinalizePhotoInput[];
+  /** Seleção explícita do cidadão antes da captura (RN017). */
+  photoPublicConsent: boolean;
 }
 
 export interface FinalizeOccurrenceResult {

@@ -100,3 +100,13 @@ Se alterar o modelo, estender os testes SQL *antes* de aprovar a migration. Manu
 **Não foi necessária nova migration.** O tipo `public.admin_level`, a coluna `public.user_roles.admin_level`, a constraint `user_roles_role_level_check` e a RLS já existem em `20261101202618_create_profiles_and_user_roles.sql`. A autorização de escrita continua obrigatoriamente no backend (`requireMaster`) e nas RPC/RLS; o campo retornado ao cliente serve somente para a interface esconder ou apresentar opções.
 
 **QA local aprovada:** GitHub Actions no PR em rascunho #10 iniciou Supabase descartável e executou RLS/pgTAP, integração Auth/Storage e E2E. `tests/e2e/admin-identity-level.e2e.spec.ts` verificou MASTER, OPERATIONAL, CITIZEN, ADMIN inativo, requisição sem token e isolamento RLS. Nenhum SQL de teste foi aplicado na base compartilhada/produção. **Pendente:** homologar visualmente as telas MASTER/OPERATIONAL com o frontend WEB-EXTRA-01 (API1-92); não integrar à main sem aprovação.
+
+## API1-102 — Consentimento de fotografias e Storage privado
+
+A migration `20261118000000_photo_public_consent.sql` acrescenta `photo_public_consent BOOLEAN NOT NULL DEFAULT FALSE` e metadados de aceite (`photo_public_consent_at`, `photo_consent_notice_version`). Dados anteriores à migration permanecem privados. A RPC `finalize_occurrence` é recriada (sem overload ambíguo) aceitando parâmetro final opcional `p_photo_public_consent BOOLEAN DEFAULT FALSE`, com persistência e histórico atômicos. Não há URL pública permanente nem bucket público. `is_occurrence_visible`, usado na RLS das fotografias, aplica consentimento para terceiros; autor e admins ativos preservam acesso.
+
+A consulta pública primeiro valida a ocorrência pela view de coordenadas aproximadas e só depois busca o consentimento com service_role. O serviço de URLs assinadas também faz a verificação, impedindo que um cliente contorne o DTO público por conhecer o UUID da foto. URLs já emitidas antes de uma mudança de permissão podem continuar válidas até sua expiração: TTL atual de 300 segundos, sem revogação instantânea; não há endpoint de revogação no escopo.
+
+O texto de consentimento exibido no mobile (revisão RN017-2026-11-15) explica escolha pública/privada, finalidade, momento da publicidade e acesso de autor/admin. A opção não vem pré-selecionada; a tela exige escolha antes da captura e o envio carrega o campo booleano.
+
+Atenção: a segurança depende de publicar simultaneamente migration, backend e mobile. NÃO atualizar somente o mobile na base antiga nem aplicar esta migration sem validação no Supabase local. Testar anonimato, cidadão terceiro, autor e ADMIN, URL assinada, acesso direto via Storage e RLS. Não executar testes de escrita no projeto compartilhado.

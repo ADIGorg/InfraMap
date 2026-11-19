@@ -24,6 +24,7 @@ export class PublicOccurrenceController {
     const photoSvc = new SupabasePhotoUrlService(adminClient);
     const useCase = new GetPublicOccurrenceUseCase(repo, photoSvc);
     const result = await useCase.execute(req.params.id as string);
+    res.setHeader("Cache-Control", "private, no-store");
     return res.status(200).json({ data: result });
   }
 }

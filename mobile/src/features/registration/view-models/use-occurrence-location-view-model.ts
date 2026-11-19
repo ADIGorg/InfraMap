@@ -108,6 +108,7 @@ export function useOccurrenceLocationViewModel() {
         location,
         categorySource,
         descriptionSource,
+        photoPublicConsent: photoVisibility === 'PUBLIC',
         photos: photos.map((photo, index) => ({
           storagePath: buildTemporaryPhotoPath(userId, analysisId, index, photo.mimeType),
           mimeType: photo.mimeType,
@@ -142,7 +143,7 @@ export function useOccurrenceLocationViewModel() {
       submittingRef.current = false;
       setIsSubmitting(false);
     }
-  }, [analysisId, categoryId, categorySource, description, descriptionSource, draftError, location, navigation, photos, userId, setCurrentStep]);
+  }, [analysisId, categoryId, categorySource, description, descriptionSource, draftError, location, navigation, photoVisibility, photos, userId, setCurrentStep]);
 
   const back = useCallback(() => {
     if (!isSubmitting) navigation.navigate('Review');

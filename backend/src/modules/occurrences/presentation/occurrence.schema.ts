@@ -34,6 +34,8 @@ export const finalizeOccurrenceSchema = z.object({
     }),
     categorySource: dataSourceSchema,
     descriptionSource: dataSourceSchema,
+    /** RN017: consent is optional only for backward-compatible clients; absence means PRIVATE. */
+    photoPublicConsent: z.boolean().default(false),
     photos: z
       .array(photoSchema)
       .min(OCCURRENCE_PHOTOS_MIN, `Pelo menos ${OCCURRENCE_PHOTOS_MIN} foto é obrigatória (RN010).`)

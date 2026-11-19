@@ -18,6 +18,7 @@ type RawPhotoRow = {
     status: string;
     author_id: string;
     public_visible: boolean;
+    photo_public_consent: boolean;
   } | null;
 };
 
@@ -28,7 +29,7 @@ export class SupabasePhotoAccessRepository implements IPhotoAccessRepository {
     const { data, error } = await this.supabase
       .from('occurrence_photos')
       .select(
-        'id, occurrence_id, storage_path, mime_type, size_bytes, position, occurrences!inner(id, status, author_id, public_visible)'
+        'id, occurrence_id, storage_path, mime_type, size_bytes, position, occurrences!inner(id, status, author_id, public_visible, photo_public_consent)'
       )
       .eq('id', photoId)
       .maybeSingle();
@@ -51,6 +52,7 @@ export class SupabasePhotoAccessRepository implements IPhotoAccessRepository {
       occurrenceStatus: row.occurrences.status as OccurrenceStatus,
       occurrenceAuthorId: row.occurrences.author_id,
       occurrencePublicVisible: row.occurrences.public_visible,
+      occurrencePhotoPublicConsent: row.occurrences.photo_public_consent === true,
     };
   }
 }
