@@ -7,15 +7,12 @@ export interface PhotoAccessInfo {
   mimeType: string;
   sizeBytes: number;
   position: number;
+  isPublic: boolean;
   occurrenceStatus: OccurrenceStatus;
   occurrenceAuthorId: string;
   occurrencePublicVisible: boolean;
 }
 
 export interface IPhotoAccessRepository {
-  /**
-   * Retorna metadados da foto + status da ocorrência + autor.
-   * Usado pelo use case para decidir se o requester pode ver a foto.
-   */
   getPhotoInfo(photoId: string): Promise<PhotoAccessInfo | null>;
 }

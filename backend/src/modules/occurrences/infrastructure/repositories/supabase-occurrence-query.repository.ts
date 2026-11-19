@@ -146,6 +146,7 @@ export class SupabaseOccurrenceQueryRepository
         .from("occurrence_photos")
         .select("storage_path, mime_type, size_bytes, position")
         .eq("occurrence_id", id)
+        .eq("is_public", true)
         .order("position", { ascending: true });
       if (photoError) throw new Error(`Erro ao consultar fotos públicas: ${photoError.message}`);
       photos = mapPhotos(photoRows);

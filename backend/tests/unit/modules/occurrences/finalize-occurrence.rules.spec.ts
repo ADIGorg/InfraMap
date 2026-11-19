@@ -12,6 +12,7 @@ const valid = () => ({
   location: { lat: -12.26, lng: -38.97 },
   categorySource: "AI_CONFIRMED",
   descriptionSource: "AI_CONFIRMED",
+  photoPublicConsent: true,
   photos: [{ storagePath: "temporary/example/photo-1.jpg", mimeType: "image/jpeg", sizeBytes: 1024 }],
 });
 
@@ -153,6 +154,74 @@ it("preserva AI_EDITED quando só a descrição mudou (RN068)", async () => {
     }),
   );
   });
+
+  it(
+    'rejeita payload sem consentimento de publicação das fotos',
+    async () => {
+      const {
+        run,
+        repo,
+      } = setup();
+
+      await expect(
+        run({
+          photoPublicConsent: undefined,
+        }),
+      ).rejects.toMatchObject({
+        statusCode: 400,
+      });
+
+      expect(
+        repo.finalize,
+      ).not.toHaveBeenCalled();
+    },
+  );
+
+  it(
+    'persiste consentimento público explícito',
+    async () => {
+      const {
+        run,
+        repo,
+      } = setup();
+
+      await run({
+        photoPublicConsent: true,
+      });
+
+      expect(
+        repo.finalize,
+      ).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          photoPublicConsent: true,
+        }),
+      );
+    },
+  );
+
+  it(
+    'persiste escolha privada explícita',
+    async () => {
+      const {
+        run,
+        repo,
+      } = setup();
+
+      await run({
+        photoPublicConsent: false,
+      });
+
+      expect(
+        repo.finalize,
+      ).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          photoPublicConsent: false,
+        }),
+      );
+    },
+  );
 
   it.each([
   ["fotos ausentes", { photos: [] }],
