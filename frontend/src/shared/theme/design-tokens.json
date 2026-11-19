@@ -1,0 +1,40 @@
+{
+  "$description": "Cores documentadas em Inframap-ai-specs/FRONT/design/design-tokens.json; não é export Figma bruto.",
+  "color": {
+    "brand": {
+      "primary": { "$value": "#1A5276" },
+      "primary-dark": { "$value": "#154360" },
+      "secondary": { "$value": "#48C9B0" },
+      "accent": { "$value": "#E67E22" }
+    },
+    "surface": {
+      "page": { "$value": "#F2F3F4" },
+      "card": { "$value": "#FFFFFF" },
+      "input": { "$value": "#F2F3F4" },
+      "notice-info": { "$value": "#EBF5FB" }
+    },
+    "text": {
+      "primary": { "$value": "#1C2833" },
+      "secondary": { "$value": "#5D6D7E" },
+      "inverse": { "$value": "#FFFFFF" },
+      "sidebar": { "$value": "#EAECEE" }
+    },
+    "border": {
+      "default": { "$value": "#D1D5DB" },
+      "subtle": { "$value": "#E5E7EB" }
+    },
+    "status": {
+      "received": { "$value": "#95A5A6" },
+      "under-analysis": { "$value": "#F1C40F" },
+      "confirmed": { "$value": "#3498DB" },
+      "in-service": { "$value": "#E67E22" },
+      "resolved": { "$value": "#27AE60" },
+      "rejected": { "$value": "#E74C3C" }
+    },
+    "priority": {
+      "low": { "$value": "#27AE60" },
+      "medium": { "$value": "#F1C40F" },
+      "high": { "$value": "#E74C3C" }
+    }
+  }
+}
