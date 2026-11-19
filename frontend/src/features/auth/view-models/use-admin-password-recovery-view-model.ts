@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { z } from 'zod';
 import { requestPasswordReset } from '../services/auth.service';
 
@@ -10,22 +10,28 @@ export function useAdminPasswordRecoveryViewModel() {
   const [submitted, setSubmitted] = useState(false);
   const [invalid, setInvalid] = useState('');
   const [networkError, setNetworkError] = useState('');
+  const pendingRef = useRef(false);
 
   const submit = async () => {
-    const parsed = emailSchema.safeParse(email);
+    if (pendingRef.current) return;
+    const parsed = emailSchema.safeParse(email.trim());
     if (!parsed.success) {
       setInvalid(parsed.error.issues[0]?.message ?? 'E-mail inválido.');
       return;
     }
+    pendingRef.current = true;
     setInvalid('');
     setNetworkError('');
     setSubmitting(true);
     try {
-      await requestPasswordReset(parsed.data, window.location.origin + '/reset-password');
+      // A URL deve estar na allowlist do Supabase.
+      await requestPasswordReset(parsed.data, window.location.origin + '/confirm-recovery');
       setSubmitted(true);
     } catch {
-      setNetworkError('Não foi possível enviar agora. Tente novamente.');
+      // Independente de existência de usuário, não revelar e-mail cadastrado.
+      setSubmitted(true);
     } finally {
+      pendingRef.current = false;
       setSubmitting(false);
     }
   };
