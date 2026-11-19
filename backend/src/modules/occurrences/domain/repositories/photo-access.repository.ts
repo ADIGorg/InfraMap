@@ -11,6 +11,7 @@ export interface PhotoAccessInfo {
   occurrenceStatus: OccurrenceStatus;
   occurrenceAuthorId: string;
   occurrencePublicVisible: boolean;
+  occurrencePhotoPublicConsent: boolean;
 }
 
 export interface IPhotoAccessRepository {

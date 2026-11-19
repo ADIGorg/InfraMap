@@ -28,7 +28,7 @@
 | DELETE `/identity/me` | Autenticado | Desativação/anonimização (idempotência definida no SQL) |
 | GET `/identity/admin-check` | ADMIN | Verifica autorização |
 | GET `/app/me` | CITIZEN | Identidade do cidadão ativo |
-| GET `/admin/me` | ADMIN | Identidade do admin ativo |
+| GET `/admin/me` | ADMIN | Identidade do admin ativo com `admin_level` (`MASTER` ou `OPERATIONAL`) lido de `user_roles` |
 | POST `/ai-analyses/` | CITIZEN | Multipart: campo `photos` (1–3 JPEG/PNG) |
 | POST `/ai-analyses/:id/analyze` | CITIZEN | Dispara IA async e retorna 202 |
 | GET `/ai-analyses/:id` | CITIZEN autor | Estado e resultado da análise |
@@ -92,3 +92,33 @@ A UI de documentação está sob `/api/docs`. As respostas de sucesso podem usar
 6. Atualizar OpenAPI, este documento, tests e QA CI; não alterar branch `main` sem PR/aprovação.
 
 Referências: [Arquitetura](architecture.md), [Banco e RLS](database-and-security.md), [Testes/CI](qa-and-operations.md).
+
+
+## API1-101 — Rejeição de CONFIRMED após encaminhamento
+
+A migration `20261116000000_add_confirmed_to_rejected_transition.sql` amplia a
+RPC transacional `transition_occurrence` para permitir `CONFIRMED → REJECTED`
+somente quando há um encaminhamento `SENT` registrado e o administrador informa
+uma justificativa (`justification`) e o texto explícito da resposta do órgão
+(`agencyResponse`), ambos entre 10 e 2000 caracteres.
+
+`UNDER_ANALYSIS → REJECTED` permanece compatível com o contrato anterior,
+sem `agencyResponse`. A rejeição é terminal, grava `occurrence_history` com
+`forwarding_id`, `agency_id`, `agency_response`, `rejection_type` e
+`reason`, e notifica o cidadão na mesma transação.
+
+**Limitação de autenticidade:** envio `SENT` e resposta textual registrada
+pelo administrador não comprovam automaticamente que o órgão estava correto
+ou que houve resposta institucional autêntica. Antes do clique, o administrador
+deve conferir o órgão e sua declaração; envio equivocado exige encaminhar
+novamente. Integração com resposta digital assinada do órgão está fora do
+escopo desta API. Não habilitar a UI até a migration ser aplicada e validada
+em homologação com registros controlados.
+
+## API1-102 — Publicidade de fotos por consentimento (RN017/RN018/RN022)
+
+- `POST /occurrences/finalize` passa a receber o booleano opcional `photoPublicConsent`; ausência = `false`, garantindo compatibilidade com versões antigas do app e proteção por padrão.
+- `public.occurrences.photo_public_consent` é persistido pela RPC transacional; `photo_public_consent_at` e `photo_consent_notice_version` só são preenchidos para consentimento público explícito.
+- O bucket `occurrence-photos` continua **privado**. `GET /occurrences/public/:id` e `GET /occurrences/public/:id/photos/:photoId` nunca assinam URLs de fotos privadas, mesmo com ocorrência `CONFIRMED`; `storage_path` e dados internos de consentimento não são devolvidos no DTO público.
+- Autor via `/occurrences/mine/:id/photos/:photoId` e ADMIN ativo via `/admin/occurrences/:id/photos/:photoId` continuam com acesso autorizado à evidência privada; outros usuários têm acesso recusado pela API e pela policy de metadados em `occurrence_photos`.
+- Não modificar o estado `public_visible` da ocorrência nem a visibilidade de seu ponto no mapa: consentimento controla **foto**, não a ocorrência validada.

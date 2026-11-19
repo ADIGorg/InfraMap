@@ -1,0 +1,47 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * { box-sizing: border-box; }
+  html { font-family: 'Inter', Arial, sans-serif; }
+  body { @apply m-0 bg-surface-page text-ink-primary antialiased; }
+  button, input { font: inherit; }
+  button { cursor: pointer; }
+  button:disabled { cursor: not-allowed; }
+  :focus-visible { outline: 3px solid #48C9B0; outline-offset: 3px; }
+}
+
+@layer components {
+  .page-container { @apply mx-auto w-full max-w-[1440px] px-4 py-6 md:px-8 md:py-9; }
+  .field-label { @apply mb-2 block text-sm font-semibold text-ink-primary; }
+  .field-input { @apply w-full rounded-lg border border-line bg-white px-4 py-3 text-sm text-ink-primary placeholder:text-slate-400 focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primary/20; }
+  .side-nav-link { @apply flex min-h-11 items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium text-white/90 transition hover:bg-white/10 focus-visible:bg-white/10; }
+  .side-nav-link-active { @apply border-l-4 border-brand-secondary bg-white/15 pl-3 text-white; }
+}
+
+/* Pin do Leaflet sem dependência de imagens externas ou recursos da Google. */
+.inframap-marker { background: transparent; border: 0; }
+.inframap-map-pin {
+  position: relative;
+  display: block;
+  width: 27px;
+  height: 27px;
+  border: 2px solid white;
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  box-shadow: 0 2px 7px rgba(0,0,0,.3);
+}
+.inframap-map-pin-dot {
+  position: absolute;
+  left: 8px;
+  top: 8px;
+  width: 7px;
+  height: 7px;
+  background: white;
+  border-radius: 50%;
+}
+.leaflet-container { z-index: 0; font-family: inherit; }
+.leaflet-popup-content { margin: 10px 14px; }

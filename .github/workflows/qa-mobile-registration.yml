@@ -1,0 +1,35 @@
+name: QA Mobile - Registration Consent
+
+on:
+  pull_request:
+    paths:
+      - "mobile/**"
+      - ".github/workflows/qa-mobile-registration.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  mobile-registration:
+    name: TypeScript, lint and Jest (mobile)
+    runs-on: ubuntu-latest
+    env:
+      # Local test-only values. No connection to production is made by Jest.
+      EXPO_PUBLIC_API_BASE_URL: http://127.0.0.1:3000/api/v1
+      EXPO_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
+      EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: test-only-public-key
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test -- --runInBand
+      - run: npm run lint

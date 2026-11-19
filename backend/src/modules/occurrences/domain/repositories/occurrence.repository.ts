@@ -14,7 +14,13 @@ export interface FinalizeOccurrenceInput {
   categorySource: DataSource;
   descriptionSource: DataSource;
   photos: PhotoInput[];
+<<<<<<< HEAD
   photoPublicConsent: boolean;
+=======
+  /** RN017: explicit opt-in for sharing all photos of this occurrence. Absent = private. */
+  photoPublicConsent?: boolean;
+  /** GPS (padrão) ou MANUAL — RPC exige. */
+>>>>>>> feature/web-ui-07-gestao-adm
   locationSource?: LocationSource;
   locationAccuracyM?: number | null;
 }

@@ -33,8 +33,16 @@ export function PhotoVisibilityControl({ value, onChange }: Props) {
         description="As fotos ficam disponíveis apenas para você e para a equipe responsável."
         onPress={() => onChange('PRIVATE')}
       />
+<<<<<<< HEAD
       <Text style={styles.blocker}>
         Sua escolha será registrada junto às fotos. Fotos públicas poderão aparecer no detalhe público da ocorrência; fotos privadas ficarão disponíveis somente para você e para a administração.
+=======
+      <Text style={styles.notice}>
+        Sua escolha será registrada ao enviar a ocorrência. A divulgação pública
+        das fotos só poderá ocorrer após validação da ocorrência, caso você
+        autorize. Fotos privadas permanecem acessíveis apenas a você e aos
+        administradores responsáveis. Não inclua dados pessoais de terceiros.
+>>>>>>> feature/web-ui-07-gestao-adm
       </Text>
     </View>
   );
@@ -74,5 +82,5 @@ const styles = StyleSheet.create({
   optionText: { flex: 1, marginLeft: spacing.sm },
   optionLabel: { fontSize: typography.sizes.sm, fontWeight: typography.weights.semibold, color: colors.text.primary },
   optionDescription: { marginTop: 2, fontSize: typography.sizes.xs, lineHeight: 16, color: colors.text.secondary },
-  blocker: { fontSize: typography.sizes.xs, lineHeight: 16, color: colors.status.REJECTED },
+  notice: { fontSize: typography.sizes.xs, lineHeight: 18, color: colors.text.secondary },
 });

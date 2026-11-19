@@ -185,7 +185,7 @@ paths:
           description: Identidade do cidadão.
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/IdentityResponse" }
+              schema: { $ref: "#/components/schemas/CitizenIdentityResponse" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
 
@@ -196,6 +196,10 @@ paths:
     get:
       tags: [Admin]
       summary: Identificar administrador autenticado
+      description: |
+        Retorna o nível MASTER ou OPERATIONAL consultado da própria linha
+        em public.user_roles, sob RLS. O nível não é inferido do JWT.
+        Sem usuário ADMIN ativo ou nível válido, a rota falha fechada.
       operationId: getAdminIdentity
       security: [{ bearerAuth: [] }]
       responses:
@@ -203,7 +207,7 @@ paths:
           description: Identidade do administrador.
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/IdentityResponse" }
+              schema: { $ref: "#/components/schemas/AdminIdentityResponse" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
 
@@ -219,6 +223,11 @@ paths:
         ocorrência em status `RECEIVED` (RN026). Categoria e descrição
         precisam ser coerentes com `categorySource`/`descriptionSource`
         (RN068). 1 a 3 fotos JPEG/PNG com até 5 MB cada (RN010).
+        RN017: photoPublicConsent precisa ser TRUE para autorizar explicitamente
+        exibição futura de fotos públicas após moderação; FALSE ou omissão
+        persiste fotos privadas. A escolha é registrada no banco e no histórico.
+        URLs assinadas só são emitidas para terceiros quando status/visibilidade
+        pública e consentimento estão confirmados.
       operationId: finalizeOccurrence
       security: [{ bearerAuth: [] }]
       requestBody:
@@ -235,6 +244,7 @@ paths:
                 lng: -46.6333
               categorySource: AI_CONFIRMED
               descriptionSource: AI_EDITED
+              photoPublicConsent: false
               photos:
                 - storagePath: temporary/181227d2-89d7-4ceb-8dff-85b623aeee5b/3fa85f64-5717-4562-b3fc-2c963f66afa6/photo-1.jpg
                   mimeType: image/jpeg
@@ -538,8 +548,16 @@ paths:
   /admin/occurrences/{id}/reject:
     post:
       tags: [Moderation]
-      summary: Rejeitar ocorrência (UNDER_ANALYSIS → REJECTED)
-      description: Justificativa obrigatória (RN037), mínimo 10 caracteres.
+      summary: Rejeitar ocorrência (UNDER_ANALYSIS/CONFIRMED → REJECTED)
+      description: |
+        UNDER_ANALYSIS: rejeição por invalidade com justificativa (10-2000 caracteres).
+        CONFIRMED: encerramento por impossibilidade de atendimento, após
+        encaminhamento SENT a um órgão responsável. Exige agencyResponse (10-2000)
+        registrando a declaração do órgão e justification (10-2000).
+        O backend preserva a rejeição terminal, histórico e notificação.
+        O administrador deve verificar se o encaminhamento foi para o órgão
+        correto; se foi equivocado, deve reenviar em vez de rejeitar.
+        Nunca liberar a ação na UI antes de aplicar a migration API1-101.
       operationId: rejectOccurrence
       security: [{ bearerAuth: [] }]
       parameters:
@@ -1593,6 +1611,14 @@ components:
         location: { $ref: "#/components/schemas/GeoPoint" }
         categorySource: { $ref: "#/components/schemas/DataSource" }
         descriptionSource: { $ref: "#/components/schemas/DataSource" }
+        photoPublicConsent:
+          type: boolean
+          default: false
+          description: |
+            Consentimento explícito RN017 para tornar públicas as fotos quando
+            a ocorrência estiver CONFIRMED ou IN_SERVICE e public_visible for
+            TRUE. A ausência ou FALSE é sempre privada. Versão do aviso:
+            RN017-2026-11-15. O mobile exige seleção antes de capturar.
         photos:
           type: array
           minItems: 1
@@ -1655,6 +1681,11 @@ components:
       additionalProperties: false
       properties:
         justification: { type: string, minLength: 10, maxLength: 2000 }
+        agencyResponse:
+          type: string
+          minLength: 10
+          maxLength: 2000
+          description: Obrigatório somente para rejeitar CONFIRMED, como evidência da resposta do órgão responsável.
 
     SetPriorityRequest:
       type: object
@@ -1856,13 +1887,24 @@ components:
               pattern: '^\+?[0-9 ()-]+$'
             - type: "null"
 
-    IdentityResponse:
+    CitizenIdentityResponse:
       type: object
+      additionalProperties: false
       required: [id, role, is_active]
       properties:
         id: { type: string, format: uuid }
-        role: { type: string, enum: [CITIZEN, ADMIN] }
-        is_active: { type: boolean }
+        role: { type: string, enum: [CITIZEN] }
+        is_active: { type: boolean, enum: [true] }
+
+    AdminIdentityResponse:
+      type: object
+      additionalProperties: false
+      required: [id, role, is_active, admin_level]
+      properties:
+        id: { type: string, format: uuid }
+        role: { type: string, enum: [ADMIN] }
+        is_active: { type: boolean, enum: [true] }
+        admin_level: { $ref: "#/components/schemas/AdminLevel" }
 
     # ─────────────────────────────────────
     # Admins & Agencies

@@ -23,9 +23,18 @@ export const finalizeOccurrenceSchema = z.object({
     location: z.object({ lat: z.number().min(-90).max(90), lng: z.number().min(-180).max(180) }),
     categorySource: dataSourceSchema,
     descriptionSource: dataSourceSchema,
+<<<<<<< HEAD
     photoPublicConsent: z.boolean({ message: "Escolha se as fotos podem ser exibidas publicamente (RN017)." }),
     photos: z.array(photoSchema)
       .min(OCCURRENCE_PHOTOS_MIN, `Pelo menos ${OCCURRENCE_PHOTOS_MIN} foto e obrigatoria (RN010).`)
       .max(OCCURRENCE_PHOTOS_MAX, `No maximo ${OCCURRENCE_PHOTOS_MAX} fotos sao permitidas (RN010).`),
+=======
+    /** RN017: consent is optional only for backward-compatible clients; absence means PRIVATE. */
+    photoPublicConsent: z.boolean().default(false),
+    photos: z
+      .array(photoSchema)
+      .min(OCCURRENCE_PHOTOS_MIN, `Pelo menos ${OCCURRENCE_PHOTOS_MIN} foto é obrigatória (RN010).`)
+      .max(OCCURRENCE_PHOTOS_MAX, `No máximo ${OCCURRENCE_PHOTOS_MAX} fotos são permitidas (RN010).`),
+>>>>>>> feature/web-ui-07-gestao-adm
   }),
 });

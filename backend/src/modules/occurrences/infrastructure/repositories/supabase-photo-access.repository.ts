@@ -9,8 +9,18 @@ type RawPhotoRow = {
   mime_type: string;
   size_bytes: number;
   position: number;
+<<<<<<< HEAD
   is_public: boolean;
   occurrences: { id: string; status: string; author_id: string; public_visible: boolean } | null;
+=======
+  occurrences: {
+    id: string;
+    status: string;
+    author_id: string;
+    public_visible: boolean;
+    photo_public_consent: boolean;
+  } | null;
+>>>>>>> feature/web-ui-07-gestao-adm
 };
 
 export class SupabasePhotoAccessRepository implements IPhotoAccessRepository {
@@ -18,7 +28,13 @@ export class SupabasePhotoAccessRepository implements IPhotoAccessRepository {
   async getPhotoInfo(photoId: string): Promise<PhotoAccessInfo | null> {
     const { data, error } = await this.supabase
       .from('occurrence_photos')
+<<<<<<< HEAD
       .select('id, occurrence_id, storage_path, mime_type, size_bytes, position, is_public, occurrences!inner(id, status, author_id, public_visible)')
+=======
+      .select(
+        'id, occurrence_id, storage_path, mime_type, size_bytes, position, occurrences!inner(id, status, author_id, public_visible, photo_public_consent)'
+      )
+>>>>>>> feature/web-ui-07-gestao-adm
       .eq('id', photoId)
       .maybeSingle();
     if (error) throw new Error(`Erro ao buscar foto: ${error.message}`);
@@ -36,6 +52,7 @@ export class SupabasePhotoAccessRepository implements IPhotoAccessRepository {
       occurrenceStatus: row.occurrences.status as OccurrenceStatus,
       occurrenceAuthorId: row.occurrences.author_id,
       occurrencePublicVisible: row.occurrences.public_visible,
+      occurrencePhotoPublicConsent: row.occurrences.photo_public_consent === true,
     };
   }
 }

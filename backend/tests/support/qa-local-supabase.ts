@@ -124,7 +124,7 @@ export class LocalQaStack {
     return data.id;
   }
 
-  async createOccurrence(citizen: QaUser) {
+  async createOccurrence(citizen: QaUser, photoPublicConsent = false) {
   // 1. Upload
   const upload = await request(this.app).post(API + "/ai-analyses/")
     .set(this.as(citizen))
@@ -205,6 +205,7 @@ export class LocalQaStack {
       location: { lat: -12.2667, lng: -38.9665 },
       categorySource: "AI_CONFIRMED",
       descriptionSource: "AI_CONFIRMED",
+      photoPublicConsent,
       photos: [{ storagePath: initialPath, mimeType: "image/png", sizeBytes: PNG.length }],
     });
   if (finalization.status !== 201) {

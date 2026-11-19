@@ -61,6 +61,67 @@ describe.skipIf(!qaEnabled)("QA-03 / encaminhamento, dashboard e gestão MASTER"
     expect(operatorDenied.status).toBe(403);
   });
 
+  it("API1-101: CONFIRMED só rejeita após envio real e resposta documentada do órgão", async () => {
+    if (!agencyId) throw new Error("Órgão QA não foi criado.");
+    const occurrence = await qa.createOccurrence(citizen);
+    const path = API + "/admin/occurrences/" + occurrence.occurrenceId;
+
+    expect((await request(qa.app).patch(path + "/start-analysis")
+      .set(qa.as(operator))).status).toBe(200);
+    expect((await request(qa.app).post(path + "/confirm")
+      .set(qa.as(operator))).status).toBe(200);
+
+    const beforeForwarding = await request(qa.app).post(path + "/reject")
+      .set(qa.as(operator)).send({
+        justification: "Órgão correto não dispõe de recursos",
+        agencyResponse: "Resposta registrada: órgão informou ausência de recursos.",
+      });
+    expect(beforeForwarding.status).toBe(409);
+
+    const forwarding = await request(qa.app).post(path + "/forwardings")
+      .set(qa.as(operator)).send({ agency_id: agencyId });
+    expect(forwarding.status, JSON.stringify(forwarding.body)).toBe(201);
+    expect(forwarding.body.data.status).toBe("SENT");
+
+    const missingResponse = await request(qa.app).post(path + "/reject")
+      .set(qa.as(operator)).send({ justification: "Impossibilidade de atendimento pelo órgão" });
+    expect(missingResponse.status).toBe(400);
+
+    const rejected = await request(qa.app).post(path + "/reject")
+      .set(qa.as(operator)).send({
+        justification: "Órgão responsável não pode realizar a obra",
+        agencyResponse: "Órgão responsável confirmou insuficiência de recursos para atender.",
+      });
+    expect(rejected.status, JSON.stringify(rejected.body)).toBe(200);
+
+    const status = await qa.admin.from("occurrences")
+      .select("status").eq("id", occurrence.occurrenceId).single();
+    expect(status.data?.status).toBe("REJECTED");
+    const history = await qa.admin.from("occurrence_history")
+      .select("action,details,previous_data,new_data")
+      .eq("occurrence_id", occurrence.occurrenceId)
+      .eq("action", "OCCURRENCE_REJECTED");
+    expect(history.data).toHaveLength(1);
+    expect(history.data?.[0]?.previous_data?.status).toBe("CONFIRMED");
+    expect(history.data?.[0]?.new_data?.status).toBe("REJECTED");
+    expect(history.data?.[0]?.details?.rejection_type).toBe("SERVICE_IMPOSSIBILITY");
+    expect(history.data?.[0]?.details?.agency_response).toContain("insuficiência");
+    expect(history.data?.[0]?.details?.forwarding_id).toBe(forwarding.body.data.id);
+
+    const notification = await qa.admin.from("notifications")
+      .select("title,message").eq("occurrence_id", occurrence.occurrenceId)
+      .eq("title", "Ocorrência rejeitada");
+    expect(notification.data).toHaveLength(1);
+    expect(notification.data?.[0]?.message).toContain("Órgão responsável");
+
+    const retry = await request(qa.app).post(path + "/reject")
+      .set(qa.as(operator)).send({
+        justification: "Justificativa de segunda rejeição",
+        agencyResponse: "Resposta existente da secretaria responsável",
+      });
+    expect(retry.status).toBe(409);
+  }, 60_000);
+
   it("encaminha apenas ocorrência CONFIRMED para órgão ativo, com provider mock", async () => {
     if (!agencyId) throw new Error("Pré-condição: órgão de teste não foi criado.");
     const path = API + "/admin/occurrences/" + occurrenceId + "/forwardings";

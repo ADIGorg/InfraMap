@@ -43,7 +43,12 @@ export class SupabaseOccurrenceRepository implements IOccurrenceRepository {
       p_location_source: input.locationSource ?? "GPS",
       p_photo_public_consent: input.photoPublicConsent,
       p_location_accuracy_m: input.locationAccuracyM ?? null,
+<<<<<<< HEAD
       p_photos: input.photos.map((p) => ({ mime_type: p.mimeType, size_bytes: p.sizeBytes })),
+=======
+      p_photos: input.photos.map(p => ({ mime_type: p.mimeType, size_bytes: p.sizeBytes })),
+      p_photo_public_consent: input.photoPublicConsent === true,
+>>>>>>> feature/web-ui-07-gestao-adm
     });
     if (error) mapPgError(error);
     const rows = data as Array<{ occurrence_id: string }> | null;
@@ -58,17 +63,49 @@ export class SupabaseOccurrenceRepository implements IOccurrenceRepository {
     return this.reconcilePhotos(userId, input, occurrence.id as string);
   }
 
+<<<<<<< HEAD
   private async reconcilePhotos(userId: string, input: FinalizeOccurrenceInput, occurrenceId: string): Promise<string> {
     const [{ data: occurrence, error: occurrenceError }, { data: rows, error: metadataError }, { data: analysis, error: analysisError }] = await Promise.all([
       this.adminClient.from("occurrences").select("id,author_id,ai_analysis_id,category_id,description,category_source,description_source").eq("id", occurrenceId).maybeSingle(),
       this.adminClient.from("occurrence_photos").select("storage_path,mime_type,size_bytes,position,is_public,consent_recorded_at,consent_version").eq("occurrence_id", occurrenceId).order("position"),
       this.adminClient.from("ai_analyses").select("id,user_id,input_photo_paths,status").eq("id", input.aiAnalysisId).maybeSingle(),
+=======
+  private async reconcilePhotos(
+    userId: string,
+    input: FinalizeOccurrenceInput,
+    occurrenceId: string,
+  ): Promise<string> {
+    const [{ data: occurrence, error: occurrenceError },
+      { data: rows, error: metadataError },
+      { data: analysis, error: analysisError }] = await Promise.all([
+      this.adminClient.from("occurrences")
+        .select("id,author_id,ai_analysis_id,category_id,description,category_source,description_source,photo_public_consent")
+        .eq("id", occurrenceId).maybeSingle(),
+      this.adminClient.from("occurrence_photos")
+        .select("storage_path,mime_type,size_bytes,position")
+        .eq("occurrence_id", occurrenceId).order("position"),
+      this.adminClient.from("ai_analyses")
+        .select("id,user_id,input_photo_paths,status")
+        .eq("id", input.aiAnalysisId).maybeSingle(),
+>>>>>>> feature/web-ui-07-gestao-adm
     ]);
     if (occurrenceError || metadataError || analysisError || !occurrence || !analysis || !rows) {
       throw new AppError(503, "OCCURRENCE_PHOTO_MOVE_FAILED", "Falha ao recuperar metadados das fotos.");
     }
+<<<<<<< HEAD
     if (occurrence.author_id !== userId || occurrence.ai_analysis_id !== input.aiAnalysisId || analysis.user_id !== userId || analysis.status !== "CONSUMED" || occurrence.category_id !== input.categoryId || occurrence.description !== input.description || occurrence.category_source !== input.categorySource || occurrence.description_source !== input.descriptionSource || rows.length !== input.photos.length) {
       throw new ConflictError("A tentativa de recuperacao nao corresponde a ocorrencia original.");
+=======
+    if (occurrence.author_id !== userId || occurrence.ai_analysis_id !== input.aiAnalysisId ||
+        analysis.user_id !== userId || analysis.status !== "CONSUMED" ||
+        occurrence.category_id !== input.categoryId ||
+        occurrence.description !== input.description ||
+        occurrence.category_source !== input.categorySource ||
+        occurrence.description_source !== input.descriptionSource ||
+        occurrence.photo_public_consent !== (input.photoPublicConsent === true) ||
+        rows.length !== input.photos.length) {
+      throw new ConflictError("A tentativa de recuperação não corresponde à ocorrência original.");
+>>>>>>> feature/web-ui-07-gestao-adm
     }
     const sourcePaths = analysis.input_photo_paths;
     if (!Array.isArray(sourcePaths) || sourcePaths.length !== rows.length) throw new ConflictError("As fotografias da analise original sao incompativeis.");

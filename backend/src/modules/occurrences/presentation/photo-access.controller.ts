@@ -36,6 +36,7 @@ export class PhotoAccessController {
         : { role: this.defaultRole };
 
     const result = await useCase.execute(requester, occurrenceId, photoId);
+    res.setHeader("Cache-Control", "private, no-store");
     return res.status(200).json({ data: result });
   }
 }
