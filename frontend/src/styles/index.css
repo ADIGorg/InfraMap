@@ -21,3 +21,27 @@
   .side-nav-link { @apply flex min-h-11 items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium text-white/90 transition hover:bg-white/10 focus-visible:bg-white/10; }
   .side-nav-link-active { @apply border-l-4 border-brand-secondary bg-white/15 pl-3 text-white; }
 }
+
+/* Pin do Leaflet sem dependência de imagens externas ou recursos da Google. */
+.inframap-marker { background: transparent; border: 0; }
+.inframap-map-pin {
+  position: relative;
+  display: block;
+  width: 27px;
+  height: 27px;
+  border: 2px solid white;
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  box-shadow: 0 2px 7px rgba(0,0,0,.3);
+}
+.inframap-map-pin-dot {
+  position: absolute;
+  left: 8px;
+  top: 8px;
+  width: 7px;
+  height: 7px;
+  background: white;
+  border-radius: 50%;
+}
+.leaflet-container { z-index: 0; font-family: inherit; }
+.leaflet-popup-content { margin: 10px 14px; }
