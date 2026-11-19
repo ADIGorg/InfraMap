@@ -185,7 +185,7 @@ paths:
           description: Identidade do cidadão.
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/IdentityResponse" }
+              schema: { $ref: "#/components/schemas/CitizenIdentityResponse" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
 
@@ -196,6 +196,10 @@ paths:
     get:
       tags: [Admin]
       summary: Identificar administrador autenticado
+      description: |
+        Retorna o nível MASTER ou OPERATIONAL consultado da própria linha
+        em public.user_roles, sob RLS. O nível não é inferido do JWT.
+        Sem usuário ADMIN ativo ou nível válido, a rota falha fechada.
       operationId: getAdminIdentity
       security: [{ bearerAuth: [] }]
       responses:
@@ -203,7 +207,7 @@ paths:
           description: Identidade do administrador.
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/IdentityResponse" }
+              schema: { $ref: "#/components/schemas/AdminIdentityResponse" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
 
@@ -1856,13 +1860,24 @@ components:
               pattern: '^\+?[0-9 ()-]+$'
             - type: "null"
 
-    IdentityResponse:
+    CitizenIdentityResponse:
       type: object
+      additionalProperties: false
       required: [id, role, is_active]
       properties:
         id: { type: string, format: uuid }
-        role: { type: string, enum: [CITIZEN, ADMIN] }
-        is_active: { type: boolean }
+        role: { type: string, enum: [CITIZEN] }
+        is_active: { type: boolean, enum: [true] }
+
+    AdminIdentityResponse:
+      type: object
+      additionalProperties: false
+      required: [id, role, is_active, admin_level]
+      properties:
+        id: { type: string, format: uuid }
+        role: { type: string, enum: [ADMIN] }
+        is_active: { type: boolean, enum: [true] }
+        admin_level: { $ref: "#/components/schemas/AdminLevel" }
 
     # ─────────────────────────────────────
     # Admins & Agencies
