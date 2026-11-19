@@ -5,6 +5,7 @@ import { listNotifications } from "../application/use-cases/list-notifications.u
 import { markNotificationRead } from "../application/use-cases/mark-notification-read.use-case.js";
 import { markAllNotificationsRead } from "../application/use-cases/mark-all-notifications-read.use-case.js";
 import { createNotificationRepository } from "../infrastructure/repositories/supabase-notification.repository.js";
+import { countUnreadNotifications, } from '../application/use-cases/count-unread-notifications.use-case.js';
 
 function repositoryFor(req: Request) {
   if (!req.user || !req.token) throw new UnauthorizedError();
@@ -25,4 +26,19 @@ export async function markRead(req: Request, res: Response) {
 export async function markAllRead(req: Request, res: Response) {
   await markAllNotificationsRead(repositoryFor(req));
   res.sendStatus(204);
+}
+
+export async function unreadCount(
+  req: Request,
+  res: Response,
+) {
+  const count = await countUnreadNotifications(
+    repositoryFor(req),
+  );
+
+  res.json({
+    data: {
+      count,
+    },
+  });
 }
