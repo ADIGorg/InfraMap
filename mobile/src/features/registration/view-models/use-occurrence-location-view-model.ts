@@ -91,7 +91,7 @@ export function useOccurrenceLocationViewModel() {
   }, [analysisId, analysisStatus, categoryId, description, location, photoVisibility, photos.length, userId ]);
 
   const submit = useCallback(async () => {
-    if (submittingRef.current || draftError || !location || !analysisId || !categoryId || !userId) {
+    if (submittingRef.current || draftError || !location || !analysisId || !photoVisibility || !categoryId || !userId) {
       if (draftError) setError(draftError);
       return;
     }
@@ -113,6 +113,7 @@ export function useOccurrenceLocationViewModel() {
           mimeType: photo.mimeType,
           sizeBytes: photo.sizeBytes,
         })),
+        photoPublicConsent: photoVisibility === 'PUBLIC',
       });
       setCurrentStep(5);
       navigation.replace('Success', { occurrenceId: result.id });
@@ -142,7 +143,7 @@ export function useOccurrenceLocationViewModel() {
       submittingRef.current = false;
       setIsSubmitting(false);
     }
-  }, [analysisId, categoryId, categorySource, description, descriptionSource, draftError, location, navigation, photos, userId, setCurrentStep]);
+  }, [analysisId, categoryId, categorySource, description, descriptionSource, draftError, location, navigation, photos, photoVisibility, userId, setCurrentStep]);
 
   const back = useCallback(() => {
     if (!isSubmitting) navigation.navigate('Review');

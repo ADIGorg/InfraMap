@@ -17,6 +17,7 @@ import { CategoryFilter } from '../components/category-filter';
 import { colors, typography, spacing, radius } from '@/shared/theme';
 import type { RootStackParamList } from '@/navigation/types';
 import { useAuth } from '@/features/auth/hooks/use-auth';
+import { NotificationBellButton } from '@/features/notifications/components/notification-bell-button';
 
 type NavProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -79,6 +80,7 @@ export function PublicMapScreen() {
             <Text style={styles.headerTitle}>
               Mapa de ocorrências
             </Text>
+            {session ? <NotificationBellButton /> : null}
           </View>
 
           <CategoryFilter

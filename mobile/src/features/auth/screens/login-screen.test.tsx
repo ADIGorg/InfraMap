@@ -2,10 +2,27 @@ import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import { LoginScreen } from './login-screen';
 import * as AuthService from '@/features/auth/services/auth.service';
-import { useNavigation } from '@react-navigation/native';
 import { AppError } from '@/shared/errors/app-error';
+import { useNavigation, } from '@react-navigation/native';
 
-jest.mock('@react-navigation/native', () => ({ useNavigation: jest.fn() }));
+let mockLoginRouteParams:
+  | {
+      emailConfirmed?: boolean;
+    }
+  | undefined;
+
+jest.mock(
+  '@react-navigation/native',
+  () => ({
+    useNavigation: jest.fn(),
+    useRoute: () => ({
+      key: 'Login-test',
+      name: 'Login',
+      params: mockLoginRouteParams,
+    }),
+  }),
+);
+
 jest.mock('@/features/auth/services/auth.service', () => ({
   loginWithPassword: jest.fn(),
   validateCitizenIdentity: jest.fn(),
@@ -17,7 +34,16 @@ describe('LoginScreen', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    (useNavigation as any).mockReturnValue({ navigate: mockNavigate });
+
+    mockLoginRouteParams = undefined;
+
+    (
+      useNavigation as jest.Mock
+    ).mockReturnValue({
+      navigate: mockNavigate,
+      goBack: jest.fn(),
+      reset: jest.fn(),
+    });
   });
 
   it('renderiza os elementos principais', async () => {

@@ -34,7 +34,7 @@ export function PhotoVisibilityControl({ value, onChange }: Props) {
         onPress={() => onChange('PRIVATE')}
       />
       <Text style={styles.blocker}>
-        O backend ainda não persiste esta escolha. A opção é coletada no rascunho, mas a RN017 permanece bloqueada até o contrato ser atualizado.
+        Sua escolha será registrada junto às fotos. Fotos públicas poderão aparecer no detalhe público da ocorrência; fotos privadas ficarão disponíveis somente para você e para a administração.
       </Text>
     </View>
   );
