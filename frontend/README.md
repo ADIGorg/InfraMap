@@ -33,7 +33,7 @@ Somente a chave PUBLICÁVEL do Supabase pode ir no Vite; nunca adicione service_
 - src/shared: componentes, estados de UI, tipos e design tokens
 - TanStack Query: cache de dados de servidor; Zustand: UI global; Auth Context: sessão.
 
-O endpoint /admin/me devolve objeto direto e não envelope data. O backend decide role e is_active; frontend nunca se autoriza usando claims do JWT. Até a conclusão da API1-100, admin_level não existe no contrato e rotas MASTER negam por padrão.
+O endpoint /admin/me devolve objeto direto e não envelope data, incluindo admin_level após a API1-100. O backend decide role, is_active e nível; frontend nunca se autoriza usando claims do JWT. Sem nível MASTER confirmado e identidade ADMIN ativa, as rotas MASTER negam por padrão.
 
 Em 401, o cliente tenta renovar a sessão uma única vez e apenas repete automaticamente GET. 403 não gera refresh; mutações nunca recebem retry automático. Logout e troca de conta limpam Query Client e Zustand.
 
@@ -49,13 +49,13 @@ Layouts e `shared` são compartilhados: coordenem alterações nesses arquivos. 
 
 ## Limites desta entrega
 
-Login, dashboard, mapa, lista, detalhes de ocorrências e notificações possuem páginas implementadas. Gestão ainda possui placeholders em páginas próprias, sem dados falsos. Cada tela é desenvolvida na sua própria branch, com ticket individual:
+Login, dashboard, mapa, lista, detalhes de ocorrências, notificações, gestão de órgãos e gestão de administradores possuem páginas implementadas. Cada tela é desenvolvida na sua própria branch, com ticket individual:
 
 - API1-93: login aprimorado e recuperação web por confirmação explícita; conferir frontend/docs/API1-93-validation.md. A configuração compartilhada de e-mail no Supabase ainda exige homologação manual.
 - API1-94: dashboard e indicadores SLA (série diária depende da API1-103).
 - API1-95: mapa, filtros e ajuste de localização (filtros extras dependem da API1-104).
 - API1-92: gestão de órgãos; MASTER para operações de escrita.
-- API1-99: gestão de admins; depende de API1-100.
+- API1-99: gestão de administradores exclusiva de MASTER ativo; consulte `docs/API1-99-validation.md`.
 - API1-96 e API1-97: lista e detalhes de ocorrências.
 - API1-98: notificações derivadas de ocorrências e SLA; ver `docs/API1-98-validation.md`.
 
