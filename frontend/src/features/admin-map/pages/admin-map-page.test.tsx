@@ -132,8 +132,6 @@ describe('AdminMapPage / OpenStreetMap', () => {
     show();
     expect(screen.getByRole('checkbox', { name: 'Recebido' })).toBeChecked();
     expect(screen.queryByRole('checkbox', { name: 'Resolvido' })).not.toBeInTheDocument();
-    expect(screen.getByLabelText('Bairro')).toBeDisabled();
-    expect(screen.getByLabelText('Período de abertura')).toBeDisabled();
     fireEvent.click(screen.getByRole('button', { name: 'Aplicar filtros' }));
     expect(onApply).toHaveBeenCalledOnce();
   });

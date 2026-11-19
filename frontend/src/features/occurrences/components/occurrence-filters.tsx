@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { Button } from '@/shared/components/button';
 import { filtersSchema, statusOptions, type AdminOccurrenceFilters } from '../services/admin-occurrences.service';
+import { ExtraOccurrenceFilters } from './extra-occurrence-filters';
 
 interface Props {
   filters: AdminOccurrenceFilters;
@@ -22,6 +23,7 @@ export function OccurrenceFilters({ filters, categories, categoriesUnavailable, 
   }
   return (
     <section aria-label="Filtros de ocorrências" className="mb-6 space-y-4">
+      <ExtraOccurrenceFilters key={JSON.stringify(filters)} filters={filters} onApply={values => onChange({ ...values, page: 1 })} />
       <div className="flex flex-wrap items-end gap-3">
         <label className="min-w-48 flex-1 text-sm font-semibold">
           Categoria

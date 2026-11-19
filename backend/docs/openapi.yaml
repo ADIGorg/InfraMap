@@ -429,10 +429,13 @@ paths:
       tags: [Admin]
       summary: Listar ocorrências no painel administrativo
       description: |
-        Admin ativo. Filtros: `status`, `category` (UUID ou CATxx),
-        `priority`, `min_votes`, `sort` (`created_at` | `priority` |
-        `status_updated_at` | `votes`), `order` (`asc` | `desc`).
-        Padrão: `created_at desc` (RN053).
+        ADMIN ativo. Todos os filtros são combinados com AND no servidor antes
+        da contagem e paginação. Datas de created_at com timezone explícito;
+        intervalo [createdFrom, createdBefore). Bairro usa polígonos cadastrados
+        sobre location_adjusted ou location_original, inclusive a borda.
+        Busca literal sem distinguir maiúsculas em descrição, nome da categoria
+        e UUID completo/parcial (aceita prefixo #OC-). Não busca endereço ou autor.
+        Sem remoção de acentos nem interpretação de %/_ como curingas.
       operationId: adminListOccurrences
       security: [{ bearerAuth: [] }]
       parameters:
@@ -444,25 +447,65 @@ paths:
           schema: { type: array, items: { $ref: "#/components/schemas/OccurrenceStatus" } }
           style: form
           explode: true
-        - name: category
+        - name: categoryId
           in: query
-          schema: { type: array, items: { type: string } }
-          style: form
-          explode: true
+          schema: { type: string, format: uuid }
         - name: priority
           in: query
-          schema: { type: array, items: { $ref: "#/components/schemas/OccurrencePriority" } }
-          style: form
-          explode: true
-        - name: min_votes
+          schema: { type: string, enum: [LOW, MEDIUM, HIGH, UNDEFINED] }
+          description: UNDEFINED seleciona prioridade nula.
+        - name: q
           in: query
-          schema: { type: integer, minimum: 0 }
+          schema: { type: string, minLength: 1, maxLength: 200 }
+        - name: neighborhoodId
+          in: query
+          schema: { type: string, format: uuid }
+          description: UUID do catálogo /admin/occurrences/neighborhoods. Inexistente ou inativo retorna zero resultados.
+        - name: createdFrom
+          in: query
+          schema: { type: string, format: date-time }
+          description: Instante inicial inclusivo; exige timezone. Deve ser anterior a createdBefore.
+        - name: createdBefore
+          in: query
+          schema: { type: string, format: date-time }
+          description: Instante final exclusivo; exige timezone.
+        - { name: minLat, in: query, schema: { type: number, minimum: -90, maximum: 90 }, description: Bbox exige os quatro limites e mínimos menores ou iguais aos máximos. }
+        - { name: maxLat, in: query, schema: { type: number, minimum: -90, maximum: 90 } }
+        - { name: minLng, in: query, schema: { type: number, minimum: -180, maximum: 180 } }
+        - { name: maxLng, in: query, schema: { type: number, minimum: -180, maximum: 180 } }
       responses:
         "200":
           description: Lista paginada.
           content:
             application/json:
               schema: { $ref: "#/components/schemas/AdminOccurrenceListResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /admin/occurrences/neighborhoods:
+    get:
+      tags: [Admin]
+      operationId: listAdministrativeNeighborhoods
+      summary: Listar bairros ativos com limites geográficos cadastrados
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Catálogo ordenado por município e nome. Vazio até importar limites reais.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      required: [id, name, municipality]
+                      properties:
+                        id: { type: string, format: uuid }
+                        name: { type: string }
+                        municipality: { type: string }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
 

@@ -1,10 +1,14 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { parseFilters } from '@/features/occurrences/services/admin-occurrences.service';
+import { extraFiltersSchema, type ExtraFilters } from '@/features/occurrences/services/extra-filters';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/shared/types/query-keys';
 import { AppError } from '@/shared/errors/app-error';
 import {
   ACTIVE_STATUSES,
   DEFAULT_FILTERS,
+  createAdminMapQuery,
   adjustAdminOccurrenceLocation,
   getAdminMapOccurrenceDetail,
   isActiveStatus,
@@ -19,7 +23,7 @@ import {
 } from '../services/admin-occurrences.service';
 import { validPoint, type MapViewport } from '../services/map-presentation';
 
-type Draft = Pick<MapFilters, 'statuses' | 'categoryId'>;
+type Draft = ExtraFilters & Pick<MapFilters, 'statuses' | 'categoryId'>;
 
 function freshDraft(): Draft {
   return { statuses: [...ACTIVE_STATUSES], categoryId: '' };
@@ -37,8 +41,27 @@ export function describeMapMutationError(error: unknown): string {
 
 export function useAdminMapViewModel() {
   const client = useQueryClient();
-  const [draft, setDraft] = useState<Draft>(freshDraft);
-  const [applied, setApplied] = useState<MapFilters>(DEFAULT_FILTERS);
+  const [params, setParams] = useSearchParams();
+  const parsed = parseFilters(params);
+  const validUrl = parsed.success && (!parsed.data.status || parsed.data.status.every(isActiveStatus));
+  const applied = useMemo<MapFilters>(() => {
+    const result = parseFilters(new URLSearchParams(params));
+    if (!result.success) return DEFAULT_FILTERS;
+    const f = result.data;
+    if (f.status && !f.status.every(isActiveStatus)) return DEFAULT_FILTERS;
+    return { ...extraFiltersSchema.parse(f), categoryId: f.categoryId ?? '',
+      statuses: f.status ? f.status.filter(isActiveStatus) : [...ACTIVE_STATUSES],
+      bbox: f.minLat !== undefined && f.maxLat !== undefined && f.minLng !== undefined && f.maxLng !== undefined
+        ? { minLat: f.minLat, maxLat: f.maxLat, minLng: f.minLng, maxLng: f.maxLng } : null };
+  }, [params]);
+  const [draft, setDraft] = useState<Draft>(() => ({ ...applied }));
+  useEffect(() => { setDraft({ ...applied }); }, [applied]);
+  const setApplied = (next: MapFilters | ((old: MapFilters) => MapFilters)) => {
+    const filters = typeof next === 'function' ? next(applied) : next;
+    const query = new URLSearchParams(createAdminMapQuery(filters, 1).split('?')[1]);
+    query.delete('page'); query.delete('pageSize'); query.delete('sort');
+    setParams(query);
+  };
   const [availableBounds, setAvailableBounds] = useState<Bounds | null>(null);
   // A ViewModel preserva o enquadramento mesmo se o mapa for desmontado para exibir a lista.
   const [viewport, setViewport] = useState<MapViewport | null>(null);
@@ -58,6 +81,7 @@ export function useAdminMapViewModel() {
     queryFn: ({ signal }) => listActiveAdminOccurrences(applied, signal),
     staleTime: 30_000,
     retry: false,
+    enabled: validUrl,
   });
 
   const selected = useMemo(
@@ -164,8 +188,14 @@ export function useAdminMapViewModel() {
 
   return {
     categories, occurrences, draft, applied, selected, selection,
-    availableBounds, setAvailableBounds, viewport, setViewport, inputError, setInputError,
+    availableBounds, setAvailableBounds, viewport, setViewport,
+    inputError: validUrl ? inputError : 'Filtros inválidos na URL. Limpe a seleção para continuar.', setInputError,
     setCategory: (categoryId: string) => setDraft((old) => ({ ...old, categoryId })),
+    setExtraFilters: (filters: ExtraFilters) => {
+      if (!draft.statuses.length) { setInputError('Selecione pelo menos um status.'); return; }
+      setInputError(null); setSelection(null);
+      setApplied({ ...draft, ...filters, bbox: applied.bbox });
+    },
     updateStatus, applyFilters, clearFilters, searchVisibleArea, clearArea,
     selectOccurrence: setSelection,
     adjusting, candidate, setCandidate, confirming, setConfirming,

@@ -23,6 +23,7 @@ const response = (data = [item], page = 1, total = 41) => ({
   data, pagination: { page, pageSize: 20, total, totalPages: Math.ceil(total / 20) },
 });
 const server = setupServer(
+  http.get(base + '/admin/occurrences/neighborhoods', () => HttpResponse.json({ data: [] })),
   http.get(base + '/admin/me', () => HttpResponse.json({ id, role: 'ADMIN', is_active: true })),
   http.get(base + '/categories', () => HttpResponse.json({ data: [item.category] })),
   http.get(base + '/admin/occurrences', ({ request }) => HttpResponse.json(response([item], Number(new URL(request.url).searchParams.get('page'))))),
@@ -49,6 +50,23 @@ function mount(search = '') {
   return client;
 }
 describe('Lista administrativa — API1-96', () => {
+  it('aplica busca, prioridade e período no servidor, mantendo-os na URL', async () => {
+    const queries: URLSearchParams[] = [];
+    server.use(http.get(base + '/admin/occurrences', ({ request }) => {
+      queries.push(new URL(request.url).searchParams);
+      return HttpResponse.json(response());
+    }));
+    mount(); await screen.findByRole('table');
+    fireEvent.change(screen.getByLabelText('Buscar por ID, categoria ou descrição'), { target: { value: 'Vazamento' } });
+    fireEvent.change(screen.getByLabelText('Prioridade'), { target: { value: 'HIGH' } });
+    fireEvent.change(screen.getByLabelText('Início do período (inclusivo)'), { target: { value: '2026-11-01T10:00' } });
+    fireEvent.change(screen.getByLabelText('Fim do período (exclusivo)'), { target: { value: '2026-11-10T10:00' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Aplicar busca, prioridade e período' }));
+    await waitFor(() => expect(queries.at(-1)?.get('q')).toBe('Vazamento'));
+    expect(queries.at(-1)?.get('priority')).toBe('HIGH');
+    expect(queries.at(-1)?.get('createdFrom')).toBe(new Date('2026-11-01T10:00').toISOString());
+    expect(screen.getByTestId('location')).toHaveTextContent('priority=HIGH');
+  });
   it('consulta filtros válidos, pagina no servidor e preserva filtros ao voltar no navegador', async () => {
     const queries: URLSearchParams[] = [];
     server.use(http.get(base + '/admin/occurrences', ({ request }) => {

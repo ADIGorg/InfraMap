@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { http } from '@/infrastructure/api/http-client';
+import { extraFilterShape } from './extra-filters';
 
 export const statusOptions = [
   ['RECEIVED', 'Recebido'], ['UNDER_ANALYSIS', 'Em análise'],
@@ -9,7 +10,8 @@ export const statusOptions = [
 const statusSchema = z.enum(['RECEIVED', 'UNDER_ANALYSIS', 'CONFIRMED', 'IN_SERVICE', 'RESOLVED', 'REJECTED']);
 const coordinate = (min: number, max: number) => z.coerce.number().finite().min(min).max(max).optional();
 export const filtersSchema = z.object({
-  page: z.coerce.number().int().min(1).max(Number.MAX_SAFE_INTEGER).default(1),
+  ...extraFilterShape,
+  page: z.coerce.number().int().min(1).max(2147483647).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(20),
   sort: z.enum(['recent', 'oldest', 'most_liked']).default('recent'),
   categoryId: z.uuid().optional(),
@@ -17,6 +19,9 @@ export const filtersSchema = z.object({
   minLat: coordinate(-90, 90), maxLat: coordinate(-90, 90),
   minLng: coordinate(-180, 180), maxLng: coordinate(-180, 180),
 }).superRefine((value, context) => {
+  if (value.createdFrom && value.createdBefore && Date.parse(value.createdFrom) >= Date.parse(value.createdBefore)) {
+    context.addIssue({ code: 'custom', message: 'O início do período deve ser anterior ao fim.' });
+  }
   const bounds = [value.minLat, value.maxLat, value.minLng, value.maxLng];
   if (bounds.some(item => item !== undefined) && bounds.some(item => item === undefined)) {
     context.addIssue({ code: 'custom', message: 'Informe os quatro limites da região.' });

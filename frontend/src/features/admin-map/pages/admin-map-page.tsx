@@ -109,6 +109,7 @@ export function AdminMapPage() {
           error={vm.adjusting ? null : vm.inputError}
           onStatusChange={vm.updateStatus}
           onCategoryChange={vm.setCategory}
+          onExtraChange={vm.setExtraFilters}
           onApply={vm.applyFilters}
           onClear={vm.clearFilters}
           onSearchArea={vm.searchVisibleArea}

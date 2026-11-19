@@ -53,7 +53,7 @@ Login, dashboard, mapa, lista, detalhes de ocorrências, notificações, gestão
 
 - API1-93: login aprimorado e recuperação web por confirmação explícita; conferir frontend/docs/API1-93-validation.md. A configuração compartilhada de e-mail no Supabase ainda exige homologação manual.
 - API1-94 / API1-103: dashboard, indicadores SLA e série real dos sete dias completos anteriores a hoje no calendário de São Paulo. A série requer a migration `20261119000000_dashboard_daily_counts.sql` no backend.
-- API1-95: mapa, filtros e ajuste de localização (filtros extras dependem da API1-104).
+- API1-95 / API1-104: mapa, ajuste de localização e filtros globais de busca, prioridade, período, região e bairro cadastrado. Requer a migration `20261119010000_admin_occurrence_filters.sql`; o catálogo de bairros precisa de limites geográficos reais. Consulte `backend/docs/API1-104-admin-occurrence-filters.md`.
 - API1-92: gestão de órgãos; MASTER para operações de escrita.
 - API1-99: gestão de administradores exclusiva de MASTER ativo; consulte `docs/API1-99-validation.md`.
 - API1-96 e API1-97: lista e detalhes de ocorrências.

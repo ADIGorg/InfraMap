@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { http } from '@/infrastructure/api/http-client';
+import { extraFiltersSchema, type ExtraFilters } from '@/features/occurrences/services/extra-filters';
 
 export const ACTIVE_STATUSES = [
   'RECEIVED', 'UNDER_ANALYSIS', 'CONFIRMED', 'IN_SERVICE',
@@ -8,7 +9,7 @@ export const ACTIVE_STATUSES = [
 export type ActiveStatus = typeof ACTIVE_STATUSES[number];
 export type Bounds = { minLat: number; maxLat: number; minLng: number; maxLng: number };
 export type GeoPoint = { lat: number; lng: number };
-export type MapFilters = { statuses: ActiveStatus[]; categoryId: string; bbox: Bounds | null };
+export type MapFilters = ExtraFilters & { statuses: ActiveStatus[]; categoryId: string; bbox: Bounds | null };
 
 export const DEFAULT_FILTERS: MapFilters = {
   statuses: [...ACTIVE_STATUSES],
@@ -67,6 +68,7 @@ export function validateBounds(bbox: Bounds): Bounds {
 }
 
 export function createAdminMapQuery(filters: MapFilters, page: number): string {
+  const extra = extraFiltersSchema.parse(filters);
   if (!filters.statuses.length) throw new Error('Selecione pelo menos um status.');
   const params = new URLSearchParams({
     page: String(page),
@@ -75,6 +77,7 @@ export function createAdminMapQuery(filters: MapFilters, page: number): string {
     status: filters.statuses.join(','),
   });
   if (filters.categoryId) params.set('categoryId', filters.categoryId);
+  for (const [key, value] of Object.entries(extra)) if (value !== undefined) params.set(key, value);
   if (filters.bbox) {
     const bbox = validateBounds(filters.bbox);
     for (const key of ['minLat', 'maxLat', 'minLng', 'maxLng'] as const) {

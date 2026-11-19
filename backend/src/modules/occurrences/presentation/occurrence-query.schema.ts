@@ -13,7 +13,7 @@ const coordinate = (min: number, max: number) =>
   z.preprocess((v) => v === "" ? undefined : v, z.coerce.number().finite().min(min).max(max).optional());
 
 const common = {
-  page: z.coerce.number().int().min(1).default(1),
+  page: z.coerce.number().int().min(1).max(2147483647).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(20),
   sort: z.enum(["recent", "oldest", "most_liked"]).default("recent"),
   categoryId: z.uuid().optional(),
@@ -23,13 +23,25 @@ const common = {
   maxLng: coordinate(-180, 180),
 };
 
-function normalizeQuery(withStatus: boolean) {
-  return z.object(withStatus ? { ...common, status: statusQuery } : common)
+const administrative = {
+  priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'UNDEFINED']).optional(),
+  q: z.string().trim().min(1).max(200).optional(),
+  neighborhoodId: z.uuid().optional(),
+  createdFrom: z.iso.datetime({ offset: true }).optional(),
+  createdBefore: z.iso.datetime({ offset: true }).optional(),
+};
+
+function normalizeQuery(withStatus: boolean, admin = false) {
+  return z.object({ ...(withStatus ? { ...common, status: statusQuery } : common), ...(admin ? administrative : {}) })
     .superRefine((query, ctx) => {
       const q = query as typeof query & {
         minLat?: number; maxLat?: number; minLng?: number; maxLng?: number;
       };
       const coords = [q.minLat, q.maxLat, q.minLng, q.maxLng];
+      const period = query as { createdFrom?: string; createdBefore?: string };
+      if (period.createdFrom && period.createdBefore && Date.parse(period.createdFrom) >= Date.parse(period.createdBefore)) {
+        ctx.addIssue({ code: 'custom', message: 'createdFrom deve ser anterior a createdBefore.' });
+      }
       if (coords.some(v => v !== undefined) && coords.some(v => v === undefined)) {
         ctx.addIssue({ code: "custom", message: "Informe os quatro limites da região (bbox)." });
       }
@@ -41,11 +53,18 @@ function normalizeQuery(withStatus: boolean) {
       }
     })
     .transform(q => {
-      const query = q as typeof q & { status?: Array<z.infer<typeof statusEnum>> };
+      const query = q as typeof q & { status?: Array<z.infer<typeof statusEnum>> } & Partial<z.infer<z.ZodObject<typeof administrative>>>;
       return {
         page: query.page,
         pageSize: query.pageSize,
         sort: query.sort,
+        ...(admin ? {
+          ...(query.priority ? { priority: query.priority } : {}),
+          ...(query.q ? { q: query.q } : {}),
+          ...(query.neighborhoodId ? { neighborhoodId: query.neighborhoodId } : {}),
+          ...(query.createdFrom ? { createdFrom: query.createdFrom } : {}),
+          ...(query.createdBefore ? { createdBefore: query.createdBefore } : {}),
+        } : {}),
         ...(query.categoryId ? { categoryId: query.categoryId } : {}),
         ...(withStatus && query.status ? { statuses: query.status } : {}),
         ...(query.minLat !== undefined && query.maxLat !== undefined &&
@@ -58,7 +77,7 @@ function normalizeQuery(withStatus: boolean) {
 
 export const listPublicOccurrencesSchema = z.object({ query: normalizeQuery(false) });
 export const listMyOccurrencesSchema = z.object({ query: normalizeQuery(true) });
-export const listAdminOccurrencesSchema = z.object({ query: normalizeQuery(true) });
+export const listAdminOccurrencesSchema = z.object({ query: normalizeQuery(true, true) });
 
 export const occurrenceIdParamSchema = z.object({
   params: z.object({ id: z.uuid("ID da ocorrência inválido.") }),

@@ -1,6 +1,8 @@
 import { MapPinned, RotateCcw, SlidersHorizontal } from 'lucide-react';
 import { Button } from '@/shared/components/button';
 import { ACTIVE_STATUSES, type ActiveStatus, type Bounds, type MapCategory } from '../services/admin-occurrences.service';
+import { ExtraOccurrenceFilters } from '@/features/occurrences/components/extra-occurrence-filters';
+import type { ExtraFilters } from '@/features/occurrences/services/extra-filters';
 
 const LABELS: Record<ActiveStatus, string> = {
   RECEIVED: 'Recebido',
@@ -17,7 +19,8 @@ const COLORS: Record<ActiveStatus, string> = {
 };
 
 interface MapFiltersProps {
-  draft: { statuses: ActiveStatus[]; categoryId: string };
+  draft: ExtraFilters & { statuses: ActiveStatus[]; categoryId: string };
+  onExtraChange?: (filters: ExtraFilters) => void;
   appliedBounds: Bounds | null;
   visibleBounds: Bounds | null;
   categories?: MapCategory[];
@@ -36,7 +39,7 @@ interface MapFiltersProps {
 export function AdminMapFilters({
   draft, appliedBounds, visibleBounds, categories, categoriesLoading, categoriesError,
   canSearchArea, error, onStatusChange, onCategoryChange,
-  onApply, onClear, onSearchArea, onClearArea,
+  onApply, onClear, onSearchArea, onClearArea, onExtraChange,
 }: MapFiltersProps) {
   const viewportDiffers = Boolean(
     visibleBounds && appliedBounds &&
@@ -119,19 +122,7 @@ export function AdminMapFilters({
         )}
       </section>
 
-      <div className="space-y-2 border-t border-line pt-4">
-        <label htmlFor="map-neighborhood" className="field-label text-slate-500">Bairro</label>
-        <select id="map-neighborhood" disabled className="field-input bg-slate-100 text-slate-500">
-          <option>Indisponível nesta versão da API</option>
-        </select>
-        <label htmlFor="map-period" className="field-label text-slate-500">Período de abertura</label>
-        <select id="map-period" disabled className="field-input bg-slate-100 text-slate-500">
-          <option>Indisponível nesta versão da API</option>
-        </select>
-        <p className="text-xs text-ink-secondary">
-          Filtros globais por bairro e período dependem de suporte paginado do backend.
-        </p>
-      </div>
+      {onExtraChange && <ExtraOccurrenceFilters compact key={JSON.stringify(draft)} filters={draft} onApply={onExtraChange} />}
       {error && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-800">{error}</p>}
       <div className="space-y-2 border-t border-line pt-5">
         <Button type="button" className="w-full" onClick={onApply}

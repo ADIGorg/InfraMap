@@ -12,6 +12,7 @@ export function createAdminOccurrenceQueryRoutes(): Router {
   const router = Router();
   router.use(authenticate);
   router.use(authorizeRole(["ADMIN"]));
+  router.get('/neighborhoods', (req, res, next) => controller.neighborhoods(req, res).catch(next));
   router.get("/", validateRequest({ query: listAdminOccurrencesSchema.shape.query }),
     (req, res, next) => controller.list(req, res).catch(next));
   router.get("/:id", validateRequest({ params: occurrenceIdParamSchema.shape.params }),
