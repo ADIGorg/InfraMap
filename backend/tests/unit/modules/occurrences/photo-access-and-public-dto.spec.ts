@@ -432,6 +432,7 @@ describe(
       },
       votesCount: 2,
       createdAt: '2026-11-12T10:00:00Z',
+      photoPublicConsent: true,
       photos: [
         {
           storagePath: photo.storagePath,

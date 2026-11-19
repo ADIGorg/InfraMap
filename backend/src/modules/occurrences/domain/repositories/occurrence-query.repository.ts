@@ -39,6 +39,11 @@ export interface PaginatedResult<T> {
 }
 
 export interface ListFilters {
+  priority?: 'LOW' | 'MEDIUM' | 'HIGH' | 'UNDEFINED' | undefined;
+  q?: string | undefined;
+  neighborhoodId?: string | undefined;
+  createdFrom?: string | undefined;
+  createdBefore?: string | undefined;
   statuses?: OccurrenceStatus[] | undefined;
   categoryId?: string | undefined;
   bbox?: { minLat: number; maxLat: number; minLng: number; maxLng: number; } | undefined;
@@ -59,7 +64,10 @@ export interface PublicOccurrenceItem {
   createdAt: string;
 }
 
-export type PublicOccurrenceDetail = PublicOccurrenceItem;
+export interface PublicOccurrenceDetail extends PublicOccurrenceItem {
+  /** Internal security gate; removed from outgoing public DTO. */
+  photoPublicConsent: boolean;
+}
 
 // MINE
 export interface MyOccurrenceItem {

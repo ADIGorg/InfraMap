@@ -18,7 +18,7 @@ describe.skipIf(!qaEnabled)("QA-03 / fluxo cidadão → IA mock → cadastro →
     voter = await qa.user();
     master = await qa.user("MASTER");
     operator = await qa.user("OPERATIONAL");
-    const occurrence = await qa.createOccurrence(owner);
+    const occurrence = await qa.createOccurrence(owner, true);
     occurrenceId = occurrence.occurrenceId;
     const { data, error } = await qa.admin.from("occurrence_photos")
       .select("id").eq("occurrence_id", occurrenceId).single();
@@ -64,6 +64,7 @@ describe.skipIf(!qaEnabled)("QA-03 / fluxo cidadão → IA mock → cadastro →
         description: occurrence!.description,
         categorySource: occurrence!.category_source,
         descriptionSource: occurrence!.description_source,
+        photoPublicConsent: true,
         location: { lat: -12.2667, lng: -38.9665 },
         photos: [{ storagePath: source, mimeType: photo!.mime_type, sizeBytes: photo!.size_bytes }],
       });

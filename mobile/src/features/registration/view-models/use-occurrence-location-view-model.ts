@@ -143,7 +143,7 @@ export function useOccurrenceLocationViewModel() {
       submittingRef.current = false;
       setIsSubmitting(false);
     }
-  }, [analysisId, categoryId, categorySource, description, descriptionSource, draftError, location, navigation, photos, photoVisibility, userId, setCurrentStep]);
+  }, [analysisId, categoryId, categorySource, description, descriptionSource, draftError, location, navigation, photoVisibility, photos, userId, setCurrentStep]);
 
   const back = useCallback(() => {
     if (!isSubmitting) navigation.navigate('Review');

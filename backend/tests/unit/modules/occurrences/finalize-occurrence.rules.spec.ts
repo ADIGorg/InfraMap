@@ -35,6 +35,25 @@ function setup() {
 describe("OCC-01 / RN007, RN009, RN010, RN063, RN064, RN068", () => {
   beforeEach(() => vi.clearAllMocks());
 
+  it.each([true, false])("registra a opção explícita de publicidade %s", async (consent) => {
+    const {run, repo}=setup();
+    await run({ photoPublicConsent: consent });
+    expect(repo.finalize).toHaveBeenCalledWith(userId,
+      expect.objectContaining({ photoPublicConsent: consent }));
+  });
+
+  it("sem escolha explícita não persiste ocorrência nem consentimento", async () => {
+    const {run, repo}=setup();
+    await expect(run({ photoPublicConsent: undefined })).rejects.toHaveProperty("statusCode", 400);
+    expect(repo.finalize).not.toHaveBeenCalled();
+  });
+
+  it("rejeita valores falsos de consentimento que não sejam booleanos", async () => {
+    const {run, repo}=setup();
+    await expect(run({ photoPublicConsent: "true" })).rejects.toHaveProperty("statusCode", 400);
+    expect(repo.finalize).not.toHaveBeenCalled();
+  });
+
   it("finaliza uma ocorrência e devolve resumo", async () => {
     const { run, repo } = setup();
     const result = await run();

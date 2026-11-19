@@ -223,6 +223,11 @@ paths:
         ocorrência em status `RECEIVED` (RN026). Categoria e descrição
         precisam ser coerentes com `categorySource`/`descriptionSource`
         (RN068). 1 a 3 fotos JPEG/PNG com até 5 MB cada (RN010).
+        RN017: photoPublicConsent precisa ser TRUE para autorizar explicitamente
+        exibição futura de fotos públicas após moderação; FALSE ou omissão
+        persiste fotos privadas. A escolha é registrada no banco e no histórico.
+        URLs assinadas só são emitidas para terceiros quando status/visibilidade
+        pública e consentimento estão confirmados.
       operationId: finalizeOccurrence
       security: [{ bearerAuth: [] }]
       requestBody:
@@ -239,6 +244,7 @@ paths:
                 lng: -46.6333
               categorySource: AI_CONFIRMED
               descriptionSource: AI_EDITED
+              photoPublicConsent: false
               photos:
                 - storagePath: temporary/181227d2-89d7-4ceb-8dff-85b623aeee5b/3fa85f64-5717-4562-b3fc-2c963f66afa6/photo-1.jpg
                   mimeType: image/jpeg
@@ -423,10 +429,13 @@ paths:
       tags: [Admin]
       summary: Listar ocorrências no painel administrativo
       description: |
-        Admin ativo. Filtros: `status`, `category` (UUID ou CATxx),
-        `priority`, `min_votes`, `sort` (`created_at` | `priority` |
-        `status_updated_at` | `votes`), `order` (`asc` | `desc`).
-        Padrão: `created_at desc` (RN053).
+        ADMIN ativo. Todos os filtros são combinados com AND no servidor antes
+        da contagem e paginação. Datas de created_at com timezone explícito;
+        intervalo [createdFrom, createdBefore). Bairro usa polígonos cadastrados
+        sobre location_adjusted ou location_original, inclusive a borda.
+        Busca literal sem distinguir maiúsculas em descrição, nome da categoria
+        e UUID completo/parcial (aceita prefixo #OC-). Não busca endereço ou autor.
+        Sem remoção de acentos nem interpretação de %/_ como curingas.
       operationId: adminListOccurrences
       security: [{ bearerAuth: [] }]
       parameters:
@@ -438,25 +447,65 @@ paths:
           schema: { type: array, items: { $ref: "#/components/schemas/OccurrenceStatus" } }
           style: form
           explode: true
-        - name: category
+        - name: categoryId
           in: query
-          schema: { type: array, items: { type: string } }
-          style: form
-          explode: true
+          schema: { type: string, format: uuid }
         - name: priority
           in: query
-          schema: { type: array, items: { $ref: "#/components/schemas/OccurrencePriority" } }
-          style: form
-          explode: true
-        - name: min_votes
+          schema: { type: string, enum: [LOW, MEDIUM, HIGH, UNDEFINED] }
+          description: UNDEFINED seleciona prioridade nula.
+        - name: q
           in: query
-          schema: { type: integer, minimum: 0 }
+          schema: { type: string, minLength: 1, maxLength: 200 }
+        - name: neighborhoodId
+          in: query
+          schema: { type: string, format: uuid }
+          description: UUID do catálogo /admin/occurrences/neighborhoods. Inexistente ou inativo retorna zero resultados.
+        - name: createdFrom
+          in: query
+          schema: { type: string, format: date-time }
+          description: Instante inicial inclusivo; exige timezone. Deve ser anterior a createdBefore.
+        - name: createdBefore
+          in: query
+          schema: { type: string, format: date-time }
+          description: Instante final exclusivo; exige timezone.
+        - { name: minLat, in: query, schema: { type: number, minimum: -90, maximum: 90 }, description: Bbox exige os quatro limites e mínimos menores ou iguais aos máximos. }
+        - { name: maxLat, in: query, schema: { type: number, minimum: -90, maximum: 90 } }
+        - { name: minLng, in: query, schema: { type: number, minimum: -180, maximum: 180 } }
+        - { name: maxLng, in: query, schema: { type: number, minimum: -180, maximum: 180 } }
       responses:
         "200":
           description: Lista paginada.
           content:
             application/json:
               schema: { $ref: "#/components/schemas/AdminOccurrenceListResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /admin/occurrences/neighborhoods:
+    get:
+      tags: [Admin]
+      operationId: listAdministrativeNeighborhoods
+      summary: Listar bairros ativos com limites geográficos cadastrados
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Catálogo ordenado por município e nome. Vazio até importar limites reais.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      required: [id, name, municipality]
+                      properties:
+                        id: { type: string, format: uuid }
+                        name: { type: string }
+                        municipality: { type: string }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
 
@@ -1605,6 +1654,14 @@ components:
         location: { $ref: "#/components/schemas/GeoPoint" }
         categorySource: { $ref: "#/components/schemas/DataSource" }
         descriptionSource: { $ref: "#/components/schemas/DataSource" }
+        photoPublicConsent:
+          type: boolean
+          default: false
+          description: |
+            Consentimento explícito RN017 para tornar públicas as fotos quando
+            a ocorrência estiver CONFIRMED ou IN_SERVICE e public_visible for
+            TRUE. A ausência ou FALSE é sempre privada. Versão do aviso:
+            RN017-2026-11-15. O mobile exige seleção antes de capturar.
         photos:
           type: array
           minItems: 1
@@ -1736,8 +1793,29 @@ components:
       properties:
         data:
           type: object
-          required: [counts_by_status, high_priority_total, average_resolution_days, sla_breaches]
+          required: [counts_by_status, high_priority_total, average_resolution_days, sla_breaches, daily_counts, daily_counts_timezone]
           properties:
+            daily_counts_timezone:
+              type: string
+              enum: [America/Sao_Paulo]
+            daily_counts:
+              type: array
+              minItems: 7
+              maxItems: 7
+              description: >-
+                Sete dias completos anteriores a hoje no calendário America/Sao_Paulo,
+                ordenados por data crescente, incluindo zeros. Hoje não está incluído.
+                Conta todas as ocorrências por created_at, independentemente de status,
+                sem joins com fotos ou histórico. Timestamps são armazenados em UTC;
+                limites de meia-noite local são convertidos para timestamptz.
+                Intervalo semiaberto [hoje - 7 dias às 00h, hoje às 00h).
+                date é uma data de calendário, não deve ser reconvertida de UTC na UI.
+              items:
+                type: object
+                required: [date, count]
+                properties:
+                  date: { type: string, format: date }
+                  count: { type: integer, minimum: 0 }
             counts_by_status:
               type: object
               required: [RECEIVED, UNDER_ANALYSIS, CONFIRMED, IN_SERVICE, RESOLVED, REJECTED]

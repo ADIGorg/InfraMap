@@ -4,10 +4,9 @@ import { ForbiddenScreen } from '@/shared/components/forbidden-screen';
 import { LoadingScreen } from '@/shared/components/loading-screen';
 
 export function MasterRoute() {
-  const { data, isPending } = useAdminIdentity();
+  const { data, isPending, isError } = useAdminIdentity();
   if (isPending) return <LoadingScreen />;
   // Nunca inferir privilégios do JWT ou de uma listagem admin.
-  // Até API1-100, /admin/me não tem admin_level e falha fechado.
-  if (data?.admin_level !== 'MASTER') return <ForbiddenScreen master />;
+  if (isError || data?.role !== 'ADMIN' || !data.is_active || data.admin_level !== 'MASTER') return <ForbiddenScreen master />;
   return <Outlet />;
 }

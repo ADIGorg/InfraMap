@@ -18,7 +18,7 @@ import type {
  *  - `photoUrls` expõe apenas URLs temporárias (com expiração curta)
  */
 export interface PublicOccurrenceDetailWithUrls
-  extends Omit<PublicOccurrenceDetail, 'photos'> {
+  extends Omit<PublicOccurrenceDetail, 'photos' | 'photoPublicConsent'> {
   photoUrls: Array<{
     mimeType: string;
     sizeBytes: number;
@@ -43,7 +43,8 @@ export class GetPublicOccurrenceUseCase {
     // A RPC já filtra por status público no WHERE, mas revalidamos aqui
     // por defesa em profundidade.
     const eligibleForPublicPhotos =
-      item.status === 'CONFIRMED' || item.status === 'IN_SERVICE';
+      (item.status === 'CONFIRMED' || item.status === 'IN_SERVICE')
+      && item.photoPublicConsent === true;
 
     const paths: string[] = eligibleForPublicPhotos
       ? item.photos.map((p) => p.storagePath)
@@ -68,8 +69,9 @@ export class GetPublicOccurrenceUseCase {
       });
 
     // Não vazar `storagePath` no payload final
-    const { photos: _photos, ...publicDetail } = item;
-    void _photos; // consome a variável para o linter
+    const { photos: _photos, photoPublicConsent: _consent, ...publicDetail } = item;
+    void _photos;
+    void _consent; // campos privados não integram o DTO público
 
     return { ...publicDetail, photoUrls };
   }

@@ -10,8 +10,13 @@ import { ListAdminOccurrencesUseCase } from "../application/use-cases/list-admin
 import { GetAdminOccurrenceUseCase } from "../application/use-cases/get-admin-occurrence.use-case.js";
 
 import type { ListFilters } from "../domain/repositories/occurrence-query.repository.js";
+import { listNeighborhoods } from '../application/use-cases/list-neighborhoods.use-case.js';
 
 export class AdminOccurrenceQueryController {
+  async neighborhoods(req: Request, res: Response) {
+    if (!req.user || !req.token) throw new UnauthorizedError();
+    return res.json({ data: await listNeighborhoods(createUserSupabaseClient(req.token)) });
+  }
   async list(req: Request, res: Response) {
     if (!req.user || !req.token) throw new UnauthorizedError();
     const userClient = createUserSupabaseClient(req.token);

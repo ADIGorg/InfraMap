@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { parseGeoPoint } from "../../../../shared/geo/parse-geo-point.js";
+import { AppError } from '../../../../shared/errors/app-error.js';
 
 export { parseGeoPoint };
 
@@ -63,6 +64,10 @@ function mapAdminFilters(filters: ListFilters): Record<string, unknown> {
   if (filters.statuses?.length) out.status = filters.statuses;
   if (filters.categoryId) out.category = [filters.categoryId];
   if (filters.bbox) out.bbox = filters.bbox;
+  if (filters.priority) out.priority_filter = filters.priority;
+  for (const key of ['q', 'neighborhoodId', 'createdFrom', 'createdBefore'] as const) {
+    if (filters[key]) out[key] = filters[key];
+  }
   switch (filters.sort) {
     case "most_liked":
       out.sort = "votes";
@@ -141,6 +146,7 @@ export class SupabaseOccurrenceQueryRepository
     // service-role client, solely to sign temporary Storage URLs server-side.
     // Never expose storage_path in the public response.
     let photos: OccurrencePhoto[] = [];
+    let photoPublicConsent = false;
     if (this.publicPhotoMetadataReader) {
       const { data: photoRows, error: photoError } = await this.publicPhotoMetadataReader
         .from("occurrence_photos")
@@ -150,6 +156,9 @@ export class SupabaseOccurrenceQueryRepository
         .order("position", { ascending: true });
       if (photoError) throw new Error(`Erro ao consultar fotos públicas: ${photoError.message}`);
       photos = mapPhotos(photoRows);
+      // O contrato atual registra consentimento em cada foto. A consulta acima
+      // já restringiu os metadados a is_public=true, após a view pública.
+      photoPublicConsent = photos.length > 0;
     }
 
     return {
@@ -161,6 +170,7 @@ export class SupabaseOccurrenceQueryRepository
       votesCount: toInt(data.vote_count),
       createdAt: data.created_at as string,
       photos,
+      photoPublicConsent,
     };
   }
 
@@ -218,6 +228,11 @@ export class SupabaseOccurrenceQueryRepository
       p_limit: filters.pageSize,
     });
     if (error) throw new Error(`Erro na consulta: ${error.message}`);
+
+    if (['priority', 'q', 'neighborhoodId', 'createdFrom', 'createdBefore'].some(key => filters[key as keyof ListFilters] !== undefined)
+      && (data as { filters_version?: number } | null)?.filters_version !== 1) {
+      throw new AppError(503, 'ADMIN_FILTERS_UNAVAILABLE', 'Os filtros administrativos exigem a atualização do banco.');
+    }
 
     const payload = data as {
       data: Array<Record<string, unknown>>;
