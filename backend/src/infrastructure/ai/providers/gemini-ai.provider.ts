@@ -73,9 +73,12 @@ export class GeminiAiProvider implements AiAnalysisProvider {
     ].join(" ");
 
     let response: Response;
+    const endpoint =
+    "https://generativelanguage.googleapis.com/v1beta/models/" +
+    `${encodeURIComponent(this.config.model)}:generateContent`;
     try {
       response = await this.http(
-        `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(this.config.model)}:generateContent`,
+        endpoint,
         {
           method: "POST",
           headers: {
