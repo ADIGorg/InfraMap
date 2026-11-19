@@ -29,7 +29,7 @@ export function useAdminOccurrenceDetailViewModel(id: string) {
   });
   const history = useQuery({ queryKey: [...queryKeys.occurrence(id), 'history'], queryFn: ({ signal }) => getOccurrenceHistory(id, signal), enabled });
   const forwardings = useQuery({ queryKey: [...queryKeys.occurrence(id), 'forwardings'], queryFn: ({ signal }) => getForwardings(id, signal), enabled });
-  const agencies = useQuery({ queryKey: queryKeys.agencies, queryFn: ({ signal }) => getAgencies(signal), enabled });
+  const agencies = useQuery({ queryKey: [...queryKeys.agencies, 'forwarding-options'], queryFn: ({ signal }) => getAgencies(signal), enabled });
   const categories = useQuery({ queryKey: ['categories'], queryFn: ({ signal }) => AdminOccurrencesService.categories(signal), enabled });
   const refresh = useCallback(async () => {
     await Promise.all([

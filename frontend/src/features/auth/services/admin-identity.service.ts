@@ -5,7 +5,7 @@ export const adminIdentitySchema = z.object({
   id: z.uuid(),
   role: z.literal('ADMIN'),
   is_active: z.boolean(),
-  // API1-100 ainda não concluída; ausência de nível bloqueia MASTER.
+  // Compatibilidade durante implantação da API1-100: ausência de nível bloqueia ações MASTER.
   admin_level: z.enum(['MASTER', 'OPERATIONAL']).optional(),
 });
 export type AdminIdentity = z.infer<typeof adminIdentitySchema>;

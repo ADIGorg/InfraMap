@@ -7,6 +7,8 @@ import { MasterRoute } from './master-route';
 import { AdminOccurrencesPage } from '@/features/occurrences/pages/admin-occurrences-page';
 import { AdminOccurrenceDetailPage } from '@/features/occurrences/pages/admin-occurrence-detail-page';
 import { NotFoundPage } from '@/shared/pages/not-found-page';
+import { AgenciesPage } from '@/features/agencies/pages/agencies-page';
+import { AdminNotificationsPage } from '@/features/notifications/pages/admin-notifications-page';
 
 vi.mock('@/config/env', () => ({ env: {
   apiBaseUrl: 'http://localhost:3000/api/v1',
@@ -49,5 +51,10 @@ describe('Integração das rotas por feature', () => {
 
   it('mantém o fallback para endereço desconhecido', () => {
     expect(componentsAt('/inexistente').at(-1)).toBe(NotFoundPage);
+  });
+
+  it('integra gestão de órgãos e preserva notificações implementadas', () => {
+    expect(componentsAt('/admin/agencies').at(-1)).toBe(AgenciesPage);
+    expect(componentsAt('/admin/notifications').at(-1)).toBe(AdminNotificationsPage);
   });
 });
