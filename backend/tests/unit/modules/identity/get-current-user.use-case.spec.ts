@@ -58,6 +58,7 @@ describe("API1-13 - Identificação do usuário", () => {
       id: "admin-123",
       role: "ADMIN",
       is_active: true,
+      admin_level: "MASTER",
     });
 
     const service = new GetCurrentUserUseCase(repository);
@@ -69,6 +70,36 @@ describe("API1-13 - Identificação do usuário", () => {
 
     expect(identity.role).toBe("ADMIN");
     expect(identity.is_active).toBe(true);
+    expect(identity).toHaveProperty("admin_level", "MASTER");
+  });
+
+  it("deve retornar OPERATIONAL do banco em /admin/me", async () => {
+    const service = new GetCurrentUserUseCase(createRepository({
+      id: "op-123", role: "ADMIN", is_active: true,
+      admin_level: "OPERATIONAL",
+    }));
+    await expect(service.execute("op-123", "ADMIN")).resolves.toEqual({
+      id: "op-123", role: "ADMIN", is_active: true,
+      admin_level: "OPERATIONAL",
+    });
+  });
+
+  it("deve negar ADMIN sem nível confiável (fail-closed)", async () => {
+    const service = new GetCurrentUserUseCase(createRepository({
+      id: "admin-123", role: "ADMIN", is_active: true,
+      admin_level: null,
+    }));
+    await expect(service.execute("admin-123", "ADMIN"))
+      .rejects.toMatchObject({ statusCode: 403, code: "FORBIDDEN" });
+  });
+
+  it("deve negar ADMIN inativo mesmo que tenha nível MASTER", async () => {
+    const service = new GetCurrentUserUseCase(createRepository({
+      id: "admin-123", role: "ADMIN", is_active: false,
+      admin_level: "MASTER",
+    }));
+    await expect(service.execute("admin-123", "ADMIN"))
+      .rejects.toMatchObject({ statusCode: 403, code: "FORBIDDEN" });
   });
 
   it("deve impedir cidadão no contexto administrativo", async () => {

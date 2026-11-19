@@ -44,6 +44,25 @@ const profiles = new Map<string, UserProfile>([
       id: "admin-1",
       role: "ADMIN",
       is_active: true,
+      admin_level: "MASTER",
+    },
+  ],
+  [
+    "operational-1",
+    {
+      id: "operational-1",
+      role: "ADMIN",
+      is_active: true,
+      admin_level: "OPERATIONAL",
+    },
+  ],
+  [
+    "inactive-admin",
+    {
+      id: "inactive-admin",
+      role: "ADMIN",
+      is_active: false,
+      admin_level: "MASTER",
     },
   ],
   [
@@ -59,6 +78,8 @@ const profiles = new Map<string, UserProfile>([
 const tokens: Record<string, string> = {
   "test-citizen": "citizen-1",
   "test-admin": "admin-1",
+  "test-operational": "operational-1",
+  "test-inactive-admin": "inactive-admin",
   "test-inactive": "inactive-1",
 };
 
@@ -177,7 +198,27 @@ describe("API1-13 - Endpoints de identidade", () => {
       id: "admin-1",
       role: "ADMIN",
       is_active: true,
+      admin_level: "MASTER",
     });
+  });
+
+  it("deve retornar OPERATIONAL sem confiar no cabeçalho do cliente", async () => {
+    const response = await request(app)
+      .get("/api/v1/admin/me")
+      .set("Authorization", "Bearer test-operational")
+      .set("x-admin-level", "MASTER");
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({
+      id: "operational-1", role: "ADMIN", is_active: true,
+      admin_level: "OPERATIONAL",
+    });
+  });
+
+  it("deve bloquear ADMIN inativo mesmo que MASTER", async () => {
+    const response = await request(app)
+      .get("/api/v1/admin/me")
+      .set("Authorization", "Bearer test-inactive-admin");
+    expect(response.status).toBe(403);
   });
 
   it("deve bloquear cidadão na rota administrativa", async () => {

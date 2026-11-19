@@ -28,7 +28,7 @@
 | DELETE `/identity/me` | Autenticado | Desativação/anonimização (idempotência definida no SQL) |
 | GET `/identity/admin-check` | ADMIN | Verifica autorização |
 | GET `/app/me` | CITIZEN | Identidade do cidadão ativo |
-| GET `/admin/me` | ADMIN | Identidade do admin ativo |
+| GET `/admin/me` | ADMIN | Identidade do admin ativo com `admin_level` (`MASTER` ou `OPERATIONAL`) lido de `user_roles` |
 | POST `/ai-analyses/` | CITIZEN | Multipart: campo `photos` (1–3 JPEG/PNG) |
 | POST `/ai-analyses/:id/analyze` | CITIZEN | Dispara IA async e retorna 202 |
 | GET `/ai-analyses/:id` | CITIZEN autor | Estado e resultado da análise |
