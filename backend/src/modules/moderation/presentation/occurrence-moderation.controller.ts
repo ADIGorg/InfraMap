@@ -56,8 +56,10 @@ export class OccurrenceModerationController {
     const id = this.occurrenceId(req);
     if (!id) return res.status(400).json({ message: "ID da ocorrência inválido." });
 
-    const body = req.validated?.body as { justification: string };
-    await new RejectOccurrenceUseCase(this.repo(req)).execute(id, body.justification);
+    const body = req.validated?.body as { justification: string; agencyResponse?: string };
+    await new RejectOccurrenceUseCase(this.repo(req)).execute(
+      id, body.justification, body.agencyResponse,
+    );
     return res.status(200).json({ message: "Ocorrência rejeitada com sucesso." });
   }
 

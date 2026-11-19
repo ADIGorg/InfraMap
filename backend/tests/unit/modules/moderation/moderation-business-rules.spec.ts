@@ -53,10 +53,34 @@ describe("MOD-01 / RN026–RN037: transições válidas e negativas", () => {
     await expect(new RejectOccurrenceUseCase(repo).execute(id, "  não ")).rejects.toHaveProperty("statusCode", 400);
     expect(repository.transitionStatus).not.toHaveBeenCalled();
   });
+  it("CONFIRMED exige evidência textual da resposta do órgão", async () => {
+    const { repository, repo } = setup("CONFIRMED");
+    await expect(new RejectOccurrenceUseCase(repo).execute(id, "Impossibilidade justificada"))
+      .rejects.toHaveProperty("statusCode", 400);
+    expect(repository.transitionStatus).not.toHaveBeenCalled();
+
+    await new RejectOccurrenceUseCase(repo).execute(
+      id, "Órgão correto não consegue atender", "Órgão informou falta de recursos neste trimestre",
+    );
+    expect(repository.transitionStatus).toHaveBeenCalledWith(
+      id, "REJECTED", "Órgão correto não consegue atender",
+      "Órgão informou falta de recursos neste trimestre",
+    );
+  });
+
+  it.each(["RECEIVED", "IN_SERVICE", "RESOLVED", "REJECTED"] as const)(
+    "impede rejeição de status %s", async status => {
+      const { repo } = setup(status);
+      await expect(new RejectOccurrenceUseCase(repo).execute(
+        id, "Justificativa suficiente", "Retorno do órgão",
+      )).rejects.toHaveProperty("statusCode", 409);
+    },
+  );
+
   it("rejeição valida status e registra justificativa normalizada", async () => {
     const { repo, repository } = setup("UNDER_ANALYSIS");
     await new RejectOccurrenceUseCase(repo).execute(id, "  Local incorreto  ");
-    expect(repository.transitionStatus).toHaveBeenCalledWith(id, "REJECTED", "Local incorreto");
+    expect(repository.transitionStatus).toHaveBeenCalledWith(id, "REJECTED", "Local incorreto", undefined);
     repository.getOccurrenceById.mockResolvedValue({id, status:"RESOLVED", priority: null});
     await expect(new RejectOccurrenceUseCase(repo).execute(id, "Justificativa adequada")).rejects.toHaveProperty("statusCode",409);
   });

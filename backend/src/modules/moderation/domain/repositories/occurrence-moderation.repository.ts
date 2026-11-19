@@ -47,6 +47,7 @@ export interface IOccurrenceModerationRepository {
     occurrenceId: string,
     newStatus: OccurrenceStatus,
     justification?: string,
+    agencyResponse?: string,
   ): Promise<void>;
 
   startService(occurrenceId: string, actionNotes: string): Promise<void>;
