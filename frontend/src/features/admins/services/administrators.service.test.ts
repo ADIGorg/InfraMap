@@ -1,5 +1,8 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { createAdministratorSchema } from './administrators.service';
+
+// Validação de contrato não depende de Supabase nem das variáveis do ambiente.
+vi.mock('@/infrastructure/api/http-client', () => ({ http: vi.fn() }));
 
 describe('Contrato de criação de administradores', () => {
   const valid = { name: 'Ana', email: 'ana@example.com', password: '12345678', admin_level: 'MASTER' };
