@@ -108,7 +108,6 @@ export function useOccurrenceLocationViewModel() {
         location,
         categorySource,
         descriptionSource,
-        photoPublicConsent: photoVisibility === 'PUBLIC',
         photos: photos.map((photo, index) => ({
           storagePath: buildTemporaryPhotoPath(userId, analysisId, index, photo.mimeType),
           mimeType: photo.mimeType,
@@ -144,11 +143,7 @@ export function useOccurrenceLocationViewModel() {
       submittingRef.current = false;
       setIsSubmitting(false);
     }
-<<<<<<< HEAD
-  }, [analysisId, categoryId, categorySource, description, descriptionSource, draftError, location, navigation, photos, photoVisibility, userId, setCurrentStep]);
-=======
   }, [analysisId, categoryId, categorySource, description, descriptionSource, draftError, location, navigation, photoVisibility, photos, userId, setCurrentStep]);
->>>>>>> feature/web-ui-07-gestao-adm
 
   const back = useCallback(() => {
     if (!isSubmitting) navigation.navigate('Review');

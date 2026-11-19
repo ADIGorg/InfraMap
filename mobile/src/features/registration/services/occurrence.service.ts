@@ -11,8 +11,6 @@ export interface FinalizeOccurrenceInput {
   descriptionSource: DataSource;
   photoPublicConsent: boolean;
   photos: FinalizePhotoInput[];
-  /** Seleção explícita do cidadão antes da captura (RN017). */
-  photoPublicConsent: boolean;
 }
 export interface FinalizeOccurrenceResult { id: string; status: 'RECEIVED'; summary: { categoryId: string; descriptionLength: number; photosCount: number; }; }
 export function buildTemporaryPhotoPath(userId: string, analysisId: string, index: number, mimeType: PhotoMimeType): string {
