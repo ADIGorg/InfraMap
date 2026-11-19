@@ -143,7 +143,6 @@ export class SupabaseOccurrenceQueryRepository
     let photos: OccurrencePhoto[] = [];
     let photoPublicConsent = false;
     if (this.publicPhotoMetadataReader) {
-<<<<<<< HEAD
       const { data: photoRows, error: photoError } = await this.publicPhotoMetadataReader
         .from("occurrence_photos")
         .select("storage_path, mime_type, size_bytes, position")
@@ -152,25 +151,9 @@ export class SupabaseOccurrenceQueryRepository
         .order("position", { ascending: true });
       if (photoError) throw new Error(`Erro ao consultar fotos públicas: ${photoError.message}`);
       photos = mapPhotos(photoRows);
-=======
-      const { data: consentRow, error: consentError } = await this.publicPhotoMetadataReader
-        .from("occurrences")
-        .select("photo_public_consent")
-        .eq("id", id)
-        .single();
-      if (consentError) throw new Error("Não foi possível verificar a privacidade das fotos.");
-      // Fail closed: service-role metadata is checked only AFTER the public view gate.
-      photoPublicConsent = consentRow?.photo_public_consent === true;
-      if (photoPublicConsent) {
-        const { data: photoRows, error: photoError } = await this.publicPhotoMetadataReader
-          .from("occurrence_photos")
-          .select("storage_path, mime_type, size_bytes, position")
-          .eq("occurrence_id", id)
-          .order("position", { ascending: true });
-        if (photoError) throw new Error("Não foi possível consultar fotos públicas.");
-        photos = mapPhotos(photoRows);
-      }
->>>>>>> feature/web-ui-07-gestao-adm
+      // O contrato atual registra consentimento em cada foto. A consulta acima
+      // já restringiu os metadados a is_public=true, após a view pública.
+      photoPublicConsent = photos.length > 0;
     }
 
     return {

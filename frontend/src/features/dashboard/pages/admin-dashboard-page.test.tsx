@@ -82,7 +82,7 @@ describe('AdminDashboardPage', () => {
     expect(screen.getByText('1')).toBeInTheDocument();
     expect(screen.getByRole('table')).toBeInTheDocument();
     expect(screen.getAllByText('Vazamento de esgoto')).toHaveLength(2);
-    expect(screen.getByText('Dados diários indisponíveis nesta versão da API. A série real depende da API1-103.')).toBeInTheDocument();
+    expect(screen.getByText('Dados diários indisponíveis nesta versão da API.')).toBeInTheDocument();
   });
 
   it('falha de API não substitui indicadores por zeros', () => {
@@ -104,5 +104,14 @@ describe('AdminDashboardPage', () => {
     display();
     fireEvent.click(screen.getByRole('button', { name: 'Atualizar' }));
     expect(refresh).toHaveBeenCalledTimes(1);
+  });
+
+  it('liga o gráfico à série do dashboard, independente dos cinco registros recentes', () => {
+    configure({ data: { ...baseDashboard, daily_counts_timezone: 'America/Sao_Paulo',
+      daily_counts: Array.from({ length: 7 }, (_, index) => ({ date: `2026-11-${12 + index}`, count: index === 3 ? 70 : 0 })),
+    }, items: [baseRecent] });
+    display();
+    expect(screen.getByText(/70 ocorrências no período · Média diária de 10/)).toBeInTheDocument();
+    expect(screen.queryByText(/Dados diários indisponíveis/)).not.toBeInTheDocument();
   });
 });

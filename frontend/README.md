@@ -52,7 +52,7 @@ Layouts e `shared` são compartilhados: coordenem alterações nesses arquivos. 
 Login, dashboard, mapa, lista, detalhes de ocorrências, notificações, gestão de órgãos e gestão de administradores possuem páginas implementadas. Cada tela é desenvolvida na sua própria branch, com ticket individual:
 
 - API1-93: login aprimorado e recuperação web por confirmação explícita; conferir frontend/docs/API1-93-validation.md. A configuração compartilhada de e-mail no Supabase ainda exige homologação manual.
-- API1-94: dashboard e indicadores SLA (série diária depende da API1-103).
+- API1-94 / API1-103: dashboard, indicadores SLA e série real dos sete dias completos anteriores a hoje no calendário de São Paulo. A série requer a migration `20261119000000_dashboard_daily_counts.sql` no backend.
 - API1-95: mapa, filtros e ajuste de localização (filtros extras dependem da API1-104).
 - API1-92: gestão de órgãos; MASTER para operações de escrita.
 - API1-99: gestão de administradores exclusiva de MASTER ativo; consulte `docs/API1-99-validation.md`.
@@ -75,7 +75,7 @@ ATENÇÃO: o Supabase compartilhado usa o mesmo modelo de e-mail para web e mobi
 
 ## API1-94: dashboard administrativo real
 
-A branch feature/web-ui-02-dashboard implementa seis contadores de status, total HIGH, média de resolução, 2 alertas SLA e as 5 ocorrências mais recentes com polling de 30 segundos. Não existem dados simulados. A série diária do gráfico depende da API1-103 e fica explicitamente indisponível. Ver frontend/docs/API1-94-validation.md.
+A branch feature/web-ui-02-dashboard implementa seis contadores de status, total HIGH, média de resolução, 2 alertas SLA e as 5 ocorrências mais recentes com polling de 30 segundos. Não existem dados simulados. A API1-103 acrescenta o gráfico da série diária real, com zeros e média calculada sobre os sete dias completos. Até aplicar a migration, apenas o gráfico informa indisponibilidade. Ver `backend/docs/API1-103-dashboard-daily-counts.md` para o contrato e a validação.
 
 ## API1-95 — Mapa Administrativo
 

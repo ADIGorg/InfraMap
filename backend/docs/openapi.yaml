@@ -1750,8 +1750,29 @@ components:
       properties:
         data:
           type: object
-          required: [counts_by_status, high_priority_total, average_resolution_days, sla_breaches]
+          required: [counts_by_status, high_priority_total, average_resolution_days, sla_breaches, daily_counts, daily_counts_timezone]
           properties:
+            daily_counts_timezone:
+              type: string
+              enum: [America/Sao_Paulo]
+            daily_counts:
+              type: array
+              minItems: 7
+              maxItems: 7
+              description: >-
+                Sete dias completos anteriores a hoje no calendário America/Sao_Paulo,
+                ordenados por data crescente, incluindo zeros. Hoje não está incluído.
+                Conta todas as ocorrências por created_at, independentemente de status,
+                sem joins com fotos ou histórico. Timestamps são armazenados em UTC;
+                limites de meia-noite local são convertidos para timestamptz.
+                Intervalo semiaberto [hoje - 7 dias às 00h, hoje às 00h).
+                date é uma data de calendário, não deve ser reconvertida de UTC na UI.
+              items:
+                type: object
+                required: [date, count]
+                properties:
+                  date: { type: string, format: date }
+                  count: { type: integer, minimum: 0 }
             counts_by_status:
               type: object
               required: [RECEIVED, UNDER_ANALYSIS, CONFIRMED, IN_SERVICE, RESOLVED, REJECTED]

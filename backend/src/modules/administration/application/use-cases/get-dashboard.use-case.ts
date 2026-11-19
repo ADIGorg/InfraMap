@@ -1,4 +1,7 @@
 export interface Dashboard {
+  /** Sete dias completos anteriores a hoje no calendário informado, em ordem crescente. */
+  daily_counts: Array<{ date: string; count: number }>;
+  daily_counts_timezone: "America/Sao_Paulo";
   counts_by_status: {
     RECEIVED: number;
     UNDER_ANALYSIS: number;

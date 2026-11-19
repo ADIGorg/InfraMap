@@ -4,8 +4,17 @@ import { type OccurrenceStatus } from '@/shared/types/api';
 
 const count = z.number().int().nonnegative();
 
+export const dailyCountsSchema = z.array(z.object({ date: z.iso.date(), count })).length(7)
+  .refine(days => days.every((day, index) => index === 0 ||
+    Date.parse(day.date + 'T00:00:00Z') - Date.parse(days[index - 1].date + 'T00:00:00Z') === 86_400_000),
+  'A série deve conter sete datas consecutivas em ordem crescente.');
+export type DailyCount = z.infer<typeof dailyCountsSchema>[number];
+
 export const dashboardResponseSchema = z.object({
   data: z.object({
+    // Ausência permite rollout anterior à migration, sem inventar uma série zerada.
+    daily_counts: dailyCountsSchema.optional(),
+    daily_counts_timezone: z.literal('America/Sao_Paulo').optional(),
     counts_by_status: z.object({
       RECEIVED: count,
       UNDER_ANALYSIS: count,
@@ -20,7 +29,8 @@ export const dashboardResponseSchema = z.object({
       received_over_48h: count,
       under_analysis_over_5d: count,
     }),
-  }),
+  }).refine(data => (data.daily_counts === undefined) === (data.daily_counts_timezone === undefined),
+    'Série diária e seu calendário devem ser informados juntos.'),
 });
 
 export type AdminDashboard = z.infer<typeof dashboardResponseSchema>['data'];

@@ -6,6 +6,7 @@ import { cn } from '@/shared/utils/cn';
 import { dashboardStatuses, type RecentOccurrence } from '../services/dashboard.service';
 import { formatElapsedDays, formatOccurrenceDate } from '../utils/dashboard-format';
 import { useAdminDashboardViewModel } from '../view-models/use-admin-dashboard-view-model';
+import { DailyOccurrencesChart } from '../components/daily-occurrences-chart';
 
 const priorityLabels = {
   LOW: 'Baixa',
@@ -214,11 +215,9 @@ export function AdminDashboardPage() {
           <RecentList isPending={vm.recent.isPending} isError={vm.recent.isError} items={vm.recent.data} />
           <div className="mt-5 rounded-lg bg-surface-page p-4">
             <h3 className="flex items-center gap-2 text-sm font-semibold text-ink-primary">
-              <BarChart3 size={18} aria-hidden="true" /> Ocorrências nos últimos 7 dias
+              <BarChart3 size={18} aria-hidden="true" /> Ocorrências nos últimos 7 dias completos
             </h3>
-            <p role="status" className="mt-2 text-xs text-ink-secondary">
-              Dados diários indisponíveis nesta versão da API. A série real depende da API1-103.
-            </p>
+            <DailyOccurrencesChart series={data?.daily_counts} pending={vm.dashboard.isPending} error={vm.dashboard.isError} />
           </div>
         </Card>
       </section>

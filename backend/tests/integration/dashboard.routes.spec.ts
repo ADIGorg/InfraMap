@@ -21,6 +21,8 @@ const app = express();
 app.use("/api/v1/admin", administrationRoutes);
 app.use(errorHandler);
 const data = {
+  daily_counts_timezone: "America/Sao_Paulo",
+  daily_counts: Array.from({ length: 7 }, (_, index) => ({ date: `2026-11-${12 + index}`, count: 0 })),
   counts_by_status: { RECEIVED: 0, UNDER_ANALYSIS: 0, CONFIRMED: 0, IN_SERVICE: 0, RESOLVED: 0, REJECTED: 0 },
   high_priority_total: 0, average_resolution_days: null,   sla_breaches: { received_over_48h: 0, under_analysis_over_5d: 0 }
 };
@@ -43,6 +45,16 @@ describe("ADM-01", () => {
   it("exige autenticação", async () => {
     expect((await request(app).get("/api/v1/admin/dashboard")).status).toBe(401);
     expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("preserva a série real da RPC, inclusive zeros, sem agregar a lista paginada", async () => {
+    const actual = { ...data, daily_counts: data.daily_counts.map((day, index) => ({ ...day, count: index === 3 ? 27 : 0 })) };
+    rpc.mockResolvedValue({ data: actual, error: null });
+    const response = await request(app).get("/api/v1/admin/dashboard").auth("jwt", { type: "bearer" });
+    expect(response.status).toBe(200);
+    expect(response.body.data.daily_counts).toEqual(actual.daily_counts);
+    expect(response.body.data.daily_counts_timezone).toBe("America/Sao_Paulo");
+    expect(rpc).toHaveBeenCalledTimes(1);
   });
 
   it.each([

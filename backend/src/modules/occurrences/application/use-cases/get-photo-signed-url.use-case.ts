@@ -18,18 +18,8 @@ export class GetPhotoSignedUrlUseCase {
     } else if (requester.role === 'OWNER') {
       if (!requester.userId || photo.occurrenceAuthorId !== requester.userId) throw new ForbiddenError('Voce nao tem permissao para acessar esta foto.');
     } else if (requester.role === 'PUBLIC') {
-<<<<<<< HEAD
       if (!photo.isPublic || !PUBLIC_ELIGIBLE_STATUSES.includes(photo.occurrenceStatus) || !photo.occurrencePublicVisible) {
         throw new ForbiddenError('Esta foto nao esta disponivel publicamente.');
-=======
-      // Público só vê fotos de ocorrências elegíveis (RN022, RN017)
-      if (!PUBLIC_ELIGIBLE_STATUSES.includes(photo.occurrenceStatus)
-          || !photo.occurrencePublicVisible
-          || photo.occurrencePhotoPublicConsent !== true) {
-        throw new ForbiddenError(
-          'Esta foto não está disponível publicamente.'
-        );
->>>>>>> feature/web-ui-07-gestao-adm
       }
     } else {
       throw new BadRequestError('Papel de solicitante invalido.');

@@ -42,11 +42,10 @@ describe("OCC-01 / RN007, RN009, RN010, RN063, RN064, RN068", () => {
       expect.objectContaining({ photoPublicConsent: consent }));
   });
 
-  it("sem escolha no payload legado, padrão é privado e nunca público", async () => {
+  it("sem escolha explícita não persiste ocorrência nem consentimento", async () => {
     const {run, repo}=setup();
-    await run();
-    expect(repo.finalize).toHaveBeenCalledWith(userId,
-      expect.objectContaining({ photoPublicConsent: false }));
+    await expect(run({ photoPublicConsent: undefined })).rejects.toHaveProperty("statusCode", 400);
+    expect(repo.finalize).not.toHaveBeenCalled();
   });
 
   it("rejeita valores falsos de consentimento que não sejam booleanos", async () => {
