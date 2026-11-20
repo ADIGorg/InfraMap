@@ -45,19 +45,29 @@ export const restrictHttpMethods: RequestHandler = (request, response, next) => 
 };
 
 // 4. Rate limit
-export function createApiRateLimiter(maxRequests = 100) {
+export function createApiRateLimiter(
+  maxRequests = 600,
+) {
   return rateLimit({
     windowMs: 15 * 60 * 1000,
     limit: maxRequests,
+
     standardHeaders: "draft-7",
     legacyHeaders: false,
+
+    // Preflight CORS não representa uso real da API.
+    skip: (request) =>
+      request.method === "OPTIONS",
+
     message: {
       error: {
         code: "TOO_MANY_REQUESTS",
-        message: "Limite de requisições excedido. Tente novamente mais tarde.",
+        message:
+          "Limite de requisições excedido. Tente novamente mais tarde.",
       },
     },
   });
 }
 
-export const apiRateLimiter = createApiRateLimiter();
+export const apiRateLimiter =
+  createApiRateLimiter();

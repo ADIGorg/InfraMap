@@ -1,18 +1,29 @@
-import { http } from '@/infrastructure/api/http-client';
-import type { VoteCount } from '@/shared/types/api';
+import {
+  http,
+} from '@/infrastructure/api/http-client';
 
-export async function createVote(occurrenceId: string): Promise<VoteCount> {
-  const res = await http<{ data: VoteCount }>(
+import type {
+  VoteCount,
+} from '@/shared/types/api';
+
+export function createVote(
+  occurrenceId: string,
+): Promise<VoteCount> {
+  return http<VoteCount>(
     `/occurrences/${occurrenceId}/votes`,
-    { method: 'POST' },
+    {
+      method: 'POST',
+    },
   );
-  return res.data;
 }
 
-export async function removeVote(occurrenceId: string): Promise<VoteCount> {
-  const res = await http<{ data: VoteCount }>(
+export function removeVote(
+  occurrenceId: string,
+): Promise<VoteCount> {
+  return http<VoteCount>(
     `/occurrences/${occurrenceId}/votes/me`,
-    { method: 'DELETE' },
+    {
+      method: 'DELETE',
+    },
   );
-  return res.data;
 }

@@ -100,7 +100,7 @@ export function NotificationsProvider({
       .on(
         'postgres_changes',
         {
-          event: '*',
+          event: 'INSERT',
           schema: 'public',
           table: 'notifications',
           filter: `user_id=eq.${userId}`,
