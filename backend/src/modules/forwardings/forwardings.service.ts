@@ -1,8 +1,9 @@
 // src/modules/forwardings/forwardings.service.ts
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { createForwardingPdfAttachment } from "./forwarding-pdf.service.js";
+import { reverseGeocodeForEmail } from "../../infrastructure/geocoding/reverse-geocode.js";
 
-import { env } from "../../config/env.js";
 import { EMAIL_SUBJECT_MAX_LENGTH } from "../../config/constants.js";
 
 import {
@@ -46,34 +47,42 @@ function formatDate(iso: string): string {
   });
 }
 
-function buildOccurrenceUrl(occurrenceId: string): string {
-  return env.forwarding.publicUrlTemplate.replace("{id}", occurrenceId);
+function buildGoogleMapsUrl(lat: number, lng: number): string {
+  const coordinates = `${lat.toFixed(6)},${lng.toFixed(6)}`;
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(coordinates)}`;
 }
 
 function buildEmailBody(
   occurrence: OccurrenceForEmail,
   observations: string | null,
+  address: string | null,
 ): { text: string; html: string } {
   const shortId = occurrence.id.slice(0, 8);
   const date = formatDate(occurrence.createdAt);
   const lat = occurrence.location.lat.toFixed(6);
   const lng = occurrence.location.lng.toFixed(6);
-  const url = buildOccurrenceUrl(occurrence.id);
+  const url = buildGoogleMapsUrl(occurrence.location.lat, occurrence.location.lng);
 
   const text = [
     "Encaminhamento de ocorrência — InfraMap",
+    "",
+    "Prezados(as),",
+    "Encaminhamos para análise e providências cabíveis a ocorrência identificada abaixo.",
+    "O relatório completo, incluindo as evidências fotográficas, segue anexo em PDF.",
     "",
     `Identificador: ${shortId}`,
     `Categoria: ${occurrence.categoryName} (${occurrence.categoryCode})`,
     `Descrição: ${occurrence.description}`,
     "",
-    `Localização: ${lat}, ${lng}`,
+    `Endereço aproximado: ${address ?? "Não identificado"}`,
+    `Coordenadas: ${lat}, ${lng}`,
     `Data do registro: ${date}`,
     "",
     ...(observations
       ? ["Observações do administrador:", observations, ""]
       : []),
-    `Ver no mapa: ${url}`,
+    `Abrir localização no Google Maps: ${url}`,
+    ...(address ? ["Endereço obtido a partir de dados do OpenStreetMap contributors."] : []),
     "",
     "---",
     "InfraMap — acompanhamento de infraestrutura urbana",
@@ -82,12 +91,16 @@ function buildEmailBody(
   const html = `
 <div style="font-family:sans-serif;max-width:600px;color:#222;">
   <h2 style="color:#1e3a8a;">Encaminhamento de ocorrência</h2>
+  <p>Prezados(as),</p>
+  <p>Encaminhamos para análise e providências cabíveis a ocorrência identificada abaixo. O relatório completo, incluindo as evidências fotográficas, segue anexo em PDF.</p>
   <p><strong>Identificador:</strong> ${shortId}</p>
   <p><strong>Categoria:</strong> ${escapeHtml(occurrence.categoryName)} (${occurrence.categoryCode})</p>
   <p><strong>Descrição:</strong> ${escapeHtml(occurrence.description)}</p>
-  <p><strong>Localização:</strong> ${lat}, ${lng}</p>
+  <p><strong>Endereço aproximado:</strong> ${escapeHtml(address ?? "Não identificado")}</p>
+  <p><strong>Coordenadas:</strong> ${lat}, ${lng}</p>
   <p><strong>Data do registro:</strong> ${date}</p>
-  <p><a href="${url}" style="color:#1e3a8a;">Ver no mapa</a></p>
+  <p><a href="${url}" style="color:#1e3a8a;">Abrir localização no Google Maps</a></p>
+  ${address ? '<p style="color:#666;font-size:11px;">Endereço obtido de dados do OpenStreetMap contributors.</p>' : ""}
   ${observations ? `<hr/><p><strong>Observações do administrador:</strong></p><p>${escapeHtml(observations)}</p>` : ""}
   <hr/>
   <p style="color:#666;font-size:12px;">InfraMap — acompanhamento de infraestrutura urbana</p>
@@ -123,6 +136,7 @@ export async function forwardOccurrence(
   emailSender: EmailSender,
   occurrenceId: string,
   input: ForwardOccurrenceInput,
+  adminClient: SupabaseClient,
 ): Promise<ForwardOccurrenceResult> {
   // 1. Órgão existe e está ativo
   const agency = await findAgency(userClient, input.agencyId);
@@ -145,7 +159,16 @@ export async function forwardOccurrence(
   // 3. Subject template
   const subject = buildSubject(occurrence);
 
-  // 4. RPC create_forwarding (valida CONFIRMED + agency ativa novamente — defense in depth)
+  // Gera o PDF com fotografias antes do registro do encaminhamento.
+  const address = await reverseGeocodeForEmail(occurrence.location);
+  const emailBody = buildEmailBody(occurrence, input.observations ?? null, address);
+  const report = await createForwardingPdfAttachment(adminClient, {
+    occurrence, agencyName: agency.name, address,
+    observations: input.observations ?? null,
+    mapsUrl: buildGoogleMapsUrl(occurrence.location.lat, occurrence.location.lng),
+  });
+
+  // Só registra o forwarding depois que o documento estiver completo.
   const forwardingId = await createForwarding(
     userClient,
     occurrenceId,
@@ -154,14 +177,12 @@ export async function forwardOccurrence(
     input.observations ?? null,
   );
 
-  // 5. Body do e-mail
-  const emailBody = buildEmailBody(occurrence, input.observations ?? null);
-
   // 6. Envio — nunca lança; retorna SENT|FAILED
   const emailResult = await emailSender.send({
     to: agency.email,
     subject,
     body: emailBody,
+    attachments: [{ filename: report.filename, content: report.contentBase64, contentType: report.contentType }],
   });
 
   // 7. RPC record_forwarding_result (atômica: UPDATE + INSERT history)

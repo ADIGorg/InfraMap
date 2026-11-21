@@ -3,6 +3,7 @@ import { divIcon, type Marker as LeafletMarker } from 'leaflet';
 import { MapContainer, Marker, Popup, TileLayer, useMap, useMapEvents } from 'react-leaflet';
 import { Link } from 'react-router-dom';
 import { StatusBadge } from '@/shared/components/status-badge';
+import { OccurrenceAddress } from '@/shared/components/occurrence-address';
 import {
   isActiveStatus,
   type AdminMapOccurrence,
@@ -134,6 +135,7 @@ export function AdminLeafletMap({
             </div>
             <p className="font-semibold">{selected.category.name}</p>
             <p className="max-h-24 overflow-auto text-xs">{safeDescription(selected)}</p>
+            <div className="text-xs"><OccurrenceAddress point={selected.location}/></div>
             <div className="flex flex-wrap gap-3 pt-2 text-sm">
               <Link to={'/admin/occurrences/' + selected.id}
                 className="font-semibold text-brand-primary underline">

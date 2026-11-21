@@ -9,6 +9,8 @@ import { transferableAbortController } from 'node:util';
 import { AdminOccurrenceDetailPage } from './admin-occurrence-detail-page';
 import type { OccurrenceDetail } from '../services/occurrence-detail.service';
 
+vi.mock('@/features/admin-map/components/admin-leaflet-map', () => ({ AdjustmentLeafletMap: () => <div data-testid="map-mock" /> }));
+vi.mock('@/shared/components/occurrence-address', () => ({ OccurrenceAddress: () => <span>Endereço de teste</span> }));
 vi.mock('@/config/env', () => ({ env: { apiBaseUrl: 'http://localhost:3000/api/v1' } }));
 vi.mock('@/infrastructure/api/supabase-client', () => ({
   supabase: { auth: { getSession: async () => ({ data: { session: { access_token: 'test' } } }) } },
@@ -97,7 +99,8 @@ describe('Detalhe administrativo API1-97', () => {
     expect(calls).toHaveLength(0);
     if (field) fireEvent.change(dialog.getByLabelText(field), { target: { value } });
     if (action === 'start-service') fireEvent.click(dialog.getByRole('checkbox'));
-    fireEvent.click(dialog.getByRole('button', { name: 'Confirmar' }));
+    fireEvent.click(dialog.getByRole('button', { name: action === 'location' ? 'Salvar posição' : 'Confirmar' }));
+    if (action === 'location') fireEvent.click(dialog.getByRole('button', { name: 'Confirmar ajuste' }));
     await waitFor(() => expect(calls).toHaveLength(1));
     expect(calls[0]).toMatchObject({ action, method });
     if (action === 'location') expect(calls[0].body).toEqual({ lat: -13, lng: -38 });
@@ -142,7 +145,7 @@ describe('Detalhe administrativo API1-97', () => {
     await waitFor(() => expect(select).toBeEnabled());
     selectOption(select, agencyId);
     fireEvent.click(screen.getByRole('button', { name: 'Encaminhar ocorrência' }));
-    await screen.findByText(status === 'SENT' ? 'Encaminhamento registrado e enviado.' : /registrado, mas o envio falhou/);
+    await screen.findByText(status === 'SENT' ? 'Encaminhamento registrado e aceito pelo provedor de e-mail. A entrega ainda não foi confirmada.' : /registrado, mas o envio falhou/);
     expect(forwards).toBe(1);
     expect(screen.getByText('Confirmado')).toBeInTheDocument();
     if (status === 'FAILED') expect(screen.getByRole('button', { name: 'Encaminhar ocorrência' })).toBeDisabled();

@@ -11,10 +11,30 @@ vi.mock(
   }),
 );
 
+vi.mock("../../../../src/modules/forwardings/forwarding-pdf.service.js", () => ({
+  createForwardingPdfAttachment: vi.fn().mockResolvedValue({
+    filename: "InfraMap-Ocorrencia-11111111.pdf",
+    contentType: "application/pdf",
+    contentBase64: "JVBERi0xLjQK",
+  }),
+}));
+vi.mock("../../../../src/infrastructure/geocoding/reverse-geocode.js", () => ({
+  reverseGeocodeForEmail: vi.fn().mockResolvedValue(null),
+}));
+import { reverseGeocodeForEmail } from "../../../../src/infrastructure/geocoding/reverse-geocode.js";
 import * as repo from "../../../../src/modules/forwardings/forwardings.repository.js";
 import { forwardOccurrence } from "../../../../src/modules/forwardings/forwardings.service.js";
 
 const userClient = {} as never;
+const adminClient = {} as never;
+function forwardOccurrenceForTest(
+  client: Parameters<typeof forwardOccurrence>[0],
+  sender: Parameters<typeof forwardOccurrence>[1],
+  id: Parameters<typeof forwardOccurrence>[2],
+  input: Parameters<typeof forwardOccurrence>[3],
+) {
+  return forwardOccurrence(client, sender, id, input, adminClient);
+}
 
 const baseAgency = {
   id: "agency-1",
@@ -68,7 +88,7 @@ describe("FWD-02 — forwardOccurrence", () => {
     });
     vi.mocked(repo.recordForwardingResult).mockResolvedValue(baseForwardingRow);
 
-    const result = await forwardOccurrence(
+    const result = await forwardOccurrenceForTest(
       userClient,
       emailSender as never,
       baseOccurrence.id,
@@ -78,9 +98,34 @@ describe("FWD-02 — forwardOccurrence", () => {
     expect(result.status).toBe("SENT");
     expect(result.providerMessageId).toBe("msg-1");
     expect(emailSender.send).toHaveBeenCalledOnce();
+    const firstEmail = emailSender.send.mock.calls[0]?.[0];
+    expect(firstEmail?.body.text).toContain("Endereço aproximado: Não identificado");
+    expect(firstEmail?.body.text).toContain("https://www.google.com/maps/search/?api=1&query=-23.550000%2C-46.630000");
+    expect(firstEmail?.body.html).toContain("Abrir localização no Google Maps");
+    expect(emailSender.send).toHaveBeenCalledWith(expect.objectContaining({
+      attachments: [expect.objectContaining({
+        filename: "InfraMap-Ocorrencia-11111111.pdf",
+        content: "JVBERi0xLjQK",
+        contentType: "application/pdf",
+      })],
+    }));
     expect(emailSender.send).toHaveBeenCalledWith(
       expect.objectContaining({ to: "orgao@example.com" }),
     );
+  });
+
+  it("inclui endereço aproximado disponível no e-mail", async () => {
+    vi.mocked(reverseGeocodeForEmail).mockResolvedValueOnce("Rua de Teste, 10 | Centro | São Paulo - SP | CEP 01000-000");
+    const sender = mockEmailSender();
+    vi.mocked(repo.findAgency).mockResolvedValue(baseAgency);
+    vi.mocked(repo.getOccurrenceForEmail).mockResolvedValue(baseOccurrence);
+    vi.mocked(repo.createForwarding).mockResolvedValue("fwd-1");
+    sender.send.mockResolvedValue({ status: "SENT", providerMessageId: "msg-1" });
+    vi.mocked(repo.recordForwardingResult).mockResolvedValue(baseForwardingRow);
+    await forwardOccurrenceForTest(userClient, sender as never, baseOccurrence.id, { agencyId: "agency-1" });
+    const payload = sender.send.mock.calls[0]?.[0];
+    expect(payload?.body.text).toContain("Rua de Teste, 10");
+    expect(payload?.body.html).toContain("CEP 01000-000");
   });
 
   it("registra FAILED quando o provedor retorna falha, sem quebrar", async () => {
@@ -100,7 +145,7 @@ describe("FWD-02 — forwardOccurrence", () => {
       sentAt: null,
     });
 
-    const result = await forwardOccurrence(
+    const result = await forwardOccurrenceForTest(
       userClient,
       emailSender as never,
       baseOccurrence.id,
@@ -119,7 +164,7 @@ describe("FWD-02 — forwardOccurrence", () => {
     });
 
     await expect(
-      forwardOccurrence(userClient, emailSender as never, baseOccurrence.id, {
+      forwardOccurrenceForTest(userClient, emailSender as never, baseOccurrence.id, {
         agencyId: "agency-1",
       }),
     ).rejects.toMatchObject({ statusCode: 409 });
@@ -137,7 +182,7 @@ describe("FWD-02 — forwardOccurrence", () => {
     });
 
     await expect(
-      forwardOccurrence(userClient, emailSender as never, baseOccurrence.id, {
+      forwardOccurrenceForTest(userClient, emailSender as never, baseOccurrence.id, {
         agencyId: "agency-1",
       }),
     ).rejects.toMatchObject({ statusCode: 409 });
@@ -152,7 +197,7 @@ describe("FWD-02 — forwardOccurrence", () => {
     vi.mocked(repo.getOccurrenceForEmail).mockResolvedValue(null);
 
     await expect(
-      forwardOccurrence(userClient, emailSender as never, "occ-x", {
+      forwardOccurrenceForTest(userClient, emailSender as never, "occ-x", {
         agencyId: "agency-1",
       }),
     ).rejects.toMatchObject({ statusCode: 404 });
@@ -169,7 +214,7 @@ describe("FWD-02 — forwardOccurrence", () => {
       observations: "Prioridade",
     });
 
-    await forwardOccurrence(userClient, emailSender as never, baseOccurrence.id, {
+    await forwardOccurrenceForTest(userClient, emailSender as never, baseOccurrence.id, {
       agencyId: "agency-1",
       observations: "Prioridade",
     });

@@ -4,6 +4,7 @@ import { ThumbsUp } from 'lucide-react';
 import { Button } from '@/shared/components/button';
 import { Select } from '@/shared/components/select';
 import { StatusBadge } from '@/shared/components/status-badge';
+import { OccurrenceAddress } from '@/shared/components/occurrence-address';
 import { safeErrorMessage } from '@/shared/errors/app-error';
 import { useAdminOccurrenceDetailViewModel } from '../view-models/use-admin-occurrence-detail-view-model';
 import { actionLabels, allowedActions, type ModerationAction } from '../services/detail-moderation.service';
@@ -67,6 +68,7 @@ function DetailContent({ id }: { id: string }) {
             <div><dt className="text-xs text-ink-secondary">Localização original</dt><dd>{item.locationOriginal.lat.toFixed(5)}, {item.locationOriginal.lng.toFixed(5)}</dd></div>
             <div><dt className="text-xs text-ink-secondary">Localização ajustada</dt><dd>{item.locationAdjusted ? item.locationAdjusted.lat.toFixed(5) + ', ' + item.locationAdjusted.lng.toFixed(5) : 'Sem ajuste'}</dd></div>
           </dl>
+          <div className="mt-5"><h2 className="text-sm font-semibold">Endereço da posição atual</h2><OccurrenceAddress point={item.location} /></div>
           <h2 className="mb-2 mt-6 text-sm font-semibold">Descrição</h2><p className="whitespace-pre-wrap break-words">{item.description}</p>
           <p className="mt-3 text-xs text-ink-secondary">Origem da categoria — {item.categorySource}. Origem da descrição — {item.descriptionSource}.</p>
         </section>
@@ -104,7 +106,7 @@ function DetailContent({ id }: { id: string }) {
           {vm.forwardings.isPending && <p role="status">Carregando encaminhamentos…</p>}
           {vm.forwardings.isError && <div role="alert"><p>{safeErrorMessage(vm.forwardings.error)}</p><Button onClick={() => void vm.forwardings.refetch()}>Recarregar encaminhamentos</Button></div>}
           {vm.forwardings.isSuccess && <ul className="mt-4 space-y-4">{vm.forwardings.data.map(entry => <li key={entry.id} className="border-t border-line-subtle pt-3">
-            <p className="font-semibold">{entry.agencyName ?? 'Órgão'} — {entry.status === 'SENT' ? 'Enviado' : entry.status === 'FAILED' ? 'Falha de envio' : 'Pendente'}</p>
+            <p className="font-semibold">{entry.agencyName ?? 'Órgão'} — {entry.status === 'SENT' ? 'Aceito pelo provedor' : entry.status === 'FAILED' ? 'Falha de envio' : 'Pendente'}</p>
             <p className="text-sm">{date(entry.createdAt)} · {entry.recipientEmail}</p><p className="whitespace-pre-wrap text-sm">{entry.observations}</p>
           </li>)}{!vm.forwardings.data.length && <li>Nenhum encaminhamento registrado.</li>}</ul>}
           {vm.forwarding.needsReview && vm.forwardings.isSuccess && !vm.forwardings.isFetching && <Button variant="outline" className="mt-3" onClick={vm.forwarding.acknowledgeReview}>Revisei o histórico, habilitar novo envio</Button>}

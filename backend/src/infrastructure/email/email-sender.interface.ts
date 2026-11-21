@@ -28,6 +28,8 @@ export interface EmailInput {
     /** Corpo HTML — opcional. */
     html?: string;
   };
+  /** Anexos binários codificados em Base64 para o provedor HTTP. */
+  attachments?: Array<{ filename: string; content: string; contentType?: string }>;
 }
 
 export interface EmailResult {

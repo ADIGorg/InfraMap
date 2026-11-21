@@ -1,6 +1,7 @@
 import * as Dialog from '@radix-ui/react-dialog';
 import { AlertTriangle, Crosshair, X } from 'lucide-react';
 import { Button } from '@/shared/components/button';
+import { OccurrenceAddress } from '@/shared/components/occurrence-address';
 import { type AdminMapOccurrence, type GeoPoint } from '../services/admin-occurrences.service';
 import { formatCoords, validPoint } from '../services/map-presentation';
 import { AdjustmentLeafletMap } from './admin-leaflet-map';
@@ -47,6 +48,7 @@ export function AdjustLocationDialog({
               <div className="mt-4 rounded-lg bg-surface-page p-3 text-sm">
                 <p className="font-semibold">{item.category.name}</p>
                 <p className="mt-1 text-ink-secondary">Posição atualmente exibida: {formatCoords(item.location)}</p>
+                <OccurrenceAddress point={item.location} />
               </div>
 
               {confirming ? (
