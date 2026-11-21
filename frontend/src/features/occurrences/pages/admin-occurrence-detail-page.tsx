@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { ThumbsUp } from 'lucide-react';
 import { Button } from '@/shared/components/button';
 import { Select } from '@/shared/components/select';
 import { StatusBadge } from '@/shared/components/status-badge';
@@ -49,7 +50,15 @@ function DetailContent({ id }: { id: string }) {
     {item && <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
       <div className="space-y-6">
         <section className={panel}>
-          <div className="mb-6 flex flex-wrap justify-between gap-3"><h1 className="text-xl font-extrabold">Detalhes da ocorrência #OC-{id.slice(0, 4).toUpperCase()}</h1><StatusBadge status={item.status} /></div>
+          <div className="mb-6 flex flex-wrap justify-between gap-3">
+            <h1 className="text-xl font-extrabold">Detalhes da ocorrência #OC-{id.slice(0, 4).toUpperCase()}</h1>
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="inline-flex items-center gap-1.5 text-sm tabular-nums text-ink-secondary"><ThumbsUp size={16} aria-hidden="true" />
+                {item.votesCount.toLocaleString('pt-BR')} {item.votesCount === 1 ? 'curtida' : 'curtidas'}
+              </span>
+              <StatusBadge status={item.status} />
+            </div>
+          </div>
           <dl className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             <div><dt className="text-xs text-ink-secondary">Categoria</dt><dd>{item.category.name}</dd></div>
             <div><dt className="text-xs text-ink-secondary">Prioridade</dt><dd>{item.priority ? priorities[item.priority] : 'Não definida'}</dd></div>

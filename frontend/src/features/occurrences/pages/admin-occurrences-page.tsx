@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, LoaderCircle, Play } from 'lucide-react';
+import { ChevronLeft, ChevronRight, LoaderCircle, Play, ThumbsUp } from 'lucide-react';
 import { Button } from '@/shared/components/button';
 import { ConfirmDialog } from '@/shared/components/confirm-dialog';
 import { DataTable, type TableColumn } from '@/shared/components/data-table';
@@ -25,6 +25,9 @@ export function AdminOccurrencesPage() {
     { key: 'category', title: 'Categoria', render: item => <span className="font-semibold">{item.category.name || 'Categoria indisponível'}</span> },
     { key: 'status', title: 'Status', render: item => <StatusBadge status={item.status} /> },
     { key: 'priority', title: 'Prioridade', render: item => item.priority ? <span className={'rounded-md px-2 py-1 text-xs font-semibold ' + priorities[item.priority].color}>{priorities[item.priority].label}</span> : <span aria-label="Sem prioridade">—</span> },
+    { key: 'votes', title: 'Curtidas', render: item => <span className="inline-flex items-center gap-1.5 whitespace-nowrap tabular-nums text-ink-secondary"
+      aria-label={`${item.votesCount.toLocaleString('pt-BR')} ${item.votesCount === 1 ? 'curtida' : 'curtidas'}`}>
+      <ThumbsUp size={15} aria-hidden="true" />{item.votesCount.toLocaleString('pt-BR')}</span> },
     { key: 'location', title: 'Localização', render: item => <span className="whitespace-nowrap text-xs" title="Latitude, longitude">{item.location.lat.toFixed(5)}, {item.location.lng.toFixed(5)}</span> },
     { key: 'date', title: 'Data', render: item => <time className="whitespace-nowrap text-ink-secondary" dateTime={item.createdAt}>{dateFormat.format(new Date(item.createdAt))}</time> },
     { key: 'actions', title: 'Ações', render: item => <div className="flex items-center gap-2">

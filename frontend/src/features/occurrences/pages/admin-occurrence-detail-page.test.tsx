@@ -19,6 +19,7 @@ const agencyId = '30000000-0000-4000-8000-000000000001';
 const fixture: OccurrenceDetail = {
   id, category: { id: agencyId, name: 'Esgoto', code: 'CAT01' }, description: 'Vazamento de esgoto',
   status: 'RECEIVED', priority: null, location: { lat: -12, lng: -38 },
+  votesCount: 12,
   createdAt: '2026-11-18T14:00:00Z', author: { id, name: 'Maria Silva' },
   locationOriginal: { lat: -12, lng: -38 }, locationAdjusted: null,
   categorySource: 'AI_CONFIRMED', descriptionSource: 'AI_EDITED',
@@ -75,6 +76,11 @@ async function openAction(label: string) {
   return within(screen.getByRole('dialog'));
 }
 describe('Detalhe administrativo API1-97', () => {
+  it.each([[0, '0 curtidas'], [1, '1 curtida'], [1234, '1.234 curtidas']])('exibe %s curtidas no resumo', async (votesCount, label) => {
+    item.votesCount = Number(votesCount);
+    mount();
+    expect(await screen.findByText(String(label))).toBeInTheDocument();
+  });
   it.each([
     ['RECEIVED', 'Iniciar análise', 'start-analysis', 'PATCH', null, null],
     ['UNDER_ANALYSIS', 'Confirmar ocorrência', 'confirm', 'POST', null, null],
