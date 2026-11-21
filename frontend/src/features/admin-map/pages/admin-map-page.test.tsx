@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { forwardRef, useImperativeHandle } from 'react';
 import { MemoryRouter } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AdminMapPage } from './admin-map-page';
 import { useAdminMapViewModel } from '../view-models/use-admin-map-view-model';
 
@@ -76,6 +77,7 @@ const item = {
 const onAdjust = vi.fn(), onApply = vi.fn(), onUpdate = vi.fn();
 const onSelect = vi.fn(), onSetPosition = vi.fn(), onRequestConfirmation = vi.fn();
 const onSetBounds = vi.fn(), onSetViewport = vi.fn();
+const onClear = vi.fn();
 
 function configure(overrides: Record<string, unknown> = {}) {
   const vm = {
@@ -90,7 +92,7 @@ function configure(overrides: Record<string, unknown> = {}) {
     adjusting: null, candidate: null, confirming: false, inputError: null,
     mutation: { error: null, isPending: false },
     updateStatus: vi.fn(), setCategory: vi.fn(),
-    applyFilters: onApply, clearFilters: vi.fn(), searchVisibleArea: vi.fn(), clearArea: vi.fn(),
+    applyMapFilters: onApply, applyFilters: onApply, clearFilters: onClear, searchVisibleArea: vi.fn(), clearArea: vi.fn(),
     selectOccurrence: onSelect, setAvailableBounds: onSetBounds,
     startAdjustment: onAdjust, cancelAdjustment: vi.fn(), requestConfirmation: onRequestConfirmation,
     setCandidate: onSetPosition, setConfirming: vi.fn(), saveAdjustment: vi.fn(),
@@ -99,7 +101,11 @@ function configure(overrides: Record<string, unknown> = {}) {
   vi.mocked(useAdminMapViewModel).mockReturnValue(vm as unknown as ReturnType<typeof useAdminMapViewModel>);
 }
 
-function show() { return render(<MemoryRouter><AdminMapPage /></MemoryRouter>); }
+function show() {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
+  client.setQueryData(['admin', 'neighborhoods'], []);
+  return render(<QueryClientProvider client={client}><MemoryRouter><AdminMapPage /></MemoryRouter></QueryClientProvider>);
+}
 
 describe('AdminMapPage / OpenStreetMap', () => {
   beforeEach(() => {
@@ -130,8 +136,11 @@ describe('AdminMapPage / OpenStreetMap', () => {
 
   it('mantém filtro de status ativo, sem bairro/período fictícios', () => {
     show();
+    fireEvent.click(screen.getByRole('button', { name: 'Filtros' }));
     expect(screen.getByRole('checkbox', { name: 'Recebido' })).toBeChecked();
     expect(screen.queryByRole('checkbox', { name: 'Resolvido' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Aplicar filtros' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Em análise' }));
     fireEvent.click(screen.getByRole('button', { name: 'Aplicar filtros' }));
     expect(onApply).toHaveBeenCalledOnce();
   });
@@ -171,16 +180,32 @@ describe('AdminMapPage / OpenStreetMap', () => {
       },
     });
     show();
+    fireEvent.click(screen.getByRole('button', { name: 'Filtros (1)' }));
+    fireEvent.click(screen.getByText('Região geográfica · restrita'));
+    fireEvent.click(screen.getByText('Ver coordenadas'));
     expect(screen.getByText(/Área atualmente visível/)).toBeInTheDocument();
-    expect(screen.getByText(/O mapa foi movimentado desde a última busca por região/)).toBeInTheDocument();
-    expect(screen.getByText(/Região do mapa aplicada/)).toBeInTheDocument();
+    expect(screen.getByText(/O mapa foi movimentado desde a seleção da área/)).toBeInTheDocument();
+    expect(screen.getByText(/Região selecionada/)).toBeInTheDocument();
   });
 
-  it('restringe a rolagem ao painel de filtros em desktop, preservando os controles de zoom', () => {
+  it('abre e fecha filtros em painel separado, mantendo o mapa disponível', () => {
     show();
-    const title = screen.getByRole('heading', { name: 'Mapa Administrativo' });
-    expect(title.closest('header')?.parentElement).toHaveClass('lg:overflow-hidden');
-    expect(screen.getByLabelText('Filtros avançados')).toHaveClass('lg:overflow-y-auto');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Filtros' }));
+    expect(screen.getByRole('dialog', { name: 'Filtros do mapa' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Fechar filtros' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.getByTestId('leaflet-map')).toBeInTheDocument();
+  });
+
+  it('mantém os filtros aplicados visíveis ao alternar entre mapa e lista', () => {
+    configure({ applied: { statuses: ['CONFIRMED'], categoryId: '', priority: 'HIGH', bbox: null } });
+    show();
+    expect(screen.getByRole('region', { name: 'Filtros aplicados' })).toHaveTextContent('Prioridade: Alta');
+    fireEvent.click(screen.getByRole('button', { name: 'Visualizar em lista' }));
+    expect(screen.getByRole('region', { name: 'Filtros aplicados' })).toHaveTextContent('Status: Confirmado');
+    fireEvent.click(screen.getByRole('button', { name: 'Remover filtro Prioridade: Alta' }));
+    expect(onApply).toHaveBeenCalledWith({ statuses: ['CONFIRMED'], categoryId: '', priority: undefined, bbox: null });
   });
 
   it('abre popup do marcador e apresenta ação de ajuste', () => {
@@ -221,11 +246,38 @@ describe('AdminMapPage / OpenStreetMap', () => {
     expect(screen.queryByRole('note')).not.toBeInTheDocument();
   });
 
-  it('permite aplicar um filtro de status vazio para mostrar o erro de validação', () => {
-    configure({ draft: { statuses: [], categoryId: '' } });
+  it('bloqueia status vazio e mantém o painel aberto', () => {
     show();
+    fireEvent.click(screen.getByRole('button', { name: 'Filtros' }));
+    for (const name of ['Recebido', 'Em análise', 'Confirmado', 'Em atendimento']) fireEvent.click(screen.getByRole('checkbox', { name }));
     fireEvent.click(screen.getByRole('button', { name: 'Aplicar filtros' }));
-    expect(onApply).toHaveBeenCalledOnce();
+    expect(onApply).not.toHaveBeenCalled();
+    expect(screen.getByRole('alert')).toHaveTextContent('Selecione pelo menos um status');
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+  });
+
+  it('descarta alterações ao fechar e reabrir o painel', () => {
+    show();
+    fireEvent.click(screen.getByRole('button', { name: 'Filtros' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Recebido' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Fechar filtros' }));
+    expect(onApply).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Filtros' }));
+    expect(screen.getByRole('checkbox', { name: 'Recebido' })).toBeChecked();
+  });
+
+  it('limpa pelo painel com a mesma ação das etiquetas e mantém o painel aberto', () => {
+    configure({ applied: { statuses: ['CONFIRMED'], categoryId: '', priority: 'HIGH', bbox: null } });
+    show();
+    fireEvent.click(screen.getByRole('button', { name: 'Limpar todos' }));
+    expect(onClear).toHaveBeenCalledOnce();
+    fireEvent.click(screen.getByRole('button', { name: 'Filtros (2)' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Limpar filtros' }));
+    expect(onClear).toHaveBeenCalledTimes(2);
+    expect(onApply).not.toHaveBeenCalled();
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: 'Recebido' })).toBeChecked();
+    expect(screen.getByLabelText('Prioridade')).toHaveTextContent('Todas');
   });
 
   it('usa marcador arrastável no modal de ajuste e requer confirmação', () => {

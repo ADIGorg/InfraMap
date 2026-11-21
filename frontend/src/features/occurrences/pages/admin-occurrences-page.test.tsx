@@ -1,3 +1,4 @@
+import { selectOption } from '../../../../tests/select-option';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -58,7 +59,7 @@ describe('Lista administrativa — API1-96', () => {
     }));
     mount(); await screen.findByRole('table');
     fireEvent.change(screen.getByLabelText('Buscar por ID, categoria ou descrição'), { target: { value: 'Vazamento' } });
-    fireEvent.change(screen.getByLabelText('Prioridade'), { target: { value: 'HIGH' } });
+    selectOption(screen.getByLabelText('Prioridade'), 'HIGH');
     fireEvent.change(screen.getByLabelText('Início do período (inclusivo)'), { target: { value: '2026-11-01T10:00' } });
     fireEvent.change(screen.getByLabelText('Fim do período (exclusivo)'), { target: { value: '2026-11-10T10:00' } });
     fireEvent.click(screen.getByRole('button', { name: 'Aplicar busca, prioridade e período' }));
@@ -83,15 +84,15 @@ describe('Lista administrativa — API1-96', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Próxima' }));
     await screen.findByText('Página 2 de 3');
     expect(queries.at(-1)?.get('page')).toBe('2');
-    fireEvent.change(screen.getByLabelText('Categoria'), { target: { value: categoryId } });
+    selectOption(screen.getByLabelText('Categoria'), categoryId);
     await waitFor(() => expect(queries.at(-1)?.get('categoryId')).toBe(categoryId));
     expect(queries.at(-1)?.get('page')).toBe('1');
     fireEvent.click(screen.getByLabelText('Resolvido'));
     await waitFor(() => expect(queries.at(-1)?.get('status')).toBe('RESOLVED'));
-    fireEvent.change(screen.getByLabelText('Ordenação'), { target: { value: 'most_liked' } });
+    selectOption(screen.getByLabelText('Ordenação'), 'most_liked');
     await waitFor(() => expect(queries.at(-1)?.get('sort')).toBe('most_liked'));
     fireEvent.click(screen.getByRole('button', { name: 'Voltar navegador' }));
-    await waitFor(() => expect(screen.getByLabelText('Ordenação')).toHaveValue('recent'));
+    await waitFor(() => expect(screen.getByLabelText('Ordenação')).toHaveTextContent('Mais recentes'));
   });
 
   it('consulta status CSV e região de deep link e abre detalhe pelo UUID completo', async () => {

@@ -1,3 +1,4 @@
+import { selectOption } from '../../../../tests/select-option';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -133,7 +134,7 @@ describe('Detalhe administrativo API1-97', () => {
     mount();
     const select = await screen.findByLabelText('Órgão responsável');
     await waitFor(() => expect(select).toBeEnabled());
-    fireEvent.change(select, { target: { value: agencyId } });
+    selectOption(select, agencyId);
     fireEvent.click(screen.getByRole('button', { name: 'Encaminhar ocorrência' }));
     await screen.findByText(status === 'SENT' ? 'Encaminhamento registrado e enviado.' : /registrado, mas o envio falhou/);
     expect(forwards).toBe(1);
@@ -145,7 +146,7 @@ describe('Detalhe administrativo API1-97', () => {
     mount();
     await screen.findByLabelText('Observação');
     fireEvent.change(screen.getByLabelText('Observação'), { target: { value: 'Texto de observação técnica' } });
-    fireEvent.change(screen.getByLabelText('Visibilidade'), { target: { value: visibility } });
+    selectOption(screen.getByLabelText('Visibilidade'), visibility);
     fireEvent.click(screen.getByRole('button', { name: 'Salvar observação' }));
     await waitFor(() => expect(calls[0]).toMatchObject({ action: 'observations', body: { content: 'Texto de observação técnica', visibility } }));
     await waitFor(() => expect(screen.getByLabelText('Observação')).toHaveValue(''));

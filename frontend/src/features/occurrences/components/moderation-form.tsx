@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { Button } from '@/shared/components/button';
+import { Select } from '@/shared/components/select';
 import { actionLabels, actionSchemas, type ModerationAction, type ModerationRequest } from '../services/detail-moderation.service';
 import type { OccurrenceDetail } from '../services/occurrence-detail.service';
 
@@ -46,13 +47,13 @@ export function ModerationForm({ action, detail, categories, pending, message, o
         </div> : <form onSubmit={event => void submit(event)} className="space-y-4">
           {textField && <label className="field-label">{textField[1]}<textarea className="field-input mt-2" name={textField[0]} required={action !== 'resolve'} minLength={action === 'resolve' ? undefined : 10} maxLength={2000} rows={5} /></label>}
           {action === 'start-service' && <label className="flex items-start gap-2 text-sm"><input type="checkbox" required />O órgão responsável aceitou atender e a ação concreta foi definida.</label>}
-          {action === 'priority' && <label className="field-label">Prioridade<select className="field-input mt-2" name="priority" defaultValue={detail.priority ?? 'MEDIUM'}><option value="LOW">Baixa</option><option value="MEDIUM">Média</option><option value="HIGH">Alta</option></select></label>}
+          {action === 'priority' && <label className="field-label">Prioridade<Select className="mt-2" name="priority" defaultValue={detail.priority ?? 'MEDIUM'} options={[{ value: 'LOW', label: 'Baixa' }, { value: 'MEDIUM', label: 'Média' }, { value: 'HIGH', label: 'Alta' }]} /></label>}
           {action === 'location' && <div className="grid grid-cols-2 gap-3">
             <label className="field-label">Latitude<input className="field-input" type="number" name="lat" required step="any" min="-90" max="90" defaultValue={detail.location.lat} /></label>
             <label className="field-label">Longitude<input className="field-input" type="number" name="lng" required step="any" min="-180" max="180" defaultValue={detail.location.lng} /></label>
           </div>}
           {action === 'classification' && <>
-            <label className="field-label">Categoria<select name="categoryId" className="field-input" defaultValue=""><option value="">Manter categoria</option>{categories.map(category => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label>
+            <label className="field-label">Categoria<Select name="categoryId" defaultValue="" options={[{ value: '', label: 'Manter categoria' }, ...categories.map(category => ({ value: category.id, label: category.name }))]} /></label>
             <label className="field-label">Descrição corrigida<textarea name="description" className="field-input" maxLength={500} rows={5} placeholder="Preencha para alterar a descrição" /></label>
           </>}
           {error && <p role="alert" className="text-sm text-red-700">{error}</p>}

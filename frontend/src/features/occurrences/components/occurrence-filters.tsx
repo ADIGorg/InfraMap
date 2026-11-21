@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { Button } from '@/shared/components/button';
+import { Select } from '@/shared/components/select';
 import { filtersSchema, statusOptions, type AdminOccurrenceFilters } from '../services/admin-occurrences.service';
 import { ExtraOccurrenceFilters } from './extra-occurrence-filters';
 
@@ -27,25 +28,21 @@ export function OccurrenceFilters({ filters, categories, categoriesUnavailable, 
       <div className="flex flex-wrap items-end gap-3">
         <label className="min-w-48 flex-1 text-sm font-semibold">
           Categoria
-          <select className="field-input mt-2" value={filters.categoryId ?? ''} disabled={categoriesUnavailable}
-            onChange={event => onChange({ categoryId: event.target.value || undefined, page: 1 })}>
-            <option value="">Todas as categorias</option>
-            {filters.categoryId && !categories.some(category => category.id === filters.categoryId) &&
-              <option value={filters.categoryId}>Categoria selecionada</option>}
-            {categories.map(category => <option key={category.id} value={category.id}>{category.name}</option>)}
-          </select>
+          <Select className="mt-2" value={filters.categoryId ?? ''} disabled={categoriesUnavailable}
+            onValueChange={categoryId => onChange({ categoryId: categoryId || undefined, page: 1 })}
+            options={[{ value: '', label: 'Todas as categorias' },
+              ...(filters.categoryId && !categories.some(category => category.id === filters.categoryId) ? [{ value: filters.categoryId, label: 'Categoria selecionada' }] : []),
+              ...categories.map(category => ({ value: category.id, label: category.name }))]} />
         </label>
         <label className="min-w-48 flex-1 text-sm font-semibold">
           Ordenação
-          <select className="field-input mt-2" value={filters.sort} onChange={event => onChange({ sort: event.target.value as AdminOccurrenceFilters['sort'], page: 1 })}>
-            <option value="recent">Mais recentes</option><option value="oldest">Mais antigas</option><option value="most_liked">Mais curtidas</option>
-          </select>
+          <Select className="mt-2" value={filters.sort} onValueChange={sort => onChange({ sort: sort as AdminOccurrenceFilters['sort'], page: 1 })}
+            options={[{ value: 'recent', label: 'Mais recentes' }, { value: 'oldest', label: 'Mais antigas' }, { value: 'most_liked', label: 'Mais curtidas' }]} />
         </label>
         <label className="text-sm font-semibold">
           Por página
-          <select className="field-input mt-2" value={filters.pageSize} onChange={event => onChange({ pageSize: Number(event.target.value), page: 1 })}>
-            {Array.from(new Set([10, 20, 50, 100, filters.pageSize])).sort((a, b) => a - b).map(size => <option key={size} value={size}>{size}</option>)}
-          </select>
+          <Select className="mt-2" value={String(filters.pageSize)} onValueChange={size => onChange({ pageSize: Number(size), page: 1 })}
+            options={Array.from(new Set([10, 20, 50, 100, filters.pageSize])).sort((a, b) => a - b).map(size => ({ value: String(size), label: String(size) }))} />
         </label>
         <Button variant="outline" onClick={onClear}>Limpar filtros</Button>
       </div>

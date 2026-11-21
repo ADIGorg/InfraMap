@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { Button } from '@/shared/components/button';
+import { Select } from '@/shared/components/select';
 import { StatusBadge } from '@/shared/components/status-badge';
 import { safeErrorMessage } from '@/shared/errors/app-error';
 import { useAdminOccurrenceDetailViewModel } from '../view-models/use-admin-occurrence-detail-view-model';
@@ -73,9 +74,8 @@ function DetailContent({ id }: { id: string }) {
           <h2 className="mb-4 font-bold">Observações administrativas</h2>
           <form onSubmit={event => { event.preventDefault(); void vm.observations.save(); }}>
             <label className="field-label">Observação<textarea className="field-input mt-2" value={vm.observations.content} onChange={event => vm.observations.setContent(event.target.value)} required minLength={5} maxLength={2000} rows={4} /></label>
-            <label className="field-label">Visibilidade<select className="field-input mt-2" value={vm.observations.visibility} onChange={event => vm.observations.setVisibility(event.target.value as 'INTERNAL' | 'CITIZEN_RESPONSE')}>
-              <option value="INTERNAL">Interna — apenas administradores</option><option value="CITIZEN_RESPONSE">Resposta ao cidadão — visível ao autor</option>
-            </select></label>
+            <label className="field-label">Visibilidade<Select className="mt-2" value={vm.observations.visibility} onValueChange={value => vm.observations.setVisibility(value as 'INTERNAL' | 'CITIZEN_RESPONSE')}
+              options={[{ value: 'INTERNAL', label: 'Interna — apenas administradores' }, { value: 'CITIZEN_RESPONSE', label: 'Resposta ao cidadão — visível ao autor' }]} /></label>
             {vm.observations.error && <p role="alert">{vm.observations.error}</p>}
             <Button type="submit" disabled={!vm.canAct || busy}>Salvar observação</Button>
           </form>
@@ -84,8 +84,8 @@ function DetailContent({ id }: { id: string }) {
           <h2 className="mb-4 font-bold">Encaminhamentos</h2>
           {item.status === 'CONFIRMED' && <form onSubmit={event => { event.preventDefault(); void forward(); }} className="space-y-3">
             <p className="text-sm text-ink-secondary">O envio ao órgão mantém a ocorrência confirmada. O atendimento começa após o aceite do órgão e o registro de uma ação concreta.</p>
-            <label className="field-label">Órgão responsável<select className="field-input mt-2" required value={agency} onChange={event => setAgency(event.target.value)} disabled={!vm.agencies.isSuccess}>
-              <option value="">Selecione um órgão</option>{vm.agencies.data?.filter(item => item.is_active).map(item => <option key={item.id} value={item.id}>{item.name} — {item.email}</option>)}</select></label>
+            <label className="field-label">Órgão responsável<Select className="mt-2" required value={agency} onValueChange={setAgency} disabled={!vm.agencies.isSuccess}
+              options={[{ value: '', label: 'Selecione um órgão' }, ...(vm.agencies.data ?? []).filter(item => item.is_active).map(item => ({ value: item.id, label: `${item.name} — ${item.email}` }))]} /></label>
             <label className="field-label">Observações para o órgão<textarea className="field-input mt-2" maxLength={2000} value={forwardNotes} onChange={event => setForwardNotes(event.target.value)} /></label>
             {forwardError && <p role="alert">{forwardError}</p>}
             <Button type="submit" disabled={!vm.canAct || busy || vm.forwarding.needsReview || !vm.agencies.isSuccess}>Encaminhar ocorrência</Button>
