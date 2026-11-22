@@ -95,9 +95,23 @@ interface AdminLeafletMapProps {
 export function AdminLeafletMap({
   items, viewport, onViewportChanged, selected, onSelect, onAdjust, onAreaChanged, onTileError,
 }: AdminLeafletMapProps) {
-  const initialCenter = items[0]?.location;
+  const positions = items.map(item => item.location).filter(validPoint);
+  const initialCenter = positions[0];
+  const lats = positions.map(point => point.lat);
+  const lngs = positions.map(point => point.lng);
+  const south = Math.min(...lats);
+  const north = Math.max(...lats);
+  const west = Math.min(...lngs);
+  const east = Math.max(...lngs);
+  // Enquadrar ocorrencias ativas, nao apenas a primeira posicao retornada.
+  const initialBounds: [[number, number], [number, number]] | undefined =
+    positions.length > 1 && (south !== north || west !== east)
+      ? [[south, west], [north, east]]
+      : undefined;
   return (
     <MapContainer
+      bounds={!viewport ? initialBounds : undefined}
+      boundsOptions={{ padding: [30, 30] }}
       center={viewport
         ? [viewport.center.lat, viewport.center.lng]
         : initialCenter

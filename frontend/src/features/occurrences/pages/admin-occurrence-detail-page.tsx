@@ -106,7 +106,7 @@ function DetailContent({ id }: { id: string }) {
         <section className={panel}>
           <h2 className="mb-4 font-bold">Encaminhamentos</h2>
           {item.status === 'CONFIRMED' && <form onSubmit={event => { event.preventDefault(); void forward(); }} className="space-y-3">
-            <p className="text-sm text-ink-secondary">O envio ao órgão mantém a ocorrência confirmada. O atendimento começa após o aceite do órgão e o registro de uma ação concreta.</p>
+            <p className="text-sm text-ink-secondary">O encaminhamento envia o relatório ao órgão e mantém a ocorrência confirmada. O aceite do e-mail pelo provedor não comprova recebimento nem aceite do órgão. Para iniciar o atendimento, confirme a atuação do órgão e registre a ação concreta.</p>
             <label className="field-label">Órgão responsável<Select className="mt-2" required value={agency} onValueChange={setAgency} disabled={!vm.agencies.isSuccess}
               options={[{ value: '', label: 'Selecione um órgão' }, ...(vm.agencies.data ?? []).filter(item => item.is_active).map(item => ({ value: item.id, label: `${item.name} — ${item.email}` }))]} /></label>
             <label className="field-label">Observações para o órgão<textarea className="field-input mt-2" maxLength={2000} value={forwardNotes} onChange={event => setForwardNotes(event.target.value)} /></label>
