@@ -53,73 +53,77 @@ export function ProfileScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={[styles.header, { paddingTop: insets.top + spacing.lg }]}>
-        <View style={styles.logoRow}>
-          <View style={styles.logoIcon}>
-            <Feather name="map-pin" size={20} color={colors.brand.primary} />
+      <ScrollView>
+        <View style={[styles.header, { paddingTop: insets.top + spacing.lg }]}>
+          <View style={styles.logoRow}>
+            <View style={styles.logoIcon}>
+              <Feather name="map-pin" size={20} color={colors.brand.primary} />
+            </View>
+            <Text style={styles.logoText}>InfraMap</Text>
           </View>
-          <Text style={styles.logoText}>InfraMap</Text>
+
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>{getInitials(vm.profile.name)}</Text>
+          </View>
+          <Text style={styles.name}>{vm.profile.name}</Text>
+          <Text style={styles.email}>{vm.profile.email ?? '—'}</Text>
         </View>
 
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>{getInitials(vm.profile.name)}</Text>
+        <View style={styles.content}>
+          <View style={styles.actionCard}>
+            <TouchableOpacity
+              style={styles.row}
+              onPress={vm.openEdit}
+              accessibilityRole="button"
+              accessibilityLabel="Editar nome e telefone"
+            >
+              <View style={styles.rowIcon}>
+                <Feather name="edit-2" size={20} color={colors.brand.primary} />
+              </View>
+              <Text style={styles.rowLabel}>Editar nome e telefone</Text>
+              <Feather name="chevron-right" size={20} color={colors.text.secondary} />
+            </TouchableOpacity>
+            <View style={styles.divider} />
+
+            <TouchableOpacity
+              style={styles.row}
+              onPress={vm.openPassword}
+              accessibilityRole="button"
+              accessibilityLabel="Alterar senha"
+            >
+              <View style={styles.rowIcon}>
+                <Feather name="lock" size={20} color={colors.brand.primary} />
+              </View>
+              <Text style={styles.rowLabel}>Alterar senha</Text>
+              <Feather name="chevron-right" size={20} color={colors.text.secondary} />
+            </TouchableOpacity>
+            <View style={styles.divider} />
+
+            <TouchableOpacity
+              style={styles.row}
+              onPress={vm.openDelete}
+              accessibilityRole="button"
+              accessibilityLabel="Excluir conta"
+            >
+              <View style={styles.rowIcon}>
+                <Feather name="trash-2" size={20} color={colors.status.REJECTED} />
+              </View>
+              <Text style={[styles.rowLabel, { color: colors.status.REJECTED }]}>
+                Excluir conta
+              </Text>
+              <Feather name="chevron-right" size={20} color={colors.text.secondary} />
+            </TouchableOpacity>
+          </View>
+
+          <TouchableOpacity
+            style={styles.logoutButton}
+            onPress={vm.openLogout}
+            accessibilityRole="button"
+            accessibilityLabel="Sair da conta"
+          >
+            <Text style={styles.logoutText}>Sair da Conta</Text>
+          </TouchableOpacity>
         </View>
-        <Text style={styles.name}>{vm.profile.name}</Text>
-        <Text style={styles.email}>{vm.profile.email ?? '—'}</Text>
-      </View>
-
-      <ScrollView contentContainerStyle={styles.content}>
-        <TouchableOpacity
-          style={styles.row}
-          onPress={vm.openEdit}
-          accessibilityRole="button"
-          accessibilityLabel="Editar nome e telefone"
-        >
-          <View style={styles.rowIcon}>
-            <Feather name="edit-2" size={20} color={colors.brand.primary} />
-          </View>
-          <Text style={styles.rowLabel}>Editar nome e telefone</Text>
-          <Feather name="chevron-right" size={20} color={colors.text.secondary} />
-        </TouchableOpacity>
-        <View style={styles.divider} />
-
-        <TouchableOpacity
-          style={styles.row}
-          onPress={vm.openPassword}
-          accessibilityRole="button"
-          accessibilityLabel="Alterar senha"
-        >
-          <View style={styles.rowIcon}>
-            <Feather name="lock" size={20} color={colors.brand.primary} />
-          </View>
-          <Text style={styles.rowLabel}>Alterar senha</Text>
-          <Feather name="chevron-right" size={20} color={colors.text.secondary} />
-        </TouchableOpacity>
-        <View style={styles.divider} />
-
-        <TouchableOpacity
-          style={styles.row}
-          onPress={vm.openDelete}
-          accessibilityRole="button"
-          accessibilityLabel="Excluir conta"
-        >
-          <View style={styles.rowIcon}>
-            <Feather name="trash-2" size={20} color={colors.status.REJECTED} />
-          </View>
-          <Text style={[styles.rowLabel, { color: colors.status.REJECTED }]}>
-            Excluir conta
-          </Text>
-          <Feather name="chevron-right" size={20} color={colors.text.secondary} />
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.logoutButton}
-          onPress={vm.openLogout}
-          accessibilityRole="button"
-          accessibilityLabel="Sair da conta"
-        >
-          <Text style={styles.logoutText}>Sair da Conta</Text>
-        </TouchableOpacity>
       </ScrollView>
 
       <EditProfileModal
@@ -211,6 +215,8 @@ const styles = StyleSheet.create({
     height: 80,
     borderRadius: 40,
     backgroundColor: colors.brand.secondary,
+    borderWidth: 3,
+    borderColor: colors.surface.noticeInfo,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: spacing.md,
@@ -218,26 +224,35 @@ const styles = StyleSheet.create({
   avatarText: {
     fontSize: typography.sizes['2xl'],
     fontWeight: typography.weights.extrabold,
-    color: colors.text.inverse,
+    color: colors.text.primary,
   },
   name: {
     fontSize: typography.sizes.xl,
     fontWeight: typography.weights.bold,
     color: colors.text.inverse,
     marginBottom: spacing.xs,
+    textAlign: 'center',
   },
   email: {
     fontSize: typography.sizes.sm,
     color: colors.text.sidebar,
+    textAlign: 'center',
   },
   content: {
     padding: spacing.lg,
     paddingBottom: spacing['2xl'],
   },
+  actionCard: {
+    backgroundColor: colors.surface.card,
+    borderRadius: radius.xl,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border.default,
+  },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: spacing.base,
+    paddingHorizontal: spacing.base,
   },
   rowIcon: { width: 32, marginRight: spacing.sm },
   rowLabel: {
@@ -247,7 +262,8 @@ const styles = StyleSheet.create({
     fontWeight: typography.weights.medium,
   },
   divider: {
-    height: 1,
+    marginHorizontal: spacing.base,
+    height: StyleSheet.hairlineWidth,
     backgroundColor: colors.border.subtle,
   },
   logoutButton: {

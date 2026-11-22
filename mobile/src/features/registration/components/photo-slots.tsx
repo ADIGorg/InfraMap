@@ -16,7 +16,9 @@ export function PhotoSlots({ photos, onRemove }: { photos: CapturedPhoto[]; onRe
                 <>
                   <Image source={{ uri: photo.uri }} style={styles.image} accessibilityLabel={`Foto ${index + 1}`} />
                   <TouchableOpacity style={styles.remove} onPress={() => onRemove(index)} accessibilityRole="button" accessibilityLabel={`Remover foto ${index + 1}`}>
-                    <Feather name="x" size={14} color={colors.text.inverse} />
+                    <View style={styles.removeIcon}>
+                      <Feather name="x" size={16} color={colors.text.inverse} />
+                    </View>
                   </TouchableOpacity>
                 </>
               ) : (
@@ -27,7 +29,7 @@ export function PhotoSlots({ photos, onRemove }: { photos: CapturedPhoto[]; onRe
         })}
       </View>
       <View style={styles.counterRow}>
-        <Text style={styles.label}>Fotos enviadas</Text>
+        <Text style={styles.label}>Fotos capturadas</Text>
         <Text style={styles.counter}>{photos.length} / 3</Text>
       </View>
     </View>
@@ -38,7 +40,8 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', gap: spacing.sm },
   slot: { flex: 1, aspectRatio: 1, backgroundColor: colors.surface.card, borderWidth: 1, borderColor: colors.border.subtle, borderRadius: radius.lg, alignItems: 'center', justifyContent: 'center', overflow: 'visible' },
   image: { width: '100%', height: '100%', borderRadius: radius.lg },
-  remove: { position: 'absolute', top: -6, right: -6, width: 24, height: 24, borderRadius: radius.full, backgroundColor: colors.status.REJECTED, alignItems: 'center', justifyContent: 'center' },
+  remove: { position: 'absolute', top: 0, right: 0, width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  removeIcon: { width: 24, height: 24, borderRadius: radius.full, backgroundColor: colors.status.REJECTED, alignItems: 'center', justifyContent: 'center' },
   counterRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: spacing.sm },
   label: { fontSize: typography.sizes.sm, color: colors.text.secondary },
   counter: { fontSize: typography.sizes.sm, fontWeight: typography.weights.semibold, color: colors.brand.primary },

@@ -16,6 +16,7 @@ export function useOccurrenceLocationViewModel() {
   const { session } = useAuth();
   const userId = session?.user.id ?? null;
   const submittingRef = useRef(false);
+  const addressRequestRef = useRef(0);
 
   const photos = useRegistrationFlow((s) => s.photos);
   const photoVisibility = useRegistrationFlow((s) => s.photoVisibility);
@@ -38,8 +39,10 @@ export function useOccurrenceLocationViewModel() {
   const [attemptWasAmbiguous, setAttemptWasAmbiguous] = useState(false);
 
   const updateAddress = useCallback(async (lat: number, lng: number) => {
+    const request = ++addressRequestRef.current;
     setAddress('Buscando endereço de referência...');
-    setAddress(await getReferenceAddress(lat, lng));
+    const referenceAddress = await getReferenceAddress(lat, lng);
+    if (request === addressRequestRef.current) setAddress(referenceAddress);
   }, []);
 
   const useGps = useCallback(async () => {

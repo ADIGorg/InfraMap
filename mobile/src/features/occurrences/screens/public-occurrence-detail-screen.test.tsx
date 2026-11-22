@@ -13,12 +13,14 @@ jest.mock('../view-models/use-public-occurrence-detail-view-model', () => ({
   usePublicOccurrenceDetailViewModel: jest.fn(),
 }));
 
-jest.mock('@/features/occurrences/components/mini-map', () => {
-  const React = require('react');
-  const { View } = require('react-native');
+jest.mock('@maplibre/maplibre-react-native', () => {
+  const { View } = jest.requireActual<typeof import('react-native')>('react-native');
   return {
-    MiniMap: (props: any) =>
-      React.createElement(View, { testID: 'mini-map', ...props }),
+    Map: View,
+    Camera: () => null,
+    RasterSource: View,
+    Layer: () => null,
+    Marker: View,
   };
 });
 
@@ -101,10 +103,11 @@ describe('PublicOccurrenceDetailScreen', () => {
     // Aviso de privacidade presente
   });
 
-  it('exibe hint de localização aproximada', async () => {
+  it('exibe o minimapa de localização aproximada com altura própria', async () => {
     (VM.usePublicOccurrenceDetailViewModel as jest.Mock).mockReturnValue(baseVM);
-    const { getByText } = await render(<PublicOccurrenceDetailScreen />);
+    const { getByText, getByTestId } = await render(<PublicOccurrenceDetailScreen />);
     expect(getByText(/coordenada exata não é divulgada/i)).toBeTruthy();
+    expect(getByTestId('mini-map')).toHaveStyle({ height: 160 });
   });
 
   it('visitante: tocar em Votar abre prompt de login', async () => {

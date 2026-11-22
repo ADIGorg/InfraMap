@@ -170,7 +170,7 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.surface.page },
   container: {
     flexGrow: 1, padding: spacing.xl,
-    paddingTop: spacing['4xl'], paddingBottom: spacing['2xl'],
+    paddingTop: spacing['3xl'], paddingBottom: spacing['2xl'],
   },
   logoContainer: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.xl },
   logoIcon: {
@@ -215,7 +215,7 @@ const styles = StyleSheet.create({
   },
   footer: {
     flexDirection: 'row', justifyContent: 'center',
-    marginTop: spacing.xl, paddingTop: spacing.xl,
+    flexWrap: 'wrap', marginTop: spacing.xl,
   },
   footerText: { color: colors.text.secondary, fontSize: typography.sizes.base },
   footerLink: {

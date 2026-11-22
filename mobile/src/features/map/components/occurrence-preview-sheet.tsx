@@ -52,6 +52,7 @@ export function OccurrencePreviewSheet({ occurrence, onClose, onViewDetails }: P
               </View>
             </View>
             <TouchableOpacity
+              style={styles.closeButton}
               onPress={vm.handleClose}
               accessibilityLabel="Fechar"
               accessibilityRole="button"
@@ -96,7 +97,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface.card,
     borderTopLeftRadius: radius.xl,
     borderTopRightRadius: radius.xl,
-    padding: spacing.lg,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.md,
     paddingBottom: spacing['2xl'],
   },
   handle: {
@@ -115,10 +117,10 @@ const styles = StyleSheet.create({
   },
   headerLeft: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: spacing.sm,
   },
+  closeButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   category: {
     fontSize: typography.sizes.lg,
     fontWeight: typography.weights.bold,
@@ -143,6 +145,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   locationText: {
+    flex: 1,
     fontSize: typography.sizes.sm,
     color: colors.text.secondary,
   },
@@ -150,12 +153,10 @@ const styles = StyleSheet.create({
     fontSize: typography.sizes.base,
     color: colors.text.secondary,
     lineHeight: 22,
-    marginBottom: spacing.lg,
+    marginBottom: spacing.base,
   },
   footer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    gap: spacing.md,
   },
   votes: {
     fontSize: typography.sizes.sm,
@@ -163,9 +164,12 @@ const styles = StyleSheet.create({
   },
   primaryButton: {
     backgroundColor: colors.brand.primary,
+    minHeight: 48,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
     borderRadius: radius.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   primaryButtonText: {
     color: colors.text.inverse,

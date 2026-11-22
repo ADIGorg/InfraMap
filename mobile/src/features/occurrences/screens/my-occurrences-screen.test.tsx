@@ -34,9 +34,10 @@ describe('MyOccurrencesScreen', () => {
     expect(() => getByTestId('non-existent')).toThrow();
   });
 
-  it('lista vazia exibe mensagem', async () => {
+  it('exibe o título Minhas ocorrências e a mensagem da lista vazia', async () => {
     (VM.useMyOccurrencesViewModel as jest.Mock).mockReturnValue(baseVM);
-    const { getByText } = await render(<MyOccurrencesScreen />);
+    const { getByRole, getByText } = await render(<MyOccurrencesScreen />);
+    expect(getByRole('header', { name: 'Minhas ocorrências' })).toBeTruthy();
     expect(getByText('Você ainda não registrou nenhuma ocorrência.')).toBeTruthy();
   });
 

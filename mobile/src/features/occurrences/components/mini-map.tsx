@@ -1,5 +1,6 @@
 import React from 'react';
 import { StyleSheet, View, Text, Linking, TouchableOpacity } from 'react-native';
+import { Feather } from '@expo/vector-icons';
 import {
   Map,
   Camera,
@@ -45,15 +46,19 @@ export function MiniMap({ location, zoomLevel = 15 }: MiniMapProps) {
           <Layer type="raster" id="osm-layer-mini" source="osm-tiles-mini" />
         </RasterSource>
         <Marker id="pin" lngLat={[lng, lat]}>
-          <View style={styles.pin} />
+          <View style={styles.pin}>
+            <Feather name="map-pin" size={16} color={colors.text.inverse} />
+          </View>
         </Marker>
       </Map>
 
       <View style={styles.attribution} pointerEvents="box-none">
         <TouchableOpacity
           onPress={() => Linking.openURL('https://www.openstreetmap.org/copyright')}
+          accessibilityRole="link"
+          accessibilityLabel="Direitos autorais do OpenStreetMap"
         >
-          <Text style={styles.attributionText}>© OSM</Text>
+          <Text style={styles.attributionText}>© OpenStreetMap</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -62,19 +67,23 @@ export function MiniMap({ location, zoomLevel = 15 }: MiniMapProps) {
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
+    height: 160,
     borderRadius: radius.lg,
     overflow: 'hidden',
     backgroundColor: colors.surface.page,
+    borderWidth: 1,
+    borderColor: colors.border.subtle,
   },
   map: { flex: 1 },
   pin: {
-    width: 20,
-    height: 20,
+    width: 30,
+    height: 30,
     borderRadius: radius.full,
-    backgroundColor: colors.status.REJECTED,
+    backgroundColor: colors.brand.primary,
     borderWidth: 2,
     borderColor: colors.text.inverse,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   attribution: {
     position: 'absolute',

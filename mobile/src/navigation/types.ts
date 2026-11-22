@@ -22,7 +22,6 @@ export type AuthStackParamList = {
 
 export type MapStackParamList = {
   PublicMap: undefined;
-  Notifications: undefined;
 };
 
 export type MyOccurrencesStackParamList = {
@@ -36,8 +35,9 @@ export type ProfileStackParamList = {
 export type AppTabsParamList = {
   Map: NavigatorScreenParams<MapStackParamList>;
   MyOccurrences: NavigatorScreenParams<MyOccurrencesStackParamList>;
-  Profile: NavigatorScreenParams<ProfileStackParamList>;
   NewOccurrence: NavigatorScreenParams<NewOccurrenceStackParamList>;
+  Profile: NavigatorScreenParams<ProfileStackParamList>;
+  Notifications: undefined;
 };
 
 export type RootStackParamList = {

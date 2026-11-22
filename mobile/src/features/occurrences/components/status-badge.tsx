@@ -19,7 +19,7 @@ export function StatusBadge({ status }: { status: OccurrenceStatus }) {
       style={[styles.badge, { backgroundColor: `${color}20` }]}
       accessibilityLabel={`Status: ${label}`}
     >
-      <Text style={[styles.text, { color }]}>{label}</Text>
+      <Text style={styles.text}>{label}</Text>
     </View>
   );
 }
@@ -28,10 +28,11 @@ const styles = StyleSheet.create({
   badge: {
     paddingHorizontal: spacing.sm,
     paddingVertical: 2,
-    borderRadius: radius.sm,
+    borderRadius: radius.full,
   },
   text: {
     fontSize: typography.sizes.xs,
     fontWeight: typography.weights.semibold,
+    color: colors.text.primary,
   },
 });

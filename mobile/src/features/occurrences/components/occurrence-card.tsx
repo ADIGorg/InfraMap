@@ -35,13 +35,15 @@ export function OccurrenceCard({ occurrence, onPress }: Props) {
         <View style={styles.iconCircle}>
           <Feather name={iconName} size={18} color={colors.brand.primary} />
         </View>
-        <Text style={styles.category} numberOfLines={1}>
+        <Text style={styles.category} numberOfLines={2}>
           {occurrence.category.name}
         </Text>
-        <StatusBadge status={occurrence.status} />
       </View>
 
-      <Text style={styles.date}>Criado em: {formatDate(occurrence.createdAt)}</Text>
+      <View style={styles.metadata}>
+        <Text style={styles.date}>Criado em: {formatDate(occurrence.createdAt)}</Text>
+        <StatusBadge status={occurrence.status} />
+      </View>
 
       <Text style={styles.description} numberOfLines={2}>
         {occurrence.description}
@@ -53,7 +55,9 @@ export function OccurrenceCard({ occurrence, onPress }: Props) {
 const styles = StyleSheet.create({
   card: {
     backgroundColor: colors.surface.card,
-    borderRadius: radius.lg,
+    borderRadius: radius.xl,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border.default,
     padding: spacing.base,
     marginBottom: spacing.md,
     shadowColor: '#000',
@@ -82,14 +86,20 @@ const styles = StyleSheet.create({
     fontWeight: typography.weights.bold,
     color: colors.text.primary,
   },
+  metadata: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
+  },
   date: {
-    fontSize: typography.sizes.xs,
+    fontSize: typography.sizes.sm,
     color: colors.text.secondary,
-    marginBottom: spacing.xs,
   },
   description: {
     fontSize: typography.sizes.sm,
     color: colors.text.secondary,
-    lineHeight: 18,
+    lineHeight: 20,
   },
 });

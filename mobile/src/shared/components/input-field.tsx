@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, TextInput, StyleSheet, TextInputProps } from 'react-native';
 import { colors, typography, spacing, radius } from '@/shared/theme';
 
@@ -8,15 +8,25 @@ interface InputFieldProps extends Omit<TextInputProps, 'style'> {
   rightIcon?: React.ReactNode;
 }
 
-export function InputField({ label, error, rightIcon, ...rest }: InputFieldProps) {
+export function InputField({ label, error, rightIcon, onFocus, onBlur, ...rest }: InputFieldProps) {
+  const [focused, setFocused] = useState(false);
+
   return (
     <View style={styles.container}>
       {label && <Text style={styles.label}>{label}</Text>}
-      <View style={[styles.inputWrapper, error && styles.inputError]}>
+      <View style={[styles.inputWrapper, focused && styles.inputFocused, error && styles.inputError]}>
         <TextInput
           style={styles.input}
           placeholderTextColor={colors.text.secondary}
           {...rest}
+          onFocus={(event) => {
+            setFocused(true);
+            onFocus?.(event);
+          }}
+          onBlur={(event) => {
+            setFocused(false);
+            onBlur?.(event);
+          }}
         />
         {rightIcon && <View style={styles.rightIcon}>{rightIcon}</View>}
       </View>
@@ -41,14 +51,16 @@ const styles = StyleSheet.create({
     borderColor: colors.border.subtle,
     borderRadius: radius.lg,
     paddingHorizontal: spacing.base,
-    height: 48,
+    minHeight: 50,
   },
+  inputFocused: { borderColor: colors.brand.primary },
   inputError: { borderColor: colors.status.REJECTED },
   input: {
     flex: 1,
     fontSize: typography.sizes.base,
     color: colors.text.primary,
-    height: '100%',
+    minHeight: 48,
+    paddingVertical: spacing.sm,
   },
   rightIcon: { marginLeft: spacing.sm },
   errorText: {

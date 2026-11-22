@@ -5,14 +5,15 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  SafeAreaView,
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { usePasswordRecoveryViewModel } from '@/features/auth/view-models/use-password-recovery-view-model';
 import { InputField } from '@/shared/components/input-field';
+import { BackHeader } from '@/shared/components/back-header';
 import { colors, typography, spacing, radius } from '@/shared/theme';
 
 export function ForgotPasswordScreen() {
@@ -39,18 +40,7 @@ export function ForgotPasswordScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Header com voltar */}
-          <View style={styles.header}>
-            <TouchableOpacity
-              onPress={goBack}
-              accessibilityRole="button"
-              accessibilityLabel="Voltar"
-              style={styles.backButton}
-            >
-              <Feather name="arrow-left" size={26} color={colors.brand.primary} />
-            </TouchableOpacity>
-            <Text style={styles.headerTitle}>Esqueci minha senha</Text>
-          </View>
+          <BackHeader title="Esqueci minha senha" onBack={goBack} style={styles.header} />
 
           {/* Texto descritivo */}
           <Text style={styles.description}>
@@ -124,24 +114,7 @@ const styles = StyleSheet.create({
     paddingTop: spacing['2xl'],
     paddingBottom: spacing['2xl'],
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: spacing.xl,
-    gap: spacing.md,
-  },
-  backButton: {
-    width: 32,
-    height: 32,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: typography.sizes['2xl'],
-    fontWeight: typography.weights.extrabold,
-    color: colors.brand.primary,
-    flex: 1,
-  },
+  header: { marginBottom: spacing.xl },
   description: {
     fontSize: typography.sizes.base,
     color: colors.text.secondary,

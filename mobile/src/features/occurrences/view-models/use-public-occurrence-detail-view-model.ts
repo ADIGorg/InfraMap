@@ -5,6 +5,7 @@ import type { RootStackParamList } from '@/navigation/types';
 import { useAuth } from '@/features/auth/hooks/use-auth';
 import { getPublicOccurrenceById } from '../services/public-occurrences.service';
 import { createVote, removeVote } from '../services/votes.service';
+import { readRecordedVote, recordVoteState } from '../services/vote-state-storage';
 import { AppError } from '@/shared/errors/app-error';
 import type { PublicOccurrenceDetail } from '@/shared/types/api';
 
@@ -13,6 +14,8 @@ type NavProp = NativeStackNavigationProp<RootStackParamList>;
 // Refetch automático 10s antes do menor expiresInSeconds entre as fotos.
 // Fallback: 300s (default do backend) se array vazio.
 const MIN_REFRESH_SECONDS = 30;
+// A API usa 409 também para ocorrências inelegíveis, com a mesma identificação de erro.
+const DUPLICATE_VOTE_MESSAGE = 'Você já votou nesta ocorrência.';
 
 interface Params {
   id: string;
@@ -21,18 +24,33 @@ interface Params {
 export function usePublicOccurrenceDetailViewModel({ id }: Params) {
   const navigation = useNavigation<NavProp>();
   const { session } = useAuth();
+  const userId = session?.user.id ?? null;
+  const voteKey = userId ? `${userId}.${id}` : null;
 
   const [detail, setDetail] = useState<PublicOccurrenceDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  // null = desconhecido (backend não informa). Só vira boolean após resposta explícita.
-  const [hasVoted, setHasVoted] = useState<boolean | null>(null);
+  const [voteState, setVoteState] = useState<{ key: string; voted: boolean | null } | null>(null);
+  const hasVoted = voteState?.key === voteKey ? voteState?.voted ?? null : null;
+  const isRestoringVote = voteKey !== null && voteState?.key !== voteKey;
   const [isVoting, setIsVoting] = useState(false);
   const [voteError, setVoteError] = useState<string | null>(null);
   const [isLoginPromptOpen, setIsLoginPromptOpen] = useState(false);
 
   const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const voteInFlight = useRef(false);
+
+  useEffect(() => {
+    if (!userId || !voteKey) return;
+    let active = true;
+    void readRecordedVote(userId, id).then((voted) => {
+      if (active) setVoteState({ key: voteKey, voted });
+    });
+    return () => {
+      active = false;
+    };
+  }, [id, userId, voteKey]);
 
   const clearRefreshTimer = useCallback(() => {
     if (refreshTimerRef.current !== null) {
@@ -129,42 +147,32 @@ export function usePublicOccurrenceDetailViewModel({ id }: Params) {
   ]);
 
   const handleVoteToggle = useCallback(async () => {
-    if (!session) {
+    if (!userId || !voteKey) {
       setIsLoginPromptOpen(true);
       return;
     }
-    if (!detail || isVoting) return;
+    if (detail?.id !== id || isRestoringVote || voteInFlight.current) return;
 
+    voteInFlight.current = true;
     setIsVoting(true);
     setVoteError(null);
 
-    const currentlyVoted = hasVoted === true;
-
     try {
-      if (currentlyVoted) {
-        const res = await removeVote(id);
-        setHasVoted(false);
-        setDetail((prev) =>
-          prev ? { ...prev, votesCount: res.vote_count } : prev,
-        );
-      } else {
-        const res = await createVote(id);
-        setHasVoted(true);
-        setDetail((prev) =>
-          prev ? { ...prev, votesCount: res.vote_count } : prev,
-        );
-      }
+      const voted = hasVoted !== true;
+      const res = voted ? await createVote(id) : await removeVote(id);
+      setVoteState((prev) => prev?.key === voteKey ? { key: voteKey, voted } : prev);
+      setDetail((prev) => prev?.id === id ? { ...prev, votesCount: res.vote_count } : prev);
+      await recordVoteState(userId, id, voted);
     } catch (err) {
       if (err instanceof AppError) {
-        if (err.statusCode === 409) {
-          // Já votou (ou não elegível). Sem alteração de contagem.
-          setHasVoted(true);
-          setVoteError(err.message);
+        if (err.statusCode === 409 && err.message === DUPLICATE_VOTE_MESSAGE) {
+          setVoteState((prev) => prev?.key === voteKey ? { key: voteKey, voted: true } : prev);
+          await recordVoteState(userId, id, true);
         } else if (err.statusCode === 403) {
           // Autor na própria / conta inativa — mantém neutro
           setVoteError(err.message);
         } else if (err.statusCode === 404) {
-          // Ocorrência removida entre carregar e votar
+          if (hasVoted) await recordVoteState(userId, id, false);
           navigation.goBack();
           return;
         } else {
@@ -174,9 +182,10 @@ export function usePublicOccurrenceDetailViewModel({ id }: Params) {
         setVoteError('Não foi possível processar o voto. Tente novamente.');
       }
     } finally {
+      voteInFlight.current = false;
       setIsVoting(false);
     }
-  }, [session, detail, hasVoted, isVoting, id, navigation]);
+  }, [userId, voteKey, detail?.id, isRestoringVote, hasVoted, id, navigation]);
 
   const handleLoginFromPrompt = useCallback(() => {
     setIsLoginPromptOpen(false);
@@ -195,7 +204,7 @@ export function usePublicOccurrenceDetailViewModel({ id }: Params) {
     loadError,
     reload: load,
     hasVoted,
-    isVoting,
+    isVoting: isRestoringVote || isVoting,
     voteError,
     isLoginPromptOpen,
     handleVoteToggle,

@@ -49,7 +49,7 @@ const styles = StyleSheet.create({
   },
   segment: {
     flex: 1,
-    height: 41,
+    minHeight: 44,
     borderRadius: radius.lg,
     justifyContent: 'center',
     alignItems: 'center',

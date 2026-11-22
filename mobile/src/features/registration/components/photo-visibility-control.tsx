@@ -74,5 +74,5 @@ const styles = StyleSheet.create({
   optionText: { flex: 1, marginLeft: spacing.sm },
   optionLabel: { fontSize: typography.sizes.sm, fontWeight: typography.weights.semibold, color: colors.text.primary },
   optionDescription: { marginTop: 2, fontSize: typography.sizes.xs, lineHeight: 16, color: colors.text.secondary },
-  blocker: { fontSize: typography.sizes.xs, lineHeight: 16, color: colors.status.REJECTED },
+  blocker: { fontSize: typography.sizes.xs, lineHeight: 16, color: colors.text.secondary },
 });
