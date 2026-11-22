@@ -4,15 +4,19 @@ import { onlineManager, QueryClient, QueryClientProvider } from '@tanstack/react
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { http } from '@/infrastructure/api/http-client';
 import { AdminNotificationsPage } from './admin-notifications-page';
+import { AdminLayout } from '@/layouts/admin-layout';
 
 vi.mock('@/infrastructure/api/http-client', () => ({ http: vi.fn() }));
 vi.mock('@/features/auth/hooks/use-admin-identity', () => ({
   useAdminIdentity: () => ({ isSuccess: true, data: { id: 'admin-1', role: 'ADMIN', is_active: true } }),
 }));
+vi.mock('@/features/auth/view-models/use-admin-layout-view-model', () => ({
+  useAdminLayoutViewModel: () => ({ isMobileNavOpen: false, setMobileNavOpen: vi.fn(), logout: vi.fn() }),
+}));
 const item = {
   id: '20000000-0000-4000-8000-000000000001',
   category: { id: 'cat-1', code: 'CAT01', name: 'Esgoto' },
-  description: 'Vazamento', status: 'RECEIVED', priority: null,
+  description: 'Vazamento', status: 'RECEIVED', priority: null, votesCount: 0,
   location: { lat: -12, lng: -38 }, createdAt: '2026-11-18T14:00:00Z',
 };
 const dashboard = { data: {
@@ -48,6 +52,30 @@ afterEach(() => {
 });
 
 describe('Notificações administrativas derivadas', () => {
+  it('sinaliza avisos no sino fora da central, limpa a marcação ao visualizar e volta a sinalizar na atualização', async () => {
+    const client = new QueryClient();
+    clients.push(client);
+    render(<QueryClientProvider client={client}><MemoryRouter initialEntries={['/admin/dashboard']}>
+      <Routes><Route element={<AdminLayout />}>
+        <Route path="/admin/dashboard" element={<p>Dashboard de teste</p>} />
+        <Route path="/admin/notifications" element={<AdminNotificationsPage />} />
+      </Route></Routes>
+    </MemoryRouter></QueryClientProvider>);
+    const unread = 'Notificações com alertas não visualizados';
+    fireEvent.click(await screen.findByRole('link', { name: unread }));
+    fireEvent.click(screen.getByRole('button', { name: 'Marcar alertas exibidos como visualizados' }));
+    expect(await screen.findByRole('link', { name: 'Notificações' })).toBeInTheDocument();
+    expect(http).toHaveBeenCalledTimes(2);
+
+    fireEvent.click(screen.getByRole('link', { name: 'Dashboard' }));
+    vi.mocked(http).mockImplementation(async path => path === '/admin/dashboard' ? dashboard : {
+      data: [item, { ...item, id: '20000001-0000-4000-8000-000000000002' }],
+      pagination: { page: 1, pageSize: 20, total: 2, totalPages: 1 },
+    });
+    await act(async () => { await client.refetchQueries({ queryKey: ['admin', 'occurrences', 'notifications', 1] }); });
+    expect(await screen.findByRole('link', { name: unread })).toBeInTheDocument();
+  });
+
   it('deduplica, exibe data real e SLA, e usa somente consultas disponíveis', async () => {
     mount();
     expect(await screen.findByText(/Ocorrência #OC-2000 registrada/)).toBeInTheDocument();

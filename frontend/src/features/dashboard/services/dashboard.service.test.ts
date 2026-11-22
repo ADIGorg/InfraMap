@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { http } from '@/infrastructure/api/http-client';
-import { dailyCountsSchema, dashboardResponseSchema, getAdminDashboard, getRecentAdminOccurrences, recentOccurrencesResponseSchema } from './dashboard.service';
+import { dailyCountsSchema, dashboardResponseSchema, getAdminDashboard, getHighPriorityAdminOccurrences, getRecentAdminOccurrences, recentOccurrencesResponseSchema } from './dashboard.service';
 
 vi.mock('@/infrastructure/api/http-client', () => ({ http: vi.fn() }));
 
@@ -22,6 +22,16 @@ const recentItem = {
 };
 
 describe('DashboardService: contrato real', () => {
+  it('busca prioridade alta no servidor com paginação própria, inclusive registros antigos', async () => {
+    const result = { data: [{ ...recentItem, createdAt: '2025-01-01T00:00:00Z' }], pagination: { page: 2, pageSize: 3, total: 4, totalPages: 2 } };
+    vi.mocked(http).mockResolvedValueOnce(result);
+    expect(await getHighPriorityAdminOccurrences(2)).toEqual(result);
+    const params = new URLSearchParams(vi.mocked(http).mock.calls[0][0].split('?')[1]);
+    expect(params.get('priority')).toBe('HIGH');
+    expect(params.get('page')).toBe('2');
+    expect(params.has('status')).toBe(false);
+    expect(params.has('createdFrom')).toBe(false);
+  });
   const series = ['2028-02-26', '2028-02-27', '2028-02-28', '2028-02-29', '2028-03-01', '2028-03-02', '2028-03-03']
     .map((date, index) => ({ date, count: index }));
   it('preserva série completa incluindo ano bissexto e mudança de mês', async () => {

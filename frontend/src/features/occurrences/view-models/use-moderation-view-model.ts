@@ -22,9 +22,13 @@ export function useModerationViewModel(detail: OccurrenceDetail | undefined, can
       setMessage('Alteração registrada com sucesso.');
       return true;
     } catch (error) {
-      setMessage(isAppError(error) && error.statusCode === 409
-        ? 'A ocorrência foi alterada. Confira os dados atualizados antes de tentar novamente.'
-        : safeErrorMessage(error));
+      if (request.action === 'reject' && isAppError(error) && error.statusCode >= 500) {
+        setMessage('Não foi possível confirmar a rejeição. Confira o status atualizado da ocorrência antes de tentar novamente.');
+      } else {
+        setMessage(isAppError(error) && error.statusCode === 409
+          ? 'A ocorrência foi alterada. Confira os dados atualizados antes de tentar novamente.'
+          : safeErrorMessage(error));
+      }
       return false;
     } finally {
       await refresh();
@@ -32,6 +36,6 @@ export function useModerationViewModel(detail: OccurrenceDetail | undefined, can
       setPending(false);
     }
   }
-  return { submit, isPending, message };
+  return { submit, isPending, message, error: mutation.isError ? message : '' };
 }
 

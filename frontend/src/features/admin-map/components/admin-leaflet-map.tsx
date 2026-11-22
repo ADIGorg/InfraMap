@@ -3,6 +3,7 @@ import { divIcon, type Marker as LeafletMarker } from 'leaflet';
 import { MapContainer, Marker, Popup, TileLayer, useMap, useMapEvents } from 'react-leaflet';
 import { Link } from 'react-router-dom';
 import { StatusBadge } from '@/shared/components/status-badge';
+import { OccurrenceAddress } from '@/shared/components/occurrence-address';
 import {
   isActiveStatus,
   type AdminMapOccurrence,
@@ -94,15 +95,29 @@ interface AdminLeafletMapProps {
 export function AdminLeafletMap({
   items, viewport, onViewportChanged, selected, onSelect, onAdjust, onAreaChanged, onTileError,
 }: AdminLeafletMapProps) {
-  const initialCenter = items[0]?.location;
+  const positions = items.map(item => item.location).filter(validPoint);
+  const initialCenter = positions[0];
+  const lats = positions.map(point => point.lat);
+  const lngs = positions.map(point => point.lng);
+  const south = Math.min(...lats);
+  const north = Math.max(...lats);
+  const west = Math.min(...lngs);
+  const east = Math.max(...lngs);
+  // Enquadrar ocorrencias ativas, nao apenas a primeira posicao retornada.
+  const initialBounds: [[number, number], [number, number]] | undefined =
+    positions.length > 1 && (south !== north || west !== east)
+      ? [[south, west], [north, east]]
+      : undefined;
   return (
     <MapContainer
-      center={viewport
+      bounds={!viewport ? initialBounds : undefined}
+      boundsOptions={{ padding: [30, 30] }}
+      center={initialBounds && !viewport ? undefined : viewport
         ? [viewport.center.lat, viewport.center.lng]
         : initialCenter
           ? [initialCenter.lat, initialCenter.lng]
           : BRAZIL_CENTER}
-      zoom={viewport?.zoom ?? (initialCenter ? 12 : 4)}
+      zoom={initialBounds && !viewport ? undefined : (viewport?.zoom ?? (initialCenter ? 12 : 4))}
       minZoom={3}
       maxZoom={19}
       scrollWheelZoom
@@ -134,6 +149,7 @@ export function AdminLeafletMap({
             </div>
             <p className="font-semibold">{selected.category.name}</p>
             <p className="max-h-24 overflow-auto text-xs">{safeDescription(selected)}</p>
+            <div className="text-xs"><OccurrenceAddress point={selected.location}/></div>
             <div className="flex flex-wrap gap-3 pt-2 text-sm">
               <Link to={'/admin/occurrences/' + selected.id}
                 className="font-semibold text-brand-primary underline">

@@ -35,7 +35,7 @@ export async function forward(req: Request, res: Response): Promise<void> {
   const result = await forwardOccurrence(userClient, emailSender, id, {
     agencyId: body.agency_id,
     observations: body.observations,
-  });
+  }, createSupabaseAdminClient());
 
   // 201 mesmo em FAILED: a linha foi criada e o resultado foi registrado.
   // O cliente decide se tenta de novo consultando a lista.

@@ -51,6 +51,7 @@ const categorySchema = z.object({ id: z.string(), code: z.string(), name: z.stri
 export const itemSchema = z.object({
   id: z.uuid(), category: categorySchema, description: z.string(),
   status: statusSchema, priority: z.enum(['LOW', 'MEDIUM', 'HIGH']).nullable(),
+  votesCount: z.number().int().nonnegative(),
   location: z.object({ lat: z.number().finite().min(-90).max(90), lng: z.number().finite().min(-180).max(180) }),
   createdAt: z.iso.datetime({ offset: true }),
 });

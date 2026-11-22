@@ -67,6 +67,11 @@ export async function getRecentAdminOccurrences(): Promise<RecentOccurrence[]> {
   return recentOccurrencesResponseSchema.parse(response).data;
 }
 
+export async function getHighPriorityAdminOccurrences(page: number, signal?: AbortSignal) {
+  const params = new URLSearchParams({ priority: 'HIGH', page: String(page), pageSize: '3', sort: 'recent' });
+  return recentOccurrencesResponseSchema.parse(await http('/admin/occurrences?' + params, { signal }));
+}
+
 // Sempre exibir seis status, inclusive zeros do banco; nunca somar a partir da página recente.
 export const dashboardStatuses: ReadonlyArray<{
   key: OccurrenceStatus; label: string; border: string;

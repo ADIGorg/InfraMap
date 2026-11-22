@@ -1,3 +1,4 @@
+import { selectOption } from '../../../../tests/select-option';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -17,6 +18,7 @@ const id = '20000000-0000-4000-8000-000000000001';
 const item = {
   id, category: { id: categoryId, name: 'Esgoto', code: 'CAT01' },
   description: 'Vazamento', status: 'RECEIVED', priority: null,
+  votesCount: 0,
   location: { lat: -12.26, lng: -38.96 }, createdAt: '2026-11-17T14:00:00Z',
 };
 const response = (data = [item], page = 1, total = 41) => ({
@@ -50,6 +52,30 @@ function mount(search = '') {
   return client;
 }
 describe('Lista administrativa — API1-96', () => {
+  it('mostra as contagens na ordem devolvida pela API ao ordenar por mais curtidas', async () => {
+    server.use(http.get(base + '/admin/occurrences', ({ request }) => {
+      expect(new URL(request.url).searchParams.get('sort')).toBe('most_liked');
+      return HttpResponse.json(response([{ ...item, votesCount: 12 }, { ...item, id: '20000000-0000-4000-8000-000000000002', votesCount: 2 }]));
+    }));
+    mount('?sort=most_liked');
+    await screen.findByRole('table');
+    const rows = screen.getAllByRole('row').slice(1);
+    expect(within(rows[0]).getByLabelText('12 curtidas')).toBeInTheDocument();
+    expect(within(rows[1]).getByLabelText('2 curtidas')).toBeInTheDocument();
+  });
+  it.each([-1, 1.5, null, undefined])('recusa a contagem inválida %s sem mostrar um zero fictício', async votesCount => {
+    server.use(http.get(base + '/admin/occurrences', () => HttpResponse.json({ ...response(), data: [{ ...item, votesCount }] })));
+    mount();
+    await screen.findByRole('alert');
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
+  });
+  it.each([[0, '0 curtidas'], [1, '1 curtida'], [1234, '1.234 curtidas']])('exibe a contagem real de %s curtidas', async (votesCount, label) => {
+    server.use(http.get(base + '/admin/occurrences', () => HttpResponse.json(response([{ ...item, votesCount: Number(votesCount) }]))));
+    mount();
+    await screen.findByRole('table');
+    expect(screen.getByRole('columnheader', { name: 'Curtidas' })).toBeInTheDocument();
+    expect(screen.getByLabelText(String(label))).toBeInTheDocument();
+  });
   it('aplica busca, prioridade e período no servidor, mantendo-os na URL', async () => {
     const queries: URLSearchParams[] = [];
     server.use(http.get(base + '/admin/occurrences', ({ request }) => {
@@ -58,12 +84,17 @@ describe('Lista administrativa — API1-96', () => {
     }));
     mount(); await screen.findByRole('table');
     fireEvent.change(screen.getByLabelText('Buscar por ID, categoria ou descrição'), { target: { value: 'Vazamento' } });
-    fireEvent.change(screen.getByLabelText('Prioridade'), { target: { value: 'HIGH' } });
+    selectOption(screen.getByLabelText('Prioridade'), 'HIGH');
+    selectOption(screen.getByLabelText('Categoria'), categoryId);
+    for (const label of ['Recebido', 'Em análise', 'Em atendimento', 'Resolvido', 'Rejeitado']) fireEvent.click(screen.getByLabelText(label));
     fireEvent.change(screen.getByLabelText('Início do período (inclusivo)'), { target: { value: '2026-11-01T10:00' } });
     fireEvent.change(screen.getByLabelText('Fim do período (exclusivo)'), { target: { value: '2026-11-10T10:00' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Aplicar busca, prioridade e período' }));
+    expect(queries).toHaveLength(1);
+    fireEvent.click(screen.getByRole('button', { name: 'Aplicar filtros' }));
     await waitFor(() => expect(queries.at(-1)?.get('q')).toBe('Vazamento'));
     expect(queries.at(-1)?.get('priority')).toBe('HIGH');
+    expect(queries.at(-1)?.get('categoryId')).toBe(categoryId);
+    expect(queries.at(-1)?.get('status')).toBe('CONFIRMED');
     expect(queries.at(-1)?.get('createdFrom')).toBe(new Date('2026-11-01T10:00').toISOString());
     expect(screen.getByTestId('location')).toHaveTextContent('priority=HIGH');
   });
@@ -83,15 +114,18 @@ describe('Lista administrativa — API1-96', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Próxima' }));
     await screen.findByText('Página 2 de 3');
     expect(queries.at(-1)?.get('page')).toBe('2');
-    fireEvent.change(screen.getByLabelText('Categoria'), { target: { value: categoryId } });
+    selectOption(screen.getByLabelText('Categoria'), categoryId);
+    fireEvent.click(screen.getByRole('button', { name: 'Aplicar filtros' }));
     await waitFor(() => expect(queries.at(-1)?.get('categoryId')).toBe(categoryId));
     expect(queries.at(-1)?.get('page')).toBe('1');
-    fireEvent.click(screen.getByLabelText('Resolvido'));
+    for (const label of ['Recebido', 'Em análise', 'Confirmado', 'Em atendimento', 'Rejeitado']) fireEvent.click(screen.getByLabelText(label));
+    fireEvent.click(screen.getByRole('button', { name: 'Aplicar filtros' }));
     await waitFor(() => expect(queries.at(-1)?.get('status')).toBe('RESOLVED'));
-    fireEvent.change(screen.getByLabelText('Ordenação'), { target: { value: 'most_liked' } });
+    selectOption(screen.getByLabelText('Ordenação'), 'most_liked');
+    fireEvent.click(screen.getByRole('button', { name: 'Aplicar filtros' }));
     await waitFor(() => expect(queries.at(-1)?.get('sort')).toBe('most_liked'));
     fireEvent.click(screen.getByRole('button', { name: 'Voltar navegador' }));
-    await waitFor(() => expect(screen.getByLabelText('Ordenação')).toHaveValue('recent'));
+    await waitFor(() => expect(screen.getByLabelText('Ordenação')).toHaveTextContent('Mais recentes'));
   });
 
   it('consulta status CSV e região de deep link e abre detalhe pelo UUID completo', async () => {
@@ -190,26 +224,51 @@ describe('Lista administrativa — API1-96', () => {
     expect(screen.getByTestId('location')).toHaveTextContent('page=1&');
   });
 
-  it('valida região completa antes de aplicar e preserva os limites na URL', async () => {
+  it('oferece intervalos de 7 e 30 dias e permite remover o período aplicado', async () => {
     const queries: URLSearchParams[] = [];
     server.use(http.get(base + '/admin/occurrences', ({ request }) => {
       queries.push(new URL(request.url).searchParams);
       return HttpResponse.json(response());
     }));
-    mount();
-    await screen.findByRole('table');
-    fireEvent.click(screen.getByText('Filtrar por região'));
-    fireEvent.change(screen.getByLabelText('Latitude mínima'), { target: { value: '-13' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Aplicar região' }));
-    expect(screen.getByRole('alert')).toHaveTextContent('quatro limites');
+    mount(); await screen.findByRole('table');
+    expect(screen.queryByLabelText('Latitude mínima')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Longitude máxima')).not.toBeInTheDocument();
+    selectOption(screen.getByLabelText('Intervalo'), '7');
     expect(queries).toHaveLength(1);
-    fireEvent.change(screen.getByLabelText('Latitude máxima'), { target: { value: '-12' } });
-    fireEvent.change(screen.getByLabelText('Longitude mínima'), { target: { value: '-39' } });
-    fireEvent.change(screen.getByLabelText('Longitude máxima'), { target: { value: '-38' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Aplicar região' }));
-    await waitFor(() => expect(queries.at(-1)?.get('minLat')).toBe('-13'));
-    expect(queries.at(-1)?.get('maxLng')).toBe('-38');
-    expect(screen.getByTestId('location')).toHaveTextContent('minLat=-13');
+    fireEvent.click(screen.getByRole('button', { name: 'Aplicar filtros' }));
+    await waitFor(() => expect(queries.at(-1)?.get('createdFrom')).toBeTruthy());
+    const duration = () => Date.parse(queries.at(-1)!.get('createdBefore')!) - Date.parse(queries.at(-1)!.get('createdFrom')!);
+    expect(duration()).toBe(7 * 24 * 60 * 60 * 1000);
+    expect(Math.abs(Date.now() - Date.parse(queries.at(-1)!.get('createdBefore')!))).toBeLessThan(65_000);
+    selectOption(screen.getByLabelText('Intervalo'), '30');
+    fireEvent.click(screen.getByRole('button', { name: 'Aplicar filtros' }));
+    await waitFor(() => expect(duration()).toBe(30 * 24 * 60 * 60 * 1000));
+    selectOption(screen.getByLabelText('Intervalo'), 'all');
+    fireEvent.click(screen.getByRole('button', { name: 'Aplicar filtros' }));
+    await waitFor(() => expect(queries.at(-1)?.has('createdFrom')).toBe(false));
+    expect(queries.at(-1)?.has('createdBefore')).toBe(false);
+    expect(screen.getByRole('button', { name: 'Aplicar filtros' })).toBeDisabled();
+  });
+
+  it('habilita aplicar apenas com mudanças e bloqueia um período invertido', async () => {
+    mount(); await screen.findByRole('table');
+    for (const label of ['Recebido', 'Em análise', 'Confirmado', 'Em atendimento', 'Resolvido', 'Rejeitado']) expect(screen.getByLabelText(label)).toBeChecked();
+    const apply = () => screen.getByRole('button', { name: 'Aplicar filtros' });
+    expect(apply()).toBeDisabled();
+    selectOption(screen.getByLabelText('Prioridade'), 'HIGH'); expect(apply()).toBeEnabled();
+    selectOption(screen.getByLabelText('Prioridade'), ''); expect(apply()).toBeDisabled();
+    fireEvent.click(screen.getByLabelText('Recebido')); expect(apply()).toBeEnabled();
+    fireEvent.click(screen.getByLabelText('Recebido')); expect(apply()).toBeDisabled();
+    fireEvent.change(screen.getByLabelText('Buscar por ID, categoria ou descrição'), { target: { value: '  ' } });
+    expect(apply()).toBeDisabled();
+    selectOption(screen.getByLabelText('Intervalo'), 'custom'); expect(apply()).toBeDisabled();
+    fireEvent.change(screen.getByLabelText('Início do período (inclusivo)'), { target: { value: '2026-11-20T10:00' } });
+    fireEvent.change(screen.getByLabelText('Fim do período (exclusivo)'), { target: { value: '2026-11-19T10:00' } });
+    fireEvent.click(apply()); expect(screen.getByRole('alert')).toHaveTextContent('início do período');
+    fireEvent.click(screen.getByRole('button', { name: 'Limpar filtros' }));
+    await waitFor(() => expect(apply()).toBeDisabled());
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    for (const label of ['Recebido', 'Em análise', 'Confirmado', 'Em atendimento', 'Resolvido', 'Rejeitado']) expect(screen.getByLabelText(label)).toBeChecked();
   });
 
   it('não consulta ocorrências nem permite ações para identidade inativa', async () => {

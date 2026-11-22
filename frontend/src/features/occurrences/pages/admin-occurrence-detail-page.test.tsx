@@ -1,3 +1,4 @@
+import { selectOption } from '../../../../tests/select-option';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -8,6 +9,8 @@ import { transferableAbortController } from 'node:util';
 import { AdminOccurrenceDetailPage } from './admin-occurrence-detail-page';
 import type { OccurrenceDetail } from '../services/occurrence-detail.service';
 
+vi.mock('@/features/admin-map/components/admin-leaflet-map', () => ({ AdjustmentLeafletMap: () => <div data-testid="map-mock" /> }));
+vi.mock('@/shared/components/occurrence-address', () => ({ OccurrenceAddress: () => <span>Endereço de teste</span> }));
 vi.mock('@/config/env', () => ({ env: { apiBaseUrl: 'http://localhost:3000/api/v1' } }));
 vi.mock('@/infrastructure/api/supabase-client', () => ({
   supabase: { auth: { getSession: async () => ({ data: { session: { access_token: 'test' } } }) } },
@@ -15,9 +18,11 @@ vi.mock('@/infrastructure/api/supabase-client', () => ({
 const base = 'http://localhost:3000/api/v1';
 const id = '20000000-0000-4000-8000-000000000001';
 const agencyId = '30000000-0000-4000-8000-000000000001';
+const alternativeCategoryId = '30000000-0000-4000-8000-000000000002';
 const fixture: OccurrenceDetail = {
   id, category: { id: agencyId, name: 'Esgoto', code: 'CAT01' }, description: 'Vazamento de esgoto',
   status: 'RECEIVED', priority: null, location: { lat: -12, lng: -38 },
+  votesCount: 12,
   createdAt: '2026-11-18T14:00:00Z', author: { id, name: 'Maria Silva' },
   locationOriginal: { lat: -12, lng: -38 }, locationAdjusted: null,
   categorySource: 'AI_CONFIRMED', descriptionSource: 'AI_EDITED',
@@ -36,7 +41,7 @@ const forwarding = () => ({
 const server = setupServer(
   http.get(base + '/admin/me', () => HttpResponse.json({ id, role: 'ADMIN', is_active: true })),
   http.get(base + '/admin/occurrences/' + id, () => { reads++; return HttpResponse.json({ data: item }); }),
-  http.get(base + '/categories', () => HttpResponse.json({ data: [fixture.category] })),
+  http.get(base + '/categories', () => HttpResponse.json({ data: [fixture.category, { id: alternativeCategoryId, name: 'Saneamento e Drenagem', code: 'CAT02' }] })),
   http.get(base + '/admin/agencies', () => HttpResponse.json({ data: [{ id: agencyId, name: 'Órgão de teste', email: 'orgao@example.com', is_active: true }] })),
   http.get(base + '/admin/occurrences/' + id + '/forwardings', () => HttpResponse.json({ data: [forwarding()] })),
   http.get(base + '/occurrences/' + id + '/history', () => HttpResponse.json({ data: [{
@@ -51,6 +56,7 @@ const server = setupServer(
     if (!['PATCH', 'POST'].includes(request.method)) return HttpResponse.json({}, { status: 404 });
     calls.push({ method: request.method, action: String(params.action), body: await request.json() as Record<string, unknown> });
     if (conflict) { item.status = 'RESOLVED'; return HttpResponse.json({ error: { code: 'CONFLICT', message: 'Conflito' } }, { status: 409 }); }
+    if (params.action === 'resolve') item.status = 'RESOLVED';
     return HttpResponse.json({ message: 'Registrado' });
   }),
 );
@@ -74,11 +80,15 @@ async function openAction(label: string) {
   return within(screen.getByRole('dialog'));
 }
 describe('Detalhe administrativo API1-97', () => {
+  it.each([[0, '0 curtidas'], [1, '1 curtida'], [1234, '1.234 curtidas']])('exibe %s curtidas no resumo', async (votesCount, label) => {
+    item.votesCount = Number(votesCount);
+    mount();
+    expect(await screen.findByText(String(label))).toBeInTheDocument();
+  });
   it.each([
     ['RECEIVED', 'Iniciar análise', 'start-analysis', 'PATCH', null, null],
     ['UNDER_ANALYSIS', 'Confirmar ocorrência', 'confirm', 'POST', null, null],
     ['CONFIRMED', 'Iniciar atendimento', 'start-service', 'POST', 'Ação concreta do atendimento', 'Equipe enviada ao local'],
-    ['IN_SERVICE', 'Resolver ocorrência', 'resolve', 'POST', 'Notas de resolução', 'Reparo concluído'],
     ['CONFIRMED', 'Definir prioridade', 'priority', 'PATCH', null, null],
     ['UNDER_ANALYSIS', 'Ajustar localização', 'location', 'PATCH', 'Latitude', '-13'],
     ['UNDER_ANALYSIS', 'Corrigir classificação', 'classification', 'PATCH', 'Descrição corrigida', 'Descrição corrigida do vazamento'],
@@ -90,12 +100,56 @@ describe('Detalhe administrativo API1-97', () => {
     expect(calls).toHaveLength(0);
     if (field) fireEvent.change(dialog.getByLabelText(field), { target: { value } });
     if (action === 'start-service') fireEvent.click(dialog.getByRole('checkbox'));
-    fireEvent.click(dialog.getByRole('button', { name: 'Confirmar' }));
+    fireEvent.click(dialog.getByRole('button', { name: action === 'location' ? 'Salvar posição' : 'Confirmar' }));
+    if (action === 'location') fireEvent.click(dialog.getByRole('button', { name: 'Confirmar ajuste' }));
     await waitFor(() => expect(calls).toHaveLength(1));
     expect(calls[0]).toMatchObject({ action, method });
     if (action === 'location') expect(calls[0].body).toEqual({ lat: -13, lng: -38 });
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(reads).toBeGreaterThan(1);
+  });
+
+  it('corrige a categoria selecionada enviando categoryId para a API', async () => {
+    item.status = 'UNDER_ANALYSIS';
+    mount();
+    const dialog = await openAction('Corrigir classificação');
+    selectOption(dialog.getByLabelText('Categoria'), alternativeCategoryId);
+    fireEvent.click(dialog.getByRole('button', { name: 'Confirmar' }));
+    await waitFor(() => expect(calls).toHaveLength(1));
+    expect(calls[0]).toMatchObject({
+      action: 'classification', method: 'PATCH', body: { categoryId: alternativeCategoryId },
+    });
+  });
+
+  it('conclui manualmente o atendimento somente após revisar a resolução', async () => {
+    item.status = 'IN_SERVICE';
+    item.priority = 'HIGH';
+    mount();
+    const dialog = await openAction('Marcar como resolvida');
+    const notes = 'Serviço executado pela equipe e problema solucionado.';
+    fireEvent.change(dialog.getByLabelText('Notas de resolução'), { target: { value: notes } });
+    fireEvent.click(dialog.getByRole('button', { name: 'Revisar resolução' }));
+    expect(calls).toHaveLength(0);
+    expect(dialog.getByText(notes)).toBeInTheDocument();
+    fireEvent.click(dialog.getByRole('button', { name: 'Voltar' }));
+    expect(dialog.getByLabelText('Notas de resolução')).toHaveValue(notes);
+    fireEvent.click(dialog.getByRole('button', { name: 'Revisar resolução' }));
+    fireEvent.click(dialog.getByRole('button', { name: 'Confirmar resolução' }));
+    await waitFor(() => expect(calls).toHaveLength(1));
+    expect(calls[0]).toMatchObject({
+      action: 'resolve', method: 'POST', body: { resolutionNotes: notes },
+    });
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Marcar como resolvida' })).not.toBeInTheDocument());
+    expect(screen.getByText('Esta ocorrência foi resolvida. A conclusão está registrada no histórico.')).toBeInTheDocument();
+  });
+
+  it('não permite concluir manualmente uma ocorrência que não iniciou atendimento', async () => {
+    item.status = 'CONFIRMED';
+    item.priority = 'HIGH';
+    mount();
+    await screen.findByRole('heading', { name: /Detalhes da ocorrência/ });
+    expect(screen.queryByRole('button', { name: 'Marcar como resolvida' })).not.toBeInTheDocument();
+    expect(calls).toHaveLength(0);
   });
 
   it('rejeita somente após justificativa e segunda confirmação', async () => {
@@ -109,10 +163,48 @@ describe('Detalhe administrativo API1-97', () => {
     await waitFor(() => expect(calls[0]).toMatchObject({ action: 'reject', body: { justification: 'Ocorrência duplicada verificada' } }));
   });
 
-  it.each(['RESOLVED', 'REJECTED', 'CONFIRMED'] as const)('bloqueia rejeição em %s', async status => {
+  it('registra a recusa do órgão pelas ações da ocorrência somente após revisão', async () => {
+    item.status = 'CONFIRMED';
+    item.priority = 'HIGH';
+    mount();
+    const start = await openAction('Iniciar atendimento');
+    expect(start.queryByRole('button', { name: 'Rejeitar ocorrência' })).not.toBeInTheDocument();
+    fireEvent.click(start.getByRole('button', { name: 'Cancelar' }));
+    const rejection = await openAction('Rejeitar ocorrência');
+    const justification = 'O órgão informou que não pode executar o serviço.';
+    const agencyResponse = 'A equipe do órgão recusou formalmente o atendimento.';
+    fireEvent.change(rejection.getByLabelText('Justificativa'), { target: { value: justification } });
+    fireEvent.click(rejection.getByRole('button', { name: 'Revisar rejeição' }));
+    expect(rejection.queryByRole('button', { name: 'Sim, rejeitar' })).not.toBeInTheDocument();
+    fireEvent.change(rejection.getByLabelText('Resposta do órgão responsável'), { target: { value: agencyResponse } });
+    fireEvent.click(rejection.getByRole('button', { name: 'Revisar rejeição' }));
+    expect(rejection.getByText(`Resposta do órgão: ${agencyResponse}`)).toBeInTheDocument();
+    expect(calls).toHaveLength(0);
+    fireEvent.click(rejection.getByRole('button', { name: 'Sim, rejeitar' }));
+    await waitFor(() => expect(calls).toEqual([{ action: 'reject', method: 'POST', body: { justification, agencyResponse } }]));
+  });
+
+  it('informa quando a rejeição falha no servidor e preserva a revisão', async () => {
+    item.status = 'CONFIRMED';
+    server.use(http.post(base + '/admin/occurrences/' + id + '/reject', () =>
+      HttpResponse.json({ error: { code: 'MODERATION_FAILED', message: 'Falha administrativa.' } }, { status: 500 })));
+    mount();
+    const dialog = await openAction('Rejeitar ocorrência');
+    const reason = 'O órgão não pode executar o serviço.';
+    fireEvent.change(dialog.getByLabelText('Justificativa'), { target: { value: reason } });
+    fireEvent.change(dialog.getByLabelText('Resposta do órgão responsável'), { target: { value: 'Recusa formal registrada pelo órgão.' } });
+    fireEvent.click(dialog.getByRole('button', { name: 'Revisar rejeição' }));
+    fireEvent.click(dialog.getByRole('button', { name: 'Sim, rejeitar' }));
+    expect(await dialog.findByRole('alert')).toHaveTextContent('Não foi possível confirmar a rejeição.');
+    expect(dialog.getByText(`Justificativa: ${reason}`)).toBeInTheDocument();
+  });
+
+  it.each(['RESOLVED', 'REJECTED', 'CONFIRMED', 'IN_SERVICE'] as const)('bloqueia rejeição em %s sem encaminhamento aceito ou fora da etapa permitida', async status => {
     item.status = status;
+    if (status === 'CONFIRMED') forwardingStatus = 'FAILED';
     mount();
     await screen.findByRole('heading', { name: /Detalhes da ocorrência/ });
+    await screen.findByText(/Órgão de teste — (Falha de envio|Aceito pelo provedor)/);
     expect(screen.queryByRole('button', { name: 'Rejeitar ocorrência' })).not.toBeInTheDocument();
     if (status !== 'CONFIRMED') expect(screen.queryByRole('button', { name: 'Encaminhar ocorrência' })).not.toBeInTheDocument();
   });
@@ -133,9 +225,9 @@ describe('Detalhe administrativo API1-97', () => {
     mount();
     const select = await screen.findByLabelText('Órgão responsável');
     await waitFor(() => expect(select).toBeEnabled());
-    fireEvent.change(select, { target: { value: agencyId } });
+    selectOption(select, agencyId);
     fireEvent.click(screen.getByRole('button', { name: 'Encaminhar ocorrência' }));
-    await screen.findByText(status === 'SENT' ? 'Encaminhamento registrado e enviado.' : /registrado, mas o envio falhou/);
+    await screen.findByText(status === 'SENT' ? 'Encaminhamento registrado e aceito pelo provedor de e-mail. A entrega ainda não foi confirmada.' : /registrado, mas o envio falhou/);
     expect(forwards).toBe(1);
     expect(screen.getByText('Confirmado')).toBeInTheDocument();
     if (status === 'FAILED') expect(screen.getByRole('button', { name: 'Encaminhar ocorrência' })).toBeDisabled();
@@ -145,7 +237,7 @@ describe('Detalhe administrativo API1-97', () => {
     mount();
     await screen.findByLabelText('Observação');
     fireEvent.change(screen.getByLabelText('Observação'), { target: { value: 'Texto de observação técnica' } });
-    fireEvent.change(screen.getByLabelText('Visibilidade'), { target: { value: visibility } });
+    selectOption(screen.getByLabelText('Visibilidade'), visibility);
     fireEvent.click(screen.getByRole('button', { name: 'Salvar observação' }));
     await waitFor(() => expect(calls[0]).toMatchObject({ action: 'observations', body: { content: 'Texto de observação técnica', visibility } }));
     await waitFor(() => expect(screen.getByLabelText('Observação')).toHaveValue(''));
@@ -160,6 +252,17 @@ describe('Detalhe administrativo API1-97', () => {
     item.photoUrls[0].expiresAt = '2099-01-01T00:00:00Z';
     fireEvent.click(screen.getByRole('button', { name: 'Atualizar fotos' }));
     expect(await screen.findByRole('img')).toHaveAttribute('src', 'https://example.com/signed-photo');
+  });
+
+  it('traduz a origem dos campos e a resposta ao cidadão no histórico', async () => {
+    server.use(http.get(base + '/occurrences/' + id + '/history', () => HttpResponse.json({ data: [{
+      id: 'reply', type: 'history', action: 'OBSERVATION_CITIZEN_REPLY_ADDED', actorId: id,
+      createdAt: fixture.createdAt, details: null,
+    }] })));
+    mount();
+    expect(await screen.findByText('Resposta ao cidadão registrada')).toBeInTheDocument();
+    expect(screen.getByText(/Sugestão da IA confirmada pelo cidadão/)).toHaveTextContent('Sugestão da IA editada pelo cidadão');
+    expect(screen.queryByText(/AI_CONFIRMED|AI_EDITED|OBSERVATION_CITIZEN_REPLY_ADDED/)).not.toBeInTheDocument();
   });
 });
 

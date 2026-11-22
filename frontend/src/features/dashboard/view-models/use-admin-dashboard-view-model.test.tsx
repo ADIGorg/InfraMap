@@ -15,7 +15,7 @@ describe('Dashboard MVVM polling', () => {
 
     const { result, unmount } = renderHook(() => useAdminDashboardViewModel());
     expect(result.current.pollingSeconds).toBe(30);
-    expect(useQuery).toHaveBeenCalledTimes(2);
+    expect(useQuery).toHaveBeenCalledTimes(3);
     expect(useQuery).toHaveBeenNthCalledWith(1, expect.objectContaining({
       queryKey: ['admin', 'dashboard'],
       refetchInterval: 30_000,
@@ -26,7 +26,11 @@ describe('Dashboard MVVM polling', () => {
       refetchInterval: 30_000,
     }));
     result.current.refresh();
-    expect(refetch).toHaveBeenCalledTimes(2);
+    expect(useQuery).toHaveBeenNthCalledWith(3, expect.objectContaining({
+      queryKey: ['admin', 'occurrences', 'dashboard-high-priority', { priority: 'HIGH', page: 1, pageSize: 3, sort: 'recent' }],
+      refetchInterval: 30_000,
+    }));
+    expect(refetch).toHaveBeenCalledTimes(3);
     unmount();
   });
 });

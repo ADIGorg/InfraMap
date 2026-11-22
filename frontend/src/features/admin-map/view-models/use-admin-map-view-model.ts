@@ -187,6 +187,11 @@ export function useAdminMapViewModel() {
   };
 
   return {
+    applyMapFilters: (filters: MapFilters) => {
+      setInputError(null);
+      setSelection(null);
+      setApplied(filters);
+    },
     categories, occurrences, draft, applied, selected, selection,
     availableBounds, setAvailableBounds, viewport, setViewport,
     inputError: validUrl ? inputError : 'Filtros inválidos na URL. Limpe a seleção para continuar.', setInputError,

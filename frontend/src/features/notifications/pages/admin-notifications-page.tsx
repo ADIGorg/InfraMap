@@ -11,7 +11,7 @@ export function AdminNotificationsPage() {
     <div className="page-container">
       <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div><h1 className="text-2xl font-extrabold">Notificações</h1>
-          <p className="mt-2 text-sm text-ink-secondary">Ocorrências recentes e alertas de prazo. Atualização automática a cada 30 segundos enquanto esta tela estiver aberta.</p>
+          <p className="mt-2 text-sm text-ink-secondary">Ocorrências recentes e alertas de prazo. Atualização automática a cada 30 segundos enquanto o painel estiver ativo.</p>
         </div>
         <Button variant="outline" onClick={vm.refresh} disabled={!vm.online || vm.busy}>Atualizar alertas</Button>
       </div>

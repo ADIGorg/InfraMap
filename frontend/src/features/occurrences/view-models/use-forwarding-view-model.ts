@@ -15,7 +15,7 @@ export function useForwardingViewModel(id: string, canForward: boolean, refresh:
     setPending(true);
     try {
       const result = await mutation.mutateAsync(input);
-      setMessage(result.status === 'SENT' ? 'Encaminhamento registrado e enviado.'
+      setMessage(result.status === 'SENT' ? 'Encaminhamento registrado e aceito pelo provedor de e-mail. A entrega ainda não foi confirmada.'
         : result.status === 'FAILED' ? 'Encaminhamento registrado, mas o envio falhou. Confira o histórico antes de reenviar.'
         : 'Encaminhamento registrado e aguardando envio.');
       setNeedsReview(result.status !== 'SENT');

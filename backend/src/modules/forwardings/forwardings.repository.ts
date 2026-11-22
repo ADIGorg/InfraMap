@@ -28,6 +28,8 @@ export interface OccurrenceForEmail {
   categoryName: string;
   description: string;
   location: { lat: number; lng: number };
+  priority?: "LOW" | "MEDIUM" | "HIGH" | null;
+  photos?: Array<{ storagePath: string; mimeType: string; sizeBytes: number | null; position: number }>;
   createdAt: string;
 }
 
@@ -141,6 +143,13 @@ export async function getOccurrenceForEmail(
     categoryName: d.category_name as string,
     description: d.description as string,
     location: parseGeoPoint(d.location),
+    priority: d.priority === "LOW" || d.priority === "MEDIUM" || d.priority === "HIGH" ? d.priority : null,
+    photos: Array.isArray(d.photos) ? (d.photos as Array<Record<string, unknown>>).map((p) => ({
+      storagePath: p.storage_path as string,
+      mimeType: p.mime_type as string,
+      sizeBytes: typeof p.size_bytes === "number" ? p.size_bytes : null,
+      position: p.position as number,
+    })) : [],
     createdAt: d.created_at as string,
   };
 }

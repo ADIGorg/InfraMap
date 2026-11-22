@@ -1,8 +1,10 @@
 import { useCallback, useState } from 'react';
-import { List, MapPinned, RefreshCw } from 'lucide-react';
+import { List, MapPinned, RefreshCw, SlidersHorizontal, X } from 'lucide-react';
+import * as Dialog from '@radix-ui/react-dialog';
 import { Button } from '@/shared/components/button';
 import { AdminLeafletMap } from '../components/admin-leaflet-map';
 import { AdminMapFilters } from '../components/admin-map-filters';
+import { AppliedMapFilters } from '../components/applied-map-filters';
 import { AdminMapTextFallback } from '../components/admin-map-text-fallback';
 import { AdjustLocationDialog } from '../components/adjust-location-dialog';
 import { useAdminMapViewModel, describeMapMutationError } from '../view-models/use-admin-map-view-model';
@@ -11,14 +13,20 @@ export function AdminMapPage() {
   const vm = useAdminMapViewModel();
   const [tilesUnavailable, setTilesUnavailable] = useState(false);
   const [showList, setShowList] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
   const onTileError = useCallback(() => setTilesUnavailable(true), []);
   const mapAvailable = !tilesUnavailable;
+  const listMode = showList || tilesUnavailable;
   const items = vm.occurrences.data ?? [];
+  const filterCount = Number(!!vm.applied.q) + Number(!!vm.applied.categoryId)
+    + Number(vm.applied.statuses.length !== 4) + Number(!!vm.applied.priority)
+    + Number(!!vm.applied.neighborhoodId) + Number(!!(vm.applied.createdFrom || vm.applied.createdBefore))
+    + Number(!!vm.applied.bbox);
 
   const panel = (
     <div className={
       'relative flex min-h-[450px] min-w-0 flex-1 flex-col lg:min-h-0 ' +
-      (showList || tilesUnavailable ? 'lg:overflow-y-auto' : 'lg:overflow-hidden')
+      (listMode ? '' : 'lg:overflow-hidden')
     }>
       {vm.occurrences.isPending ? (
         <div role="status" className="flex h-full min-h-[450px] items-center justify-center p-8 text-sm text-ink-secondary lg:min-h-0">
@@ -58,6 +66,7 @@ export function AdminMapPage() {
         </>
       ) : (
         <AdminMapTextFallback
+          key={JSON.stringify(vm.applied)}
           items={items}
           onAdjust={vm.startAdjustment}
           reason={tilesUnavailable
@@ -70,7 +79,7 @@ export function AdminMapPage() {
   );
 
   return (
-    <div className="w-full lg:flex lg:h-[calc(100dvh-72px)] lg:min-h-0 lg:flex-col lg:overflow-hidden">
+    <div className={listMode ? 'flex min-h-[calc(100dvh-72px)] w-full flex-col' : 'w-full lg:flex lg:h-[calc(100dvh-72px)] lg:min-h-0 lg:flex-col lg:overflow-hidden'}>
       <header className="flex shrink-0 flex-wrap items-center justify-between gap-4 border-b border-line bg-white px-4 py-5 md:px-8">
         <div>
           <h1 className="flex items-center gap-2 text-2xl font-bold text-brand-primary">
@@ -82,6 +91,9 @@ export function AdminMapPage() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <Button variant="outline" type="button" onClick={() => setShowFilters(true)} aria-haspopup="dialog" aria-expanded={showFilters}>
+            <SlidersHorizontal size={16} aria-hidden="true" /> Filtros{filterCount > 0 ? ` (${filterCount})` : ''}
+          </Button>
           {mapAvailable && (
             <Button variant="outline" type="button" onClick={() => setShowList((value) => !value)}
               aria-pressed={showList}>
@@ -96,26 +108,37 @@ export function AdminMapPage() {
         </div>
       </header>
 
+      <AppliedMapFilters filters={vm.applied} categories={vm.categories.data} onApply={vm.applyMapFilters} onClear={vm.clearFilters} />
+
       <div className="flex flex-col lg:min-h-0 lg:flex-1 lg:flex-row">
         {panel}
-        <AdminMapFilters
-          draft={vm.draft}
-          appliedBounds={vm.applied.bbox}
+      </div>
+
+      <Dialog.Root open={showFilters} onOpenChange={setShowFilters}>
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 z-40 bg-black/40" />
+          <Dialog.Content className="fixed inset-y-0 right-0 z-50 flex w-full max-w-[420px] flex-col overflow-hidden bg-white shadow-xl focus-visible:outline-none">
+            <div className="flex shrink-0 items-center justify-between border-b border-line bg-white px-5 py-3">
+              <Dialog.Title className="font-bold text-brand-primary">Filtros do mapa</Dialog.Title>
+              <Dialog.Close asChild><button type="button" aria-label="Fechar filtros" className="rounded-lg p-2 text-brand-primary hover:bg-surface-info"><X size={20} /></button></Dialog.Close>
+            </div>
+            <Dialog.Description className="sr-only">Refine as ocorrências exibidas no mapa e na lista.</Dialog.Description>
+            <AdminMapFilters
+          initial={vm.applied}
           visibleBounds={mapAvailable && !showList ? vm.availableBounds : null}
           categories={vm.categories.data}
           categoriesLoading={vm.categories.isPending}
           categoriesError={vm.categories.isError}
           canSearchArea={mapAvailable && !showList && vm.availableBounds !== null}
-          error={vm.adjusting ? null : vm.inputError}
-          onStatusChange={vm.updateStatus}
-          onCategoryChange={vm.setCategory}
-          onExtraChange={vm.setExtraFilters}
-          onApply={vm.applyFilters}
+          onApply={filters => {
+            vm.applyMapFilters(filters);
+            setShowFilters(false);
+          }}
           onClear={vm.clearFilters}
-          onSearchArea={vm.searchVisibleArea}
-          onClearArea={vm.clearArea}
         />
-      </div>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
 
       <AdjustLocationDialog
         item={vm.adjusting}

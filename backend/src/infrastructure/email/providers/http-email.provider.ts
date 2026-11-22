@@ -70,6 +70,11 @@ export class HttpEmailProvider implements EmailSender {
           subject: input.subject,
           text: input.body.text,
           ...(input.body.html ? { html: input.body.html } : {}),
+          ...(input.attachments?.length ? { attachments: input.attachments.map(attachment => ({
+            filename: attachment.filename,
+            content: attachment.content,
+            ...(attachment.contentType ? { content_type: attachment.contentType } : {}),
+          })) } : {}),
         }),
       });
     } catch (err) {

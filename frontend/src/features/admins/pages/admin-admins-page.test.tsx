@@ -9,8 +9,8 @@ import { AdminAdminsPage } from './admin-admins-page';
 vi.mock('@/infrastructure/api/http-client', () => ({ http: vi.fn() }));
 const id = '10000000-0000-4000-8000-000000000001';
 const secondId = '20000000-0000-4000-8000-000000000002';
-const master = { id, name: 'Maria', admin_level: 'MASTER', is_active: true, created_by: null };
-const operator = { ...master, id: secondId, name: 'João', admin_level: 'OPERATIONAL' };
+const master = { id, name: 'Maria', email: 'maria@example.com', admin_level: 'MASTER', is_active: true, created_by: null };
+const operator = { ...master, id: secondId, name: 'João', email: 'joao@example.com', admin_level: 'OPERATIONAL' };
 let identity: Record<string, unknown>;
 let rows: typeof master[];
 const clients: QueryClient[] = [];
@@ -40,6 +40,12 @@ beforeEach(() => {
 afterEach(() => { cleanup(); clients.splice(0).forEach(client => client.clear()); });
 
 describe('Gestão de administradores MASTER', () => {
+  it('mostra o e-mail abaixo do nome de cada administrador', async () => {
+    mount();
+    expect(await screen.findByText('maria@example.com')).toBeInTheDocument();
+    expect(screen.getByText('joao@example.com')).toBeInTheDocument();
+  });
+
   it.each([
     { role: 'ADMIN', is_active: true, admin_level: 'OPERATIONAL' },
     { role: 'CITIZEN', is_active: true },

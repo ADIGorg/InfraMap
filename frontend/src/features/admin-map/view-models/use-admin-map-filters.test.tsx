@@ -9,6 +9,7 @@ vi.mock('../services/admin-occurrences.service', async importOriginal => ({
   listActiveAdminOccurrences: vi.fn(async () => []), listMapCategories: vi.fn(async () => []),
 }));
 import { listActiveAdminOccurrences } from '../services/admin-occurrences.service';
+import { DEFAULT_FILTERS } from '../services/admin-occurrences.service';
 import { useAdminMapViewModel } from './use-admin-map-view-model';
 afterEach(() => { cleanup(); vi.clearAllMocks(); });
 describe('Filtros do mapa na URL', () => {
@@ -32,6 +33,29 @@ describe('Filtros do mapa na URL', () => {
     const { result, unmount, client } = mount('/admin/map?createdFrom=invalido');
     expect(result.current.vm.inputError).toMatch(/inválidos/);
     expect(listActiveAdminOccurrences).not.toHaveBeenCalled();
+    unmount(); client.clear();
+  });
+  it('limpa os filtros aplicados e consulta imediatamente os critérios padrão', async () => {
+    const { result, unmount, client } = mount('/admin/map?status=CONFIRMED&priority=HIGH&neighborhoodId=b3975bde-484a-4210-87e1-7532c60b7a8c&createdFrom=2026-11-01T00:00:00Z&minLat=-13&maxLat=-12&minLng=-39&maxLng=-38');
+    await waitFor(() => expect(result.current.vm.occurrences.isSuccess).toBe(true));
+    act(() => result.current.vm.clearFilters());
+    await waitFor(() => expect(result.current.vm.applied).toEqual(DEFAULT_FILTERS));
+    await waitFor(() => expect(listActiveAdminOccurrences).toHaveBeenLastCalledWith(DEFAULT_FILTERS, expect.anything()));
+    unmount(); client.clear();
+  });
+  it('aplica juntos os critérios do painel, combina área e bairro e remove critérios antigos', async () => {
+    const { result, unmount, client } = mount('/admin/map?q=antigo&createdFrom=2026-11-01T00:00:00Z');
+    await waitFor(() => expect(result.current.vm.occurrences.isSuccess).toBe(true));
+    const filters = {
+      statuses: ['CONFIRMED' as const], categoryId: '', priority: 'HIGH' as const,
+      neighborhoodId: 'b3975bde-484a-4210-87e1-7532c60b7a8c',
+      bbox: { minLat: -13, maxLat: -12, minLng: -39, maxLng: -38 },
+    };
+    act(() => result.current.vm.applyMapFilters(filters));
+    await waitFor(() => expect(result.current.vm.applied).toMatchObject(filters));
+    expect(result.current.vm.applied.q).toBeUndefined();
+    expect(result.current.vm.applied.createdFrom).toBeUndefined();
+    await waitFor(() => expect(listActiveAdminOccurrences).toHaveBeenLastCalledWith(expect.objectContaining(filters), expect.anything()));
     unmount(); client.clear();
   });
 });
