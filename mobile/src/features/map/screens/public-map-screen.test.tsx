@@ -1,5 +1,6 @@
 import React from 'react';
 import { render, waitFor } from '@testing-library/react-native';
+import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
 import { PublicMapScreen } from './public-map-screen';
 import * as usePublicMap from '../view-models/use-public-map';
 
@@ -33,6 +34,14 @@ jest.mock('@maplibre/maplibre-react-native', () => {
   };
 });
 
+function MapSafeArea({ children }: React.PropsWithChildren) {
+  return (
+    <SafeAreaInsetsContext.Provider value={{ top: 44, right: 0, bottom: 34, left: 0 }}>
+      {children}
+    </SafeAreaInsetsContext.Provider>
+  );
+}
+
 describe('PublicMapScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -58,13 +67,13 @@ describe('PublicMapScreen', () => {
   });
 
   it('renderiza o mapa e o filtro', async () => {
-    const { getByTestId, getByText } = await render(<PublicMapScreen />);
+    const { getByTestId, getByText } = await render(<PublicMapScreen />, { wrapper: MapSafeArea });
     expect(getByTestId('map-view')).toBeTruthy();
     expect(getByText('Mapa de ocorrências')).toBeTruthy();
   });
 
   it('mostra mensagem de vazio quando não há ocorrências', async () => {
-    const { getByText } = await render(<PublicMapScreen />);
+    const { getByText } = await render(<PublicMapScreen />, { wrapper: MapSafeArea });
     await waitFor(() =>
       expect(getByText('Nenhuma ocorrência nesta área.')).toBeTruthy(),
     );
@@ -76,7 +85,7 @@ describe('PublicMapScreen', () => {
       error: 'Falha de rede',
       isLoading: false,
     });
-    const { getByText } = await render(<PublicMapScreen />);
+    const { getByText } = await render(<PublicMapScreen />, { wrapper: MapSafeArea });
     await waitFor(() => expect(getByText('Falha de rede')).toBeTruthy());
   });
 });

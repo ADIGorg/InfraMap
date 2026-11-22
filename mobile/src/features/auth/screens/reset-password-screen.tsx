@@ -13,6 +13,7 @@ import {
 import { Feather } from '@expo/vector-icons';
 import { useResetPasswordViewModel } from '@/features/auth/view-models/use-reset-password-view-model';
 import { InputField } from '@/shared/components/input-field';
+import { ScreenTitle } from '@/shared/components/screen-title';
 import { colors, typography, spacing, radius } from '@/shared/theme';
 
 export function ResetPasswordScreen() {
@@ -75,7 +76,7 @@ export function ResetPasswordScreen() {
               </View>
               <Text style={styles.logoText}>InfraMap</Text>
             </View>
-            <Text style={styles.title} accessibilityRole="header">Nova senha</Text>
+            <ScreenTitle>Nova senha</ScreenTitle>
           </View>
 
           <Text style={styles.description}>
@@ -183,11 +184,6 @@ const styles = StyleSheet.create({
   },
   logoText: {
     fontSize: typography.sizes['3xl'],
-    fontWeight: typography.weights.extrabold,
-    color: colors.brand.primary,
-  },
-  title: {
-    fontSize: typography.sizes['2xl'],
     fontWeight: typography.weights.extrabold,
     color: colors.brand.primary,
   },

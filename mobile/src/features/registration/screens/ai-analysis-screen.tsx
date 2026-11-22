@@ -1,6 +1,8 @@
 import React from 'react';
-import { ActivityIndicator, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
+import { RegistrationHeader } from '../components/registration-header';
 import { RegistrationStepper } from '../components/registration-stepper';
 import { ConfidenceBadge } from '../components/confidence-badge';
 import { CategorySelectModal } from '../components/category-select-modal';
@@ -11,12 +13,9 @@ export function AiAnalysisScreen() {
   const vm = useAiAnalysisViewModel();
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <View style={styles.header}>
-          <Text style={styles.brand}>InfraMap</Text>
-          <Text style={styles.headerTitle}>Nova ocorrência</Text>
-        </View>
+        <RegistrationHeader />
         <RegistrationStepper currentStep={2} />
         <Text style={styles.title}>Análise da IA</Text>
         <Text style={styles.subtitle}>Revise e edite as informações identificadas.</Text>
@@ -47,20 +46,28 @@ export function AiAnalysisScreen() {
             {vm.isLowConfidence ? (
               <View style={styles.lowConfidenceBanner}>
                 <Feather name="alert-circle" size={18} color={colors.brand.accent} />
-                <Text style={styles.lowConfidenceText}>A classificação automática pode não ser precisa. Verifique a categoria. O fallback esperado é CAT07.</Text>
+                <Text style={styles.lowConfidenceText}>
+                  A IA teve dificuldade para identificar o problema na foto. Confira a categoria e a descrição e corrija o que for preciso.
+                </Text>
               </View>
             ) : null}
 
             <View style={styles.card}>
               <View style={styles.cardHeader}>
                 <Text style={styles.cardLabel}>Categoria</Text>
-                <Text style={styles.aiLabel}>Sugerido pela IA</Text>
+                {vm.selectedCategory ? (
+                  <Text style={styles.aiLabel}>
+                    {vm.categorySource === 'AI_CONFIRMED' ? 'Sugerido pela IA' : 'Escolhido por você'}
+                  </Text>
+                ) : null}
               </View>
               <TouchableOpacity style={styles.select} onPress={() => vm.setCategoryModalOpen(true)} accessibilityRole="button" accessibilityLabel="Editar categoria">
                 <Text style={styles.selectText}>{vm.selectedCategory?.name ?? 'Selecionar categoria'}</Text>
                 <Feather name="chevron-down" size={20} color={colors.text.secondary} />
               </TouchableOpacity>
-              <ConfidenceBadge confidence={vm.confidence} />
+              {vm.selectedCategory && vm.categorySource === 'AI_CONFIRMED' ? (
+                <ConfidenceBadge confidence={vm.confidence} />
+              ) : null}
             </View>
 
             <View style={styles.card}>
@@ -89,19 +96,21 @@ export function AiAnalysisScreen() {
           </>
         ) : null}
 
-        <TouchableOpacity
-          style={[styles.confirmButton, !vm.isCompleted && styles.disabled]}
-          onPress={vm.confirm}
-          disabled={!vm.isCompleted}
-          accessibilityRole="button"
-          accessibilityLabel="Confirmar análise"
-          accessibilityState={{ disabled: !vm.isCompleted }}
-        >
-          <Text style={styles.confirmText}>Confirmar</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={vm.cancel} accessibilityRole="button" accessibilityLabel="Cancelar registro">
-          <Text style={styles.cancelText}>Cancelar</Text>
-        </TouchableOpacity>
+        <View style={styles.footer}>
+          <TouchableOpacity
+            style={[styles.confirmButton, !vm.isCompleted && styles.disabled]}
+            onPress={vm.confirm}
+            disabled={!vm.isCompleted}
+            accessibilityRole="button"
+            accessibilityLabel="Confirmar análise"
+            accessibilityState={{ disabled: !vm.isCompleted }}
+          >
+            <Text style={styles.confirmText}>Confirmar</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.secondaryButton} onPress={vm.cancel} accessibilityRole="button" accessibilityLabel="Cancelar registro">
+            <Text style={styles.cancelText}>Cancelar</Text>
+          </TouchableOpacity>
+        </View>
       </ScrollView>
 
       <CategorySelectModal
@@ -117,10 +126,10 @@ export function AiAnalysisScreen() {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.surface.page },
-  content: { paddingBottom: spacing['2xl'] },
-  header: { backgroundColor: colors.brand.primary, paddingHorizontal: spacing.xl, paddingVertical: spacing.base },
-  brand: { color: colors.text.inverse, fontSize: typography.sizes.lg, fontWeight: typography.weights.extrabold },
-  headerTitle: { marginTop: spacing.xs, color: colors.text.inverse, fontSize: typography.sizes.xl, fontWeight: typography.weights.bold },
+  content: { flexGrow: 1, paddingBottom: spacing.base },
+  footer: { marginTop: 'auto', paddingTop: spacing.xl, paddingHorizontal: spacing.xl, gap: spacing.xs },
+  secondaryButton: { minHeight: 44, alignItems: 'center', justifyContent: 'center' },
+
   title: { marginTop: spacing.xl, marginHorizontal: spacing.xl, fontSize: typography.sizes.xl, fontWeight: typography.weights.bold, color: colors.text.primary },
   subtitle: { marginTop: spacing.xs, marginHorizontal: spacing.xl, marginBottom: spacing.base, fontSize: typography.sizes.sm, color: colors.text.secondary },
   processingCard: { margin: spacing.xl, padding: spacing.xl, borderRadius: radius.xl, backgroundColor: colors.surface.card, alignItems: 'center' },
@@ -134,17 +143,25 @@ const styles = StyleSheet.create({
   lowConfidenceBanner: { marginHorizontal: spacing.xl, marginBottom: spacing.base, padding: spacing.md, borderRadius: radius.md, backgroundColor: '#FEF9E7', flexDirection: 'row', gap: spacing.sm },
   lowConfidenceText: { flex: 1, fontSize: typography.sizes.sm, lineHeight: 18, color: colors.text.primary },
   card: { marginHorizontal: spacing.xl, marginBottom: spacing.base, padding: spacing.base, borderRadius: radius.xl, backgroundColor: colors.surface.card, borderWidth: 1, borderColor: colors.border.subtle, gap: spacing.sm },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  cardHeader: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: spacing.sm },
   cardLabel: { fontSize: typography.sizes.base, fontWeight: typography.weights.bold, color: colors.text.primary },
-  aiLabel: { fontSize: typography.sizes.xs, fontWeight: typography.weights.semibold, color: colors.brand.secondary },
+  aiLabel: {
+    fontSize: typography.sizes.xs,
+    fontWeight: typography.weights.semibold,
+    color: colors.brand.primary,
+    backgroundColor: colors.surface.noticeInfo,
+    borderRadius: radius.full,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+  },
   select: { minHeight: 48, borderWidth: 1, borderColor: colors.border.default, borderRadius: radius.lg, paddingHorizontal: spacing.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   selectText: { flex: 1, fontSize: typography.sizes.base, color: colors.text.primary },
   descriptionInput: { minHeight: 120, borderWidth: 1, borderColor: colors.border.default, borderRadius: radius.lg, padding: spacing.md, textAlignVertical: 'top', fontSize: typography.sizes.base, color: colors.text.primary },
   counter: { alignSelf: 'flex-end', fontSize: typography.sizes.xs, color: colors.text.secondary },
   warningCard: { marginHorizontal: spacing.xl, padding: spacing.md, borderRadius: radius.md, backgroundColor: '#FDEDEC', flexDirection: 'row', gap: spacing.sm },
   warningText: { flex: 1, fontSize: typography.sizes.sm, lineHeight: 18, color: colors.status.REJECTED },
-  confirmButton: { marginHorizontal: spacing.xl, marginTop: spacing.xl, height: 48, borderRadius: radius.lg, backgroundColor: colors.brand.primary, alignItems: 'center', justifyContent: 'center' },
+  confirmButton: { minHeight: 48, borderRadius: radius.lg, backgroundColor: colors.brand.primary, alignItems: 'center', justifyContent: 'center' },
   confirmText: { color: colors.text.inverse, fontSize: typography.sizes.lg, fontWeight: typography.weights.bold },
   disabled: { opacity: 0.5 },
-  cancelText: { marginTop: spacing.base, textAlign: 'center', color: colors.brand.primary, fontWeight: typography.weights.semibold },
+  cancelText: { textAlign: 'center', color: colors.brand.primary, fontWeight: typography.weights.semibold },
 });

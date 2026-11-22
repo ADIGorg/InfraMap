@@ -24,6 +24,7 @@ export function useNotificationsViewModel() {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [isMarkingAll, setIsMarkingAll] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [openedResponse, setOpenedResponse] = useState<AppNotification | null>(null);
   const loadingRef = useRef(false);
 
   const load = useCallback(async (requestedPage: number, reset: boolean) => {
@@ -69,8 +70,16 @@ export function useNotificationsViewModel() {
     await load(page + 1, false);
   }, [hasMore, isLoading, isLoadingMore, load, page]);
 
+  const openOccurrence = useCallback((id: string) => {
+    setOpenedResponse(null);
+    navigation.navigate('MyOccurrenceDetail', { id });
+  }, [navigation]);
+
   const openNotification = useCallback(
     async (notification: AppNotification) => {
+      const isTeamResponse = notification.type === 'CITIZEN_RESPONSE';
+      if (isTeamResponse) setOpenedResponse(notification);
+
       if (!notification.read_at) {
         try {
           await markNotificationRead(notification.id);
@@ -85,13 +94,11 @@ export function useNotificationsViewModel() {
           // A navegação continua; REST reconcilia a leitura depois.
         }
       }
-      if (notification.occurrence_id) {
-        navigation.navigate('MyOccurrenceDetail', {
-          id: notification.occurrence_id,
-        });
+      if (!isTeamResponse && notification.occurrence_id) {
+        openOccurrence(notification.occurrence_id);
       }
     },
-    [navigation, notifyChanged],
+    [notifyChanged, openOccurrence],
   );
 
   const markAllRead = useCallback(async () => {
@@ -126,6 +133,9 @@ export function useNotificationsViewModel() {
     reload,
     loadMore,
     openNotification,
+    openedResponse,
+    closeResponse: () => setOpenedResponse(null),
+    openOccurrence,
     markAllRead,
   };
 }

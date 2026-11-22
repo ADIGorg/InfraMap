@@ -21,7 +21,7 @@ export function WelcomeScreen() {
 
         {/* Textos Principais */}
         <Text style={styles.title}>
-          Sua cidade melhor,{'\n'}com sua participação
+          Sua cidade melhor, com sua participação
         </Text>
         <Text style={styles.subtitle}>
           Registre problemas de infraestrutura com foto e localização e acompanhe a cada atualização.
@@ -31,21 +31,21 @@ export function WelcomeScreen() {
         <View style={styles.featuresList}>
           <View style={styles.featureCard}>
             <View style={styles.featureIcon}>
-              <Feather name="map-pin" size={18} color={colors.text.inverse} />
+              <Feather name="map-pin" size={18} color={colors.brand.primary} />
             </View>
             <Text style={styles.featureText}>Veja as ocorrências perto de você no mapa</Text>
           </View>
 
           <View style={styles.featureCard}>
             <View style={styles.featureIcon}>
-              <Feather name="camera" size={18} color={colors.text.inverse} />
+              <Feather name="camera" size={18} color={colors.brand.primary} />
             </View>
             <Text style={styles.featureText}>Envie uma foto com evidência em segundos</Text>
           </View>
 
           <View style={styles.featureCard}>
             <View style={styles.featureIcon}>
-              <Feather name="shield" size={18} color={colors.text.inverse} />
+              <Feather name="shield" size={18} color={colors.brand.primary} />
             </View>
             <Text style={styles.featureText}>Acompanhe o status até a solução</Text>
           </View>
@@ -72,12 +72,13 @@ export function WelcomeScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity 
-            style={[styles.outlineButton, styles.exploreButton]}
+            style={styles.exploreButton}
             onPress={navigateToExploreMap}
             accessibilityRole="button"
             accessibilityLabel="Explorar o mapa sem fazer login"
           >
             <Text style={styles.outlineButtonText}>Explorar o Mapa</Text>
+            <Feather name="arrow-right" size={18} color={colors.brand.primary} />
           </TouchableOpacity>
         </View>
 
@@ -94,7 +95,7 @@ const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
     padding: spacing.xl,
-    paddingTop: spacing['4xl'],
+    paddingTop: spacing['2xl'],
     paddingBottom: spacing['2xl'],
   },
   logoContainer: {
@@ -138,7 +139,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: colors.surface.card,
     padding: spacing.md,
-    borderRadius: radius.lg,
+    minHeight: 64,
+    borderRadius: radius.xl,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border.subtle,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
@@ -148,7 +152,7 @@ const styles = StyleSheet.create({
   featureIcon: {
     width: 36,
     height: 36,
-    backgroundColor: colors.brand.primary,
+    backgroundColor: colors.surface.noticeInfo,
     borderRadius: radius.full,
     justifyContent: 'center',
     alignItems: 'center',
@@ -191,6 +195,10 @@ const styles = StyleSheet.create({
     fontWeight: typography.weights.bold,
   },
   exploreButton: {
-    marginTop: spacing.sm,
+    minHeight: 48,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
   }
 });

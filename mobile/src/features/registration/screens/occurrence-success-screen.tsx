@@ -1,12 +1,14 @@
 import React from 'react';
 import {
-  SafeAreaView,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
+import { RegistrationHeader } from '../components/registration-header';
 import { useOccurrenceSuccessViewModel } from '../view-models/use-occurrence-success-view-model';
 import { colors, radius, spacing, typography } from '@/shared/theme';
 
@@ -15,7 +17,7 @@ export function OccurrenceSuccessScreen() {
 
   if (!vm.isConfirmed) {
     return (
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
         <View style={styles.errorContainer}>
           <View style={styles.errorIcon}>
             <Feather
@@ -30,7 +32,7 @@ export function OccurrenceSuccessScreen() {
             será apresentada como concluída.
           </Text>
           <TouchableOpacity
-            style={styles.primaryButton}
+            style={[styles.primaryButton, styles.errorButton]}
             onPress={vm.returnToLocation}
             accessibilityRole="button"
             accessibilityLabel="Voltar para localização"
@@ -43,13 +45,10 @@ export function OccurrenceSuccessScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={styles.header}>
-        <Text style={styles.brand}>InfraMap</Text>
-        <Text style={styles.headerTitle}>Nova ocorrência</Text>
-      </View>
+    <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
+      <RegistrationHeader />
 
-      <View style={styles.content}>
+      <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.successIcon}>
           <Feather
             name="check"
@@ -78,48 +77,36 @@ export function OccurrenceSuccessScreen() {
           </View>
         </View>
 
-        <TouchableOpacity
-          style={styles.primaryButton}
-          onPress={vm.viewMyOccurrences}
-          accessibilityRole="button"
-          accessibilityLabel="Ver minhas ocorrências"
-        >
-          <Text style={styles.primaryButtonText}>Ver minhas ocorrências</Text>
-        </TouchableOpacity>
+        <View style={styles.footer}>
+          <TouchableOpacity
+            style={styles.primaryButton}
+            onPress={vm.viewMyOccurrences}
+            accessibilityRole="button"
+            accessibilityLabel="Ver minhas ocorrências"
+          >
+            <Text style={styles.primaryButtonText}>Ver minhas ocorrências</Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.secondaryButton}
-          onPress={vm.returnToMap}
-          accessibilityRole="button"
-          accessibilityLabel="Voltar ao mapa"
-        >
-          <Text style={styles.secondaryButtonText}>Voltar ao mapa</Text>
-        </TouchableOpacity>
-      </View>
+          <TouchableOpacity
+            style={styles.secondaryButton}
+            onPress={vm.returnToMap}
+            accessibilityRole="button"
+            accessibilityLabel="Voltar ao mapa"
+          >
+            <Text style={styles.secondaryButtonText}>Voltar ao mapa</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.surface.page },
-  header: {
-    backgroundColor: colors.brand.primary,
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.base,
-  },
-  brand: {
-    color: colors.text.inverse,
-    fontSize: typography.sizes.lg,
-    fontWeight: typography.weights.extrabold,
-  },
-  headerTitle: {
-    marginTop: spacing.xs,
-    color: colors.text.inverse,
-    fontSize: typography.sizes.xl,
-    fontWeight: typography.weights.bold,
-  },
+
   content: {
-    flex: 1,
+    flexGrow: 1,
+    paddingBottom: spacing.base,
     alignItems: 'center',
     paddingHorizontal: spacing.xl,
     paddingTop: spacing['2xl'],
@@ -170,6 +157,8 @@ const styles = StyleSheet.create({
     color: colors.text.secondary,
   },
   protocol: {
+    flexShrink: 1,
+    textAlign: 'right',
     fontSize: typography.sizes.lg,
     fontWeight: typography.weights.bold,
     color: colors.text.primary,
@@ -188,12 +177,12 @@ const styles = StyleSheet.create({
   statusText: {
     fontSize: typography.sizes.sm,
     fontWeight: typography.weights.semibold,
-    color: colors.status.RECEIVED,
+    color: colors.text.secondary,
   },
+  footer: { width: '100%', marginTop: 'auto', paddingTop: spacing.xl, gap: spacing.xs },
   primaryButton: {
     width: '100%',
-    height: 48,
-    marginTop: spacing['2xl'],
+    minHeight: 48,
     borderRadius: radius.lg,
     backgroundColor: colors.brand.primary,
     alignItems: 'center',
@@ -206,8 +195,7 @@ const styles = StyleSheet.create({
   },
   secondaryButton: {
     width: '100%',
-    height: 48,
-    marginTop: spacing.md,
+    minHeight: 44,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -230,6 +218,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  errorButton: { marginTop: spacing.xl },
   errorTitle: {
     marginTop: spacing.lg,
     fontSize: typography.sizes.xl,

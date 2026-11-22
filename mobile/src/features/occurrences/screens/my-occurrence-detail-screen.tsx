@@ -1,13 +1,13 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   ActivityIndicator,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
@@ -16,6 +16,8 @@ import { useMyOccurrenceDetailViewModel } from '../view-models/use-my-occurrence
 import { StatusBadge } from '../components/status-badge';
 import { PhotoGallery } from '../components/photo-gallery';
 import { OccurrenceHistory } from '../components/occurrence-history';
+import { TeamResponsesModal } from '../components/team-responses-modal';
+import { BackHeader } from '@/shared/components/back-header';
 import { formatDate } from '@/shared/utils/format-date';
 import { colors, radius, spacing, typography } from '@/shared/theme';
 
@@ -24,6 +26,7 @@ type DetailRoute = RouteProp<RootStackParamList, 'MyOccurrenceDetail'>;
 export function MyOccurrenceDetailScreen() {
   const { params } = useRoute<DetailRoute>();
   const vm = useMyOccurrenceDetailViewModel({ id: params.id });
+  const [showResponses, setShowResponses] = useState(false);
 
   if (vm.isLoading) {
     return (
@@ -58,12 +61,7 @@ export function MyOccurrenceDetailScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={vm.goBack} accessibilityRole="button" accessibilityLabel="Voltar">
-            <Feather name="arrow-left" size={24} color={colors.brand.primary} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle} accessibilityRole="header">Minha ocorrência</Text>
-        </View>
+        <BackHeader title="Minha ocorrência" onBack={vm.goBack} style={styles.header} />
 
         <View style={styles.titleRow}>
           <Text style={styles.title}>{detail.category.name}</Text>
@@ -85,8 +83,14 @@ export function MyOccurrenceDetailScreen() {
         <PhotoGallery photos={detail.photoUrls} onPhotoExpired={vm.refreshPhotos} />
 
         <Text style={styles.sectionTitle}>Histórico da ocorrência</Text>
+        <TouchableOpacity style={styles.responsesButton} onPress={() => setShowResponses(true)} accessibilityRole="button">
+          <Feather name="message-circle" size={20} color={colors.brand.primary} />
+          <Text style={styles.responsesLabel}>Respostas da equipe</Text>
+          <Feather name="chevron-right" size={20} color={colors.brand.primary} />
+        </TouchableOpacity>
         <OccurrenceHistory events={vm.history} />
       </ScrollView>
+      {showResponses ? <TeamResponsesModal occurrenceId={detail.id} onClose={() => setShowResponses(false)} /> : null}
     </SafeAreaView>
   );
 }
@@ -105,12 +109,11 @@ function InfoRow({ icon, label, value }: { icon: React.ComponentProps<typeof Fea
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.surface.page },
-  content: { padding: spacing.base, paddingBottom: spacing['2xl'] },
+  content: { padding: spacing.lg, paddingBottom: spacing['2xl'] },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
-  header: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginBottom: spacing.xl },
-  headerTitle: { fontSize: typography.sizes.xl, fontWeight: typography.weights.bold, color: colors.brand.primary },
-  titleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: spacing.md, marginBottom: spacing.xl },
-  title: { flex: 1, fontSize: typography.sizes['2xl'], fontWeight: typography.weights.extrabold, color: colors.text.primary },
+  header: { marginBottom: spacing.xl },
+  titleRow: { alignItems: 'flex-start', gap: spacing.sm },
+  title: { fontSize: typography.sizes['2xl'], fontWeight: typography.weights.extrabold, color: colors.brand.primary },
   sectionTitle: { fontSize: typography.sizes.lg, fontWeight: typography.weights.bold, color: colors.text.primary, marginTop: spacing.xl, marginBottom: spacing.sm },
   description: { fontSize: typography.sizes.base, lineHeight: 22, color: colors.text.secondary },
   infoCard: { marginTop: spacing.xl, padding: spacing.base, backgroundColor: colors.surface.card, borderRadius: radius.xl, borderWidth: 1, borderColor: colors.border.subtle },
@@ -123,4 +126,6 @@ const styles = StyleSheet.create({
   primaryButton: { backgroundColor: colors.brand.primary, borderRadius: radius.lg, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm },
   primaryButtonText: { color: colors.text.inverse, fontWeight: typography.weights.bold },
   backLink: { marginTop: spacing.lg, color: colors.brand.primary, fontWeight: typography.weights.semibold },
+  responsesButton: { minHeight: 52, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.base, marginBottom: spacing.md, borderRadius: radius.lg, backgroundColor: colors.surface.noticeInfo },
+  responsesLabel: { flex: 1, fontSize: typography.sizes.base, fontWeight: typography.weights.semibold, color: colors.brand.primary },
 });

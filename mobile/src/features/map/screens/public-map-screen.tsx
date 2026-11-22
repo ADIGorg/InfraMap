@@ -7,6 +7,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { usePublicMapViewModel } from '../view-models/use-public-map';
@@ -17,7 +18,8 @@ import { CategoryFilter } from '../components/category-filter';
 import { colors, typography, spacing, radius } from '@/shared/theme';
 import type { RootStackParamList } from '@/navigation/types';
 import { useAuth } from '@/features/auth/hooks/use-auth';
-import { NotificationBellButton } from '@/features/notifications/components/notification-bell-button';
+import { BackHeader } from '@/shared/components/back-header';
+import { ScreenTitle } from '@/shared/components/screen-title';
 
 type NavProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -25,6 +27,8 @@ export function PublicMapScreen() {
   const navigation = useNavigation<NavProp>();
   const vm = usePublicMapViewModel();
   const { session } = useAuth();
+  const insets = useSafeAreaInsets();
+  const bottomOffset = session ? spacing.base : insets.bottom + spacing.base;
 
   const handleGoBack = () => {
     if (navigation.canGoBack()) {
@@ -54,34 +58,14 @@ export function PublicMapScreen() {
       </OSMMapView>
 
       <View style={styles.topOverlay} pointerEvents="box-none">
-        <View style={styles.headerCard}>
-          <View style={styles.headerRow}>
-            {!session ? (
-              <TouchableOpacity
-                style={styles.backButton}
-                onPress={handleGoBack}
-                accessibilityRole="button"
-                accessibilityLabel="Voltar"
-                hitSlop={{
-                  top: 12,
-                  right: 12,
-                  bottom: 12,
-                  left: 12,
-                }}
-              >
-                <Feather
-                  name="arrow-left"
-                  size={24}
-                  color={colors.brand.primary}
-                />
-              </TouchableOpacity>
-            ) : null}
-
-            <Text style={styles.headerTitle}>
-              Mapa de ocorrências
-            </Text>
-            {session ? <NotificationBellButton /> : null}
-          </View>
+        <View style={[styles.headerCard, { paddingTop: insets.top + spacing.sm }]}>
+          {session ? (
+            <View style={styles.headerRow}>
+              <ScreenTitle>Mapa de ocorrências</ScreenTitle>
+            </View>
+          ) : (
+            <BackHeader title="Mapa de ocorrências" onBack={handleGoBack} style={styles.guestHeader} />
+          )}
 
           <CategoryFilter
             categories={vm.categories}
@@ -92,11 +76,12 @@ export function PublicMapScreen() {
       </View>
 
       <TouchableOpacity
-        style={styles.locationButton}
+        style={[styles.locationButton, { bottom: bottomOffset }]}
         onPress={vm.requestLocation}
+        accessibilityRole="button"
         accessibilityLabel="Centralizar na minha localização"
       >
-        <Feather name="crosshair" size={22} color={colors.brand.primary} />
+        <Feather name="crosshair" size={22} color={colors.text.inverse} />
       </TouchableOpacity>
 
       {vm.isLoading && vm.occurrences.length === 0 && (
@@ -106,7 +91,7 @@ export function PublicMapScreen() {
       )}
 
       {vm.error && (
-        <View style={styles.errorBanner}>
+        <View style={[styles.errorBanner, { bottom: bottomOffset + 56 + spacing.sm }]}>
           <Feather name="alert-circle" size={16} color={colors.status.REJECTED} />
           <Text style={styles.errorText}>{vm.error}</Text>
         </View>
@@ -136,8 +121,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface.card,
     borderBottomLeftRadius: radius.lg,
     borderBottomRightRadius: radius.lg,
-    paddingTop: spacing['4xl'],
-    paddingBottom: spacing.sm,
+    paddingBottom: spacing.xs,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
@@ -145,37 +129,23 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   headerRow: {
-  minHeight: 40,
-  flexDirection: 'row',
-  alignItems: 'center',
-  paddingHorizontal: spacing.base,
-  marginBottom: spacing.sm,
-  },
-
-  backButton: {
-    width: 40,
-    height: 40,
-    marginRight: spacing.sm,
+    minHeight: 44,
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: radius.full,
-    backgroundColor: colors.surface.page,
+    paddingHorizontal: spacing.base,
   },
 
-  headerTitle: {
-    flex: 1,
-    fontSize: typography.sizes.lg,
-    fontWeight: typography.weights.bold,
-    color: colors.brand.primary,
-  },
+  guestHeader: { marginHorizontal: spacing.base },
+
   locationButton: {
     position: 'absolute',
     right: spacing.base,
-    bottom: spacing['2xl'],
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: colors.surface.card,
+    width: 56,
+    height: 56,
+    borderRadius: radius.full,
+    backgroundColor: colors.brand.primary,
+    borderWidth: 2,
+    borderColor: colors.surface.card,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
@@ -192,7 +162,6 @@ const styles = StyleSheet.create({
   },
   errorBanner: {
     position: 'absolute',
-    bottom: spacing['2xl'],
     left: spacing.base,
     right: spacing.base,
     backgroundColor: '#FDEDEC',

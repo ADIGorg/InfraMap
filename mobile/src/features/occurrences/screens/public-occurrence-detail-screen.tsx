@@ -17,6 +17,7 @@ import { StatusBadge } from '../components/status-badge';
 import { PhotoGallery } from '../components/photo-gallery';
 import { MiniMap } from '../components/mini-map';
 import { VoteButton } from '../components/vote-button';
+import { BackHeader } from '@/shared/components/back-header';
 import { formatDate } from '@/shared/utils/format-date';
 import { colors, typography, spacing, radius } from '@/shared/theme';
 
@@ -57,19 +58,11 @@ export function PublicOccurrenceDetailScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={[styles.header, { paddingTop: insets.top + spacing.md }]}>
-        <View style={styles.headerRow}>
-          <TouchableOpacity
-            onPress={vm.goBack}
-            accessibilityLabel="Voltar"
-            accessibilityRole="button"
-            style={styles.backButton}
-          >
-            <Feather name="arrow-left" size={24} color={colors.brand.primary} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Detalhes da ocorrência</Text>
-        </View>
-      </View>
+      <BackHeader
+        title="Detalhes da ocorrência"
+        onBack={vm.goBack}
+        style={[styles.header, { marginTop: insets.top + spacing.md }]}
+      />
 
       <ScrollView
         contentContainerStyle={styles.content}
@@ -97,7 +90,7 @@ export function PublicOccurrenceDetailScreen() {
 
         <Text style={styles.sectionLabel}>Localização aproximada</Text>
         <Text style={styles.approxHint}>
-          A coordenada exata não é divulgada por privacidade (RN022).
+          A coordenada exata não é divulgada por privacidade.
         </Text>
         <MiniMap location={d.location} />
 
@@ -165,25 +158,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: spacing.xl,
   },
-  header: {
-    backgroundColor: colors.surface.card,
-    paddingHorizontal: spacing.base,
-    paddingBottom: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border.subtle,
-  },
-  headerRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  backButton: { padding: spacing.xs },
-  headerTitle: {
-    fontSize: typography.sizes.lg,
-    fontWeight: typography.weights.semibold,
-    color: colors.text.primary,
-  },
-  content: { padding: spacing.base, paddingBottom: spacing['3xl'] },
+  header: { marginHorizontal: spacing.lg },
+  content: { padding: spacing.lg, paddingBottom: spacing['2xl'] },
   categoryTitle: {
     fontSize: typography.sizes['2xl'],
     fontWeight: typography.weights.extrabold,
-    color: colors.text.primary,
+    color: colors.brand.primary,
     marginBottom: spacing.sm,
   },
   statusRow: { flexDirection: 'row', marginBottom: spacing.lg },
@@ -210,6 +190,7 @@ const styles = StyleSheet.create({
   infoRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    gap: spacing.md,
     paddingVertical: spacing.xs,
   },
   infoLabel: {
@@ -217,6 +198,8 @@ const styles = StyleSheet.create({
     color: colors.text.secondary,
   },
   infoValue: {
+    flexShrink: 1,
+    textAlign: 'right',
     fontSize: typography.sizes.sm,
     color: colors.text.primary,
     fontWeight: typography.weights.semibold,

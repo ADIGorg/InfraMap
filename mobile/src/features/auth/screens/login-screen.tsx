@@ -31,7 +31,11 @@ export function LoginScreen() {
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          contentContainerStyle={styles.container}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
 
           {/* Logo */}
           <View style={styles.logoContainer}>
@@ -159,7 +163,7 @@ const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
     padding: spacing.xl,
-    paddingTop: spacing['4xl'],
+    paddingTop: spacing['3xl'],
     paddingBottom: spacing['2xl'],
   },
   logoContainer: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing['2xl'] },
@@ -176,6 +180,7 @@ const styles = StyleSheet.create({
   welcomeText: {
     fontSize: typography.sizes.base,
     color: colors.text.secondary,
+    lineHeight: 21,
     marginTop: spacing.lg,
     marginBottom: spacing.xl,
   },
@@ -206,7 +211,7 @@ const styles = StyleSheet.create({
     fontSize: typography.sizes.lg,
     fontWeight: typography.weights.bold,
   },
-  forgotButton: { alignItems: 'center', marginTop: spacing.lg, padding: spacing.sm },
+  forgotButton: { alignItems: 'center', justifyContent: 'center', minHeight: 44, marginTop: spacing.sm },
   forgotText: {
     color: colors.brand.primary,
     fontSize: typography.sizes.base,
@@ -214,9 +219,9 @@ const styles = StyleSheet.create({
   },
   footer: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     justifyContent: 'center',
-    marginTop: 'auto',
-    paddingTop: spacing.xl,
+    marginTop: spacing.xl,
   },
   footerText: { color: colors.text.secondary, fontSize: typography.sizes.base },
   footerLink: {

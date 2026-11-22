@@ -1,11 +1,14 @@
 
 import React, {
   useCallback,
+  useEffect,
+  useRef,
   useState,
 } from 'react';
 
 import {
   Linking,
+  type NativeSyntheticEvent,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -15,9 +18,13 @@ import {
 import {
   Camera,
   Map,
+  type CameraRef,
+  type PressEvent,
+  type ViewStateChangeEvent,
 } from '@maplibre/maplibre-react-native';
 
 import { Feather } from '@expo/vector-icons';
+import { validateCoordinates } from '@/infrastructure/device/location.service';
 
 import {
   colors,
@@ -34,88 +41,51 @@ interface Coordinate {
   lng: number;
 }
 
-interface RegionChangeEvent {
-  nativeEvent: {
-    center?: [number, number];
-  };
-}
-
 interface Props {
   coordinate: Coordinate;
   onChange: (coordinate: Coordinate) => void;
-}
-
-function isValidCoordinate(
-  lat: number,
-  lng: number,
-): boolean {
-  return (
-    Number.isFinite(lat) &&
-    Number.isFinite(lng) &&
-    lat >= -90 &&
-    lat <= 90 &&
-    lng >= -180 &&
-    lng <= 180
-  );
 }
 
 export function LocationPickerMap({
   coordinate,
   onChange,
 }: Props) {
-
-  const [initialCoordinate] = useState(() => ({ 
-    lat: coordinate.lat, 
-    lng: coordinate.lng,
+  const { lat, lng } = coordinate;
+  const [initialViewState] = useState(() => ({
+    center: [lng, lat] as [number, number],
+    zoom: 16,
   }));
+  const camera = useRef<CameraRef>(null);
+  const lastCenter = useRef(initialViewState.center);
+  const [mapReady, setMapReady] = useState(false);
+
+  useEffect(() => {
+    if (!mapReady || !camera.current) return;
+    const [currentLng, currentLat] = lastCenter.current;
+    if (lng === currentLng && lat === currentLat) return;
+
+    camera.current.jumpTo({ center: [lng, lat] });
+    lastCenter.current = [lng, lat];
+  }, [lat, lng, mapReady]);
 
   const handleRegionDidChange = useCallback(
-    (event: RegionChangeEvent) => {
-      const center = event.nativeEvent.center;
+    ({ nativeEvent }: NativeSyntheticEvent<ViewStateChangeEvent>) => {
+      if (!nativeEvent.userInteraction) return;
+      const [nextLng, nextLat] = nativeEvent.center;
+      if (!validateCoordinates(nextLat, nextLng)) return;
 
-      if (
-        !Array.isArray(center) ||
-        center.length !== 2
-      ) {
-        return;
-      }
-
-      const [lng, lat] = center;
-
-      if (!isValidCoordinate(lat, lng)) {
-        return;
-      }
-
-      onChange({
-        lat,
-        lng,
-      });
+      // The gesture has already moved the native camera.
+      lastCenter.current = [nextLng, nextLat];
+      if (nextLat === lat && nextLng === lng) return;
+      onChange({ lat: nextLat, lng: nextLng });
     },
-    [onChange],
+    [lat, lng, onChange],
   );
 
   const handleMapPress = useCallback(
-    (event: any) => {
-      const coordinates =
-        event.nativeEvent?.geometry?.coordinates;
-
-      if (
-        !Array.isArray(coordinates) ||
-        coordinates.length !== 2
-      ) {
-        return;
-      }
-
-      const [lng, lat] = coordinates;
-
-      if (!isValidCoordinate(lat, lng)) {
-        return;
-      }
-
-      onChange({
-        lat,
-        lng,
-      });
+    ({ nativeEvent }: NativeSyntheticEvent<PressEvent>) => {
+      const [nextLng, nextLat] = nativeEvent.lngLat;
+      if (validateCoordinates(nextLat, nextLng)) onChange({ lat: nextLat, lng: nextLng });
     },
     [onChange],
   );
@@ -148,19 +118,13 @@ export function LocationPickerMap({
           doubleTapZoom
           touchRotate={false}
           touchPitch={false}
-          onPress={handleMapPress as never}
-          onRegionDidChange={
-            handleRegionDidChange as never
-          }
+          onPress={handleMapPress}
+          onRegionDidChange={handleRegionDidChange}
+          onDidFinishLoadingMap={() => setMapReady(true)}
         >
           <Camera
-            initialViewState={{
-              center: [
-                initialCoordinate.lng,
-                initialCoordinate.lat,
-              ],
-              zoom: 16,
-            }}
+            ref={camera}
+            initialViewState={initialViewState}
           />
         </Map>
 

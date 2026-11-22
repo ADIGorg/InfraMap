@@ -19,7 +19,7 @@ export function RegistrationStepper({ currentStep }: { currentStep: 1 | 2 | 3 | 
                 completed && styles.completed,
                 active && styles.active,
               ]}>
-                <Text style={styles.number}>{number}</Text>
+                <Text style={[styles.number, completed && styles.completedNumber]}>{number}</Text>
               </View>
               <Text style={[styles.label, active && styles.activeLabel]}>{label}</Text>
             </View>
@@ -34,14 +34,23 @@ export function RegistrationStepper({ currentStep }: { currentStep: 1 | 2 | 3 | 
 }
 
 const styles = StyleSheet.create({
-  container: { flexDirection: 'row', alignItems: 'flex-start', paddingHorizontal: spacing.base },
-  step: { width: 62, alignItems: 'center' },
-  circle: { width: 28, height: 28, borderRadius: radius.full, backgroundColor: colors.border.default, alignItems: 'center', justifyContent: 'center' },
+  container: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    backgroundColor: colors.surface.card,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border.default,
+  },
+  step: { flex: 3, alignItems: 'center' },
+  circle: { width: 34, height: 34, borderRadius: radius.full, backgroundColor: colors.surface.page, alignItems: 'center', justifyContent: 'center' },
   active: { backgroundColor: colors.brand.secondary },
   completed: { backgroundColor: colors.brand.primary },
-  number: { color: colors.text.inverse, fontSize: typography.sizes.sm, fontWeight: typography.weights.bold },
+  number: { color: colors.text.primary, fontSize: typography.sizes.sm, fontWeight: typography.weights.bold },
+  completedNumber: { color: colors.text.inverse },
   label: { marginTop: spacing.xs, fontSize: typography.sizes.xs, color: colors.text.secondary, textAlign: 'center' },
   activeLabel: { color: colors.brand.primary, fontWeight: typography.weights.semibold },
-  line: { flex: 1, height: 2, marginTop: 13, backgroundColor: colors.border.default },
+  line: { flex: 1, height: 3, borderRadius: radius.full, marginTop: 16, backgroundColor: colors.border.subtle },
   completedLine: { backgroundColor: colors.brand.primary },
 });

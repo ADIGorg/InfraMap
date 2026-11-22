@@ -60,4 +60,14 @@ describe('MyOccurrenceDetailScreen', () => {
 
     expect(reload).toHaveBeenCalled();
   });
+
+  it('mantém o botão Voltar dentro da área segura e chama goBack', async () => {
+    const goBack = jest.fn();
+    (VM.useMyOccurrenceDetailViewModel as jest.Mock).mockReturnValue({ ...base, goBack });
+    const ui = await render(<MyOccurrenceDetailScreen />);
+    expect(ui.root?.props.edges?.top).toBe('additive');
+    await fireEvent.press(ui.getByRole('button', { name: 'Voltar' }));
+
+    expect(goBack).toHaveBeenCalledTimes(1);
+  });
 });

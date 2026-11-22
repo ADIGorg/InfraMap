@@ -22,19 +22,17 @@ export function NotificationItem({
   onPress: () => void;
 }) {
   const unread = notification.read_at === null;
-  const iconName =
-    notification.type === 'CITIZEN_RESPONSE'
-      ? 'message-circle'
-      : 'refresh-cw';
+  const isTeamResponse = notification.type === 'CITIZEN_RESPONSE';
+  const iconName = isTeamResponse ? 'message-circle' : 'refresh-cw';
 
   return (
     <TouchableOpacity
       style={[styles.container, unread && styles.unreadContainer]}
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={notification.title}
+      accessibilityLabel={unread ? `Não lida. ${notification.title}` : notification.title}
     >
-      <View style={styles.icon}>
+      <View style={[styles.icon, unread && styles.unreadIcon]}>
         <Feather name={iconName} size={20} color={colors.brand.primary} />
       </View>
       <View style={styles.content}>
@@ -51,7 +49,7 @@ export function NotificationItem({
           {formatNotificationDate(notification.created_at)}
         </Text>
       </View>
-      {notification.occurrence_id ? (
+      {isTeamResponse || notification.occurrence_id ? (
         <Feather name="chevron-right" size={20} color={colors.text.secondary} />
       ) : null}
     </TouchableOpacity>
@@ -59,14 +57,15 @@ export function NotificationItem({
 }
 
 const styles = StyleSheet.create({
-  container: { flexDirection: 'row', alignItems: 'center', padding: spacing.base, borderRadius: radius.lg, backgroundColor: colors.surface.card, borderWidth: 1, borderColor: colors.border.subtle },
-  unreadContainer: { borderLeftWidth: 4, borderLeftColor: colors.brand.primary, backgroundColor: colors.surface.noticeInfo },
-  icon: { width: 42, height: 42, marginRight: spacing.md, borderRadius: radius.full, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface.page },
+  container: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md, padding: spacing.base, borderRadius: radius.xl, backgroundColor: colors.surface.card, borderWidth: 1, borderColor: colors.border.subtle },
+  unreadContainer: { borderColor: colors.brand.primary, backgroundColor: colors.surface.noticeInfo },
+  icon: { width: 38, height: 38, borderRadius: radius.full, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface.page },
+  unreadIcon: { backgroundColor: colors.surface.card },
   content: { flex: 1 },
   titleRow: { flexDirection: 'row', alignItems: 'center' },
   title: { flex: 1, fontSize: typography.sizes.base, fontWeight: typography.weights.medium, color: colors.text.primary },
   unreadTitle: { fontWeight: typography.weights.bold },
   unreadDot: { width: 8, height: 8, marginLeft: spacing.sm, borderRadius: radius.full, backgroundColor: colors.brand.primary },
-  message: { marginTop: spacing.xs, fontSize: typography.sizes.sm, lineHeight: 18, color: colors.text.secondary },
+  message: { marginTop: spacing.xs, fontSize: typography.sizes.sm, lineHeight: 20, color: colors.text.secondary },
   date: { marginTop: spacing.sm, fontSize: typography.sizes.xs, color: colors.text.secondary },
 });

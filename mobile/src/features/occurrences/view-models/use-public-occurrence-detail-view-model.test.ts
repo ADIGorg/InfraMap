@@ -4,11 +4,17 @@ import * as PublicService from '../services/public-occurrences.service';
 import * as VotesService from '../services/votes.service';
 import { useAuth } from '@/features/auth/hooks/use-auth';
 import { useNavigation } from '@react-navigation/native';
+import * as SecureStore from 'expo-secure-store';
 import { AppError } from '@/shared/errors/app-error';
 import type { PublicOccurrenceDetail } from '@/shared/types/api';
 
 jest.mock('../services/public-occurrences.service');
 jest.mock('../services/votes.service');
+jest.mock('expo-secure-store', () => ({
+  getItemAsync: jest.fn(),
+  setItemAsync: jest.fn(),
+  deleteItemAsync: jest.fn(),
+}));
 jest.mock('@/features/auth/hooks/use-auth', () => ({ useAuth: jest.fn() }));
 jest.mock('@react-navigation/native', () => ({
   useNavigation: jest.fn(),
@@ -43,11 +49,19 @@ const makeDetail = (
 describe('usePublicOccurrenceDetailViewModel', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    const storedVotes = new Map<string, string>();
+    jest.mocked(SecureStore.getItemAsync).mockImplementation(async (key) => storedVotes.get(key) ?? null);
+    jest.mocked(SecureStore.setItemAsync).mockImplementation(async (key, value) => {
+      storedVotes.set(key, value);
+    });
+    jest.mocked(SecureStore.deleteItemAsync).mockImplementation(async (key) => {
+      storedVotes.delete(key);
+    });
     (useNavigation as jest.Mock).mockReturnValue({
       goBack: mockGoBack,
       navigate: mockNavigate,
     });
-    (useAuth as jest.Mock).mockReturnValue({ session: { access_token: 'x' } });
+    (useAuth as jest.Mock).mockReturnValue({ session: { user: { id: 'citizen-1' } } });
     (PublicService.getPublicOccurrenceById as jest.Mock).mockResolvedValue(
       makeDetail(),
     );
@@ -140,6 +154,41 @@ describe('usePublicOccurrenceDetailViewModel', () => {
     expect(result.current.detail?.votesCount).toBe(214);
   });
 
+  it('recupera o voto ao reabrir a ocorrência, sem reenviar o voto, e mantém as contas separadas', async () => {
+    jest.mocked(VotesService.createVote).mockResolvedValueOnce({ occurrence_id: 'occ-1', vote_count: 215 });
+    jest.mocked(VotesService.removeVote).mockResolvedValueOnce({ occurrence_id: 'occ-1', vote_count: 214 });
+
+    const first = await renderHook(() => usePublicOccurrenceDetailViewModel({ id: 'occ-1' }));
+    await waitFor(() => {
+      expect(first.result.current.isLoading).toBe(false);
+      expect(first.result.current.isVoting).toBe(false);
+    });
+    await act(() => first.result.current.handleVoteToggle());
+    await first.unmount();
+
+    (useAuth as jest.Mock).mockReturnValue({ session: { user: { id: 'citizen-2' } } });
+    const anotherAccount = await renderHook(() => usePublicOccurrenceDetailViewModel({ id: 'occ-1' }));
+    await waitFor(() => expect(anotherAccount.result.current.isVoting).toBe(false));
+    expect(anotherAccount.result.current.hasVoted).toBeNull();
+    await anotherAccount.unmount();
+
+    (useAuth as jest.Mock).mockReturnValue({ session: { user: { id: 'citizen-1' } } });
+
+    const reopened = await renderHook(() => usePublicOccurrenceDetailViewModel({ id: 'occ-1' }));
+    await waitFor(() => {
+      expect(reopened.result.current.isLoading).toBe(false);
+      expect(reopened.result.current.hasVoted).toBe(true);
+    });
+    expect(VotesService.createVote).toHaveBeenCalledTimes(1);
+    await act(() => reopened.result.current.handleVoteToggle());
+    expect(VotesService.removeVote).toHaveBeenCalledWith('occ-1');
+    await reopened.unmount();
+
+    const afterRemoval = await renderHook(() => usePublicOccurrenceDetailViewModel({ id: 'occ-1' }));
+    await waitFor(() => expect(afterRemoval.result.current.isVoting).toBe(false));
+    expect(afterRemoval.result.current.hasVoted).toBeNull();
+  });
+
   // ─── Vote guest ───
   it('visitante: abre prompt de login sem chamar API', async () => {
     (useAuth as jest.Mock).mockReturnValue({ session: null });
@@ -204,8 +253,24 @@ describe('usePublicOccurrenceDetailViewModel', () => {
     });
 
     expect(result.current.hasVoted).toBe(true);
-    expect(result.current.voteError).toBe('Você já votou nesta ocorrência.');
+    expect(result.current.voteError).toBeNull();
     expect(result.current.detail?.votesCount).toBe(214);
+    expect(SecureStore.setItemAsync).toHaveBeenCalledWith('occurrence-vote.citizen-1.occ-1', '1');
+  });
+
+  it('não grava voto quando o conflito informa que a ocorrência é inelegível', async () => {
+    const message = 'A ocorrência não está elegível para votação.';
+    jest.mocked(VotesService.createVote).mockRejectedValueOnce(new AppError(409, 'CONFLICT', message));
+    const { result } = await renderHook(() => usePublicOccurrenceDetailViewModel({ id: 'occ-1' }));
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+      expect(result.current.isVoting).toBe(false);
+    });
+    await act(() => result.current.handleVoteToggle());
+
+    expect(result.current.hasVoted).toBeNull();
+    expect(result.current.voteError).toBe(message);
+    expect(SecureStore.setItemAsync).not.toHaveBeenCalled();
   });
 
   it('404 no voto navega para trás', async () => {

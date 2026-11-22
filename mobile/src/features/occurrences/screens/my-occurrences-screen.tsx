@@ -7,11 +7,12 @@ import {
   RefreshControl,
   ActivityIndicator,
   TouchableOpacity,
-  SafeAreaView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useMyOccurrencesViewModel } from '../view-models/use-my-occurrences-view-model';
 import { OccurrenceCard } from '../components/occurrence-card';
+import { ScreenTitle } from '@/shared/components/screen-title';
 import { colors, typography, spacing, radius } from '@/shared/theme';
 
 export function MyOccurrencesScreen() {
@@ -19,7 +20,7 @@ export function MyOccurrencesScreen() {
 
   if (vm.isLoading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView edges={['top', 'left', 'right']} style={styles.container}>
         <View style={styles.center}>
           <ActivityIndicator size="large" color={colors.brand.primary} />
         </View>
@@ -29,7 +30,7 @@ export function MyOccurrencesScreen() {
 
   if (vm.error && vm.items.length === 0) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView edges={['top', 'left', 'right']} style={styles.container}>
         <View style={styles.center}>
           <Feather name="alert-circle" size={48} color={colors.status.REJECTED} />
           <Text style={styles.errorText}>{vm.error}</Text>
@@ -47,11 +48,9 @@ export function MyOccurrencesScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView edges={['top', 'left', 'right']} style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title} accessibilityRole="header">
-          Minhas Ocorrências
-        </Text>
+        <ScreenTitle>Minhas ocorrências</ScreenTitle>
         <Text style={styles.subtitle}>Acompanhe o andamento dos seus relatos</Text>
       </View>
 
@@ -100,19 +99,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: spacing.xl,
   },
-  header: { padding: spacing.base, paddingTop: spacing['2xl'] },
-  title: {
-    fontSize: typography.sizes['2xl'],
-    fontWeight: typography.weights.extrabold,
-    color: colors.brand.primary,
-    marginBottom: spacing.xs,
+  header: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.base,
+    gap: spacing.xs,
+    backgroundColor: colors.surface.card,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border.default,
   },
   subtitle: {
     fontSize: typography.sizes.sm,
     color: colors.text.secondary,
   },
   list: {
-    paddingHorizontal: spacing.base,
+    paddingTop: spacing.base,
+    paddingHorizontal: spacing.lg,
     paddingBottom: spacing['2xl'],
     flexGrow: 1,
   },

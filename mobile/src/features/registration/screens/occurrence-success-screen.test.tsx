@@ -23,6 +23,8 @@ describe('OccurrenceSuccessScreen', () => {
     (ViewModel.useOccurrenceSuccessViewModel as jest.Mock).mockReturnValue(base);
     const ui = await render(<OccurrenceSuccessScreen />);
 
+    expect(ui.root?.props.edges?.top).toBe('additive');
+    expect(ui.getByRole('header', { name: 'Nova ocorrência' })).toBeTruthy();
     expect(ui.getByText('Ocorrência enviada!')).toBeTruthy();
     expect(ui.getByText('#OC-9B2F')).toBeTruthy();
     expect(ui.getByText('Recebido')).toBeTruthy();

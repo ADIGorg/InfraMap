@@ -10,22 +10,21 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
 import { NotificationItem } from '../components/notification-item';
+import { TeamResponsesModal } from '@/features/occurrences/components/team-responses-modal';
+import { ScreenTitle } from '@/shared/components/screen-title';
 import { useNotificationsViewModel } from '../view-models/use-notifications-view-model';
 import { colors, radius, spacing, typography } from '@/shared/theme';
 
 export function NotificationsScreen() {
-  const navigation = useNavigation();
   const vm = useNotificationsViewModel();
+  const { openedResponse } = vm;
+  const responseOccurrenceId = openedResponse?.occurrence_id ?? null;
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.headerButton} onPress={() => navigation.goBack()} accessibilityRole="button" accessibilityLabel="Voltar">
-          <Feather name="arrow-left" size={24} color={colors.brand.primary} />
-        </TouchableOpacity>
-        <Text style={styles.title}>Notificações</Text>
+        <ScreenTitle style={styles.title}>Notificações</ScreenTitle>
         <TouchableOpacity style={styles.headerAction} onPress={() => void vm.markAllRead()} disabled={vm.isMarkingAll || vm.items.length === 0} accessibilityRole="button" accessibilityLabel="Marcar todas como lidas">
           {vm.isMarkingAll ? <ActivityIndicator size="small" color={colors.brand.primary} /> : <Text style={styles.headerActionText}>Ler todas</Text>}
         </TouchableOpacity>
@@ -47,6 +46,14 @@ export function NotificationsScreen() {
           ListEmptyComponent={<View style={styles.centerState}><View style={styles.emptyIcon}><Feather name="bell" size={36} color={colors.brand.primary} /></View><Text style={styles.emptyTitle}>Nenhuma notificação</Text><Text style={styles.emptyText}>As atualizações das suas ocorrências aparecerão aqui.</Text></View>}
         />
       )}
+      {openedResponse ? (
+        <TeamResponsesModal
+          occurrenceId={responseOccurrenceId}
+          openedResponse={{ id: openedResponse.id, content: openedResponse.message, created_at: openedResponse.created_at }}
+          onClose={vm.closeResponse}
+          onViewOccurrence={responseOccurrenceId ? () => vm.openOccurrence(responseOccurrenceId) : undefined}
+        />
+      ) : null}
     </SafeAreaView>
   );
 }
@@ -54,8 +61,7 @@ export function NotificationsScreen() {
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.surface.page },
   header: { minHeight: 56, paddingHorizontal: spacing.base, flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface.card, borderBottomWidth: 1, borderBottomColor: colors.border.subtle },
-  headerButton: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  title: { flex: 1, marginLeft: spacing.sm, fontSize: typography.sizes.xl, fontWeight: typography.weights.bold, color: colors.text.primary },
+  title: { flex: 1 },
   headerAction: { minWidth: 76, minHeight: 40, alignItems: 'center', justifyContent: 'center' },
   headerActionText: { fontSize: typography.sizes.sm, fontWeight: typography.weights.semibold, color: colors.brand.primary },
   errorBanner: { margin: spacing.base, padding: spacing.md, borderRadius: radius.md, backgroundColor: '#FDEDEC' },
