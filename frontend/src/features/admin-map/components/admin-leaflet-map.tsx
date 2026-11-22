@@ -112,12 +112,12 @@ export function AdminLeafletMap({
     <MapContainer
       bounds={!viewport ? initialBounds : undefined}
       boundsOptions={{ padding: [30, 30] }}
-      center={viewport
+      center={initialBounds && !viewport ? undefined : viewport
         ? [viewport.center.lat, viewport.center.lng]
         : initialCenter
           ? [initialCenter.lat, initialCenter.lng]
           : BRAZIL_CENTER}
-      zoom={viewport?.zoom ?? (initialCenter ? 12 : 4)}
+      zoom={initialBounds && !viewport ? undefined : (viewport?.zoom ?? (initialCenter ? 12 : 4))}
       minZoom={3}
       maxZoom={19}
       scrollWheelZoom

@@ -23,6 +23,7 @@ export function ModerationForm({ action, detail, categories, pending, message, o
   const [position, setPosition] = useState({ ...detail.location });
   const [confirmLocation, setConfirmLocation] = useState(false);
   const [mapUnavailable, setMapUnavailable] = useState(false);
+  const [resolutionDraft, setResolutionDraft] = useState('');
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const values = Object.fromEntries(new FormData(event.currentTarget));
@@ -78,7 +79,9 @@ export function ModerationForm({ action, detail, categories, pending, message, o
               {request.action === 'resolve' ? 'Confirmar resolução' : 'Sim, rejeitar'}
             </Button></div>
         </div> : <form onSubmit={event => void submit(event)} className="space-y-4">
-          {textField && <label className="field-label">{textField[1]}<textarea className="field-input mt-2" name={textField[0]} required minLength={10} maxLength={2000} rows={5} /></label>}
+          {textField && <label className="field-label">{textField[1]}<textarea className="field-input mt-2" name={textField[0]} required minLength={10} maxLength={2000} rows={5}
+            value={action === 'resolve' ? resolutionDraft : undefined}
+            onChange={action === 'resolve' ? event => setResolutionDraft(event.target.value) : undefined} /></label>}
           {action === 'start-service' && <label className="flex items-start gap-2 text-sm"><input type="checkbox" required />O órgão responsável aceitou atender e a ação concreta foi definida.</label>}
           {action === 'priority' && <label className="field-label">Prioridade<Select className="mt-2" name="priority" defaultValue={detail.priority ?? 'MEDIUM'} options={[{ value: 'LOW', label: 'Baixa' }, { value: 'MEDIUM', label: 'Média' }, { value: 'HIGH', label: 'Alta' }]} /></label>}
           {action === 'location' && <>

@@ -131,6 +131,9 @@ describe('Detalhe administrativo API1-97', () => {
     fireEvent.click(dialog.getByRole('button', { name: 'Revisar resolução' }));
     expect(calls).toHaveLength(0);
     expect(dialog.getByText(notes)).toBeInTheDocument();
+    fireEvent.click(dialog.getByRole('button', { name: 'Voltar' }));
+    expect(dialog.getByLabelText('Notas de resolução')).toHaveValue(notes);
+    fireEvent.click(dialog.getByRole('button', { name: 'Revisar resolução' }));
     fireEvent.click(dialog.getByRole('button', { name: 'Confirmar resolução' }));
     await waitFor(() => expect(calls).toHaveLength(1));
     expect(calls[0]).toMatchObject({
