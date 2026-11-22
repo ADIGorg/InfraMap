@@ -6,7 +6,7 @@ const notes = z.string().trim().min(10, 'Informe pelo menos 10 caracteres.').max
 export const actionSchemas = {
   'start-analysis': z.object({}),
   confirm: z.object({}),
-  reject: z.object({ justification: notes }),
+  reject: z.object({ justification: notes, agencyResponse: notes.optional() }),
   priority: z.object({ priority: z.enum(['LOW', 'MEDIUM', 'HIGH']) }),
   'start-service': z.object({ actionNotes: notes }),
   resolve: z.object({ resolutionNotes: notes }),
@@ -32,6 +32,7 @@ export function allowedActions(detail: OccurrenceDetail): ModerationAction[] {
   const actions: ModerationAction[] = ['observations'];
   if (detail.status === 'RECEIVED') actions.push('start-analysis');
   if (detail.status === 'UNDER_ANALYSIS') actions.push('confirm', 'reject');
+  if (detail.status === 'CONFIRMED') actions.push('reject');
   if (detail.status === 'CONFIRMED' && detail.priority) actions.push('start-service');
   if (detail.status === 'IN_SERVICE') actions.push('resolve');
   if (['CONFIRMED', 'IN_SERVICE', 'RESOLVED'].includes(detail.status)) actions.push('priority');

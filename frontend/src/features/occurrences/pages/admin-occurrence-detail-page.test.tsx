@@ -163,10 +163,48 @@ describe('Detalhe administrativo API1-97', () => {
     await waitFor(() => expect(calls[0]).toMatchObject({ action: 'reject', body: { justification: 'Ocorrência duplicada verificada' } }));
   });
 
-  it.each(['RESOLVED', 'REJECTED', 'CONFIRMED'] as const)('bloqueia rejeição em %s', async status => {
+  it('registra a recusa do órgão pelas ações da ocorrência somente após revisão', async () => {
+    item.status = 'CONFIRMED';
+    item.priority = 'HIGH';
+    mount();
+    const start = await openAction('Iniciar atendimento');
+    expect(start.queryByRole('button', { name: 'Rejeitar ocorrência' })).not.toBeInTheDocument();
+    fireEvent.click(start.getByRole('button', { name: 'Cancelar' }));
+    const rejection = await openAction('Rejeitar ocorrência');
+    const justification = 'O órgão informou que não pode executar o serviço.';
+    const agencyResponse = 'A equipe do órgão recusou formalmente o atendimento.';
+    fireEvent.change(rejection.getByLabelText('Justificativa'), { target: { value: justification } });
+    fireEvent.click(rejection.getByRole('button', { name: 'Revisar rejeição' }));
+    expect(rejection.queryByRole('button', { name: 'Sim, rejeitar' })).not.toBeInTheDocument();
+    fireEvent.change(rejection.getByLabelText('Resposta do órgão responsável'), { target: { value: agencyResponse } });
+    fireEvent.click(rejection.getByRole('button', { name: 'Revisar rejeição' }));
+    expect(rejection.getByText(`Resposta do órgão: ${agencyResponse}`)).toBeInTheDocument();
+    expect(calls).toHaveLength(0);
+    fireEvent.click(rejection.getByRole('button', { name: 'Sim, rejeitar' }));
+    await waitFor(() => expect(calls).toEqual([{ action: 'reject', method: 'POST', body: { justification, agencyResponse } }]));
+  });
+
+  it('informa quando a rejeição falha no servidor e preserva a revisão', async () => {
+    item.status = 'CONFIRMED';
+    server.use(http.post(base + '/admin/occurrences/' + id + '/reject', () =>
+      HttpResponse.json({ error: { code: 'MODERATION_FAILED', message: 'Falha administrativa.' } }, { status: 500 })));
+    mount();
+    const dialog = await openAction('Rejeitar ocorrência');
+    const reason = 'O órgão não pode executar o serviço.';
+    fireEvent.change(dialog.getByLabelText('Justificativa'), { target: { value: reason } });
+    fireEvent.change(dialog.getByLabelText('Resposta do órgão responsável'), { target: { value: 'Recusa formal registrada pelo órgão.' } });
+    fireEvent.click(dialog.getByRole('button', { name: 'Revisar rejeição' }));
+    fireEvent.click(dialog.getByRole('button', { name: 'Sim, rejeitar' }));
+    expect(await dialog.findByRole('alert')).toHaveTextContent('Não foi possível confirmar a rejeição.');
+    expect(dialog.getByText(`Justificativa: ${reason}`)).toBeInTheDocument();
+  });
+
+  it.each(['RESOLVED', 'REJECTED', 'CONFIRMED', 'IN_SERVICE'] as const)('bloqueia rejeição em %s sem encaminhamento aceito ou fora da etapa permitida', async status => {
     item.status = status;
+    if (status === 'CONFIRMED') forwardingStatus = 'FAILED';
     mount();
     await screen.findByRole('heading', { name: /Detalhes da ocorrência/ });
+    await screen.findByText(/Órgão de teste — (Falha de envio|Aceito pelo provedor)/);
     expect(screen.queryByRole('button', { name: 'Rejeitar ocorrência' })).not.toBeInTheDocument();
     if (status !== 'CONFIRMED') expect(screen.queryByRole('button', { name: 'Encaminhar ocorrência' })).not.toBeInTheDocument();
   });
@@ -214,6 +252,17 @@ describe('Detalhe administrativo API1-97', () => {
     item.photoUrls[0].expiresAt = '2099-01-01T00:00:00Z';
     fireEvent.click(screen.getByRole('button', { name: 'Atualizar fotos' }));
     expect(await screen.findByRole('img')).toHaveAttribute('src', 'https://example.com/signed-photo');
+  });
+
+  it('traduz a origem dos campos e a resposta ao cidadão no histórico', async () => {
+    server.use(http.get(base + '/occurrences/' + id + '/history', () => HttpResponse.json({ data: [{
+      id: 'reply', type: 'history', action: 'OBSERVATION_CITIZEN_REPLY_ADDED', actorId: id,
+      createdAt: fixture.createdAt, details: null,
+    }] })));
+    mount();
+    expect(await screen.findByText('Resposta ao cidadão registrada')).toBeInTheDocument();
+    expect(screen.getByText(/Sugestão da IA confirmada pelo cidadão/)).toHaveTextContent('Sugestão da IA editada pelo cidadão');
+    expect(screen.queryByText(/AI_CONFIRMED|AI_EDITED|OBSERVATION_CITIZEN_REPLY_ADDED/)).not.toBeInTheDocument();
   });
 });
 

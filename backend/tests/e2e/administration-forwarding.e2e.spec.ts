@@ -87,6 +87,10 @@ describe.skipIf(!qaEnabled)("QA-03 / encaminhamento, dashboard e gestão MASTER"
       .set(qa.as(operator)).send({ justification: "Impossibilidade de atendimento pelo órgão" });
     expect(missingResponse.status).toBe(400);
 
+    const priority = await request(qa.app).patch(path + "/priority")
+      .set(qa.as(operator)).send({ priority: "MEDIUM" });
+    expect(priority.status, JSON.stringify(priority.body)).toBe(200);
+
     const rejected = await request(qa.app).post(path + "/reject")
       .set(qa.as(operator)).send({
         justification: "Órgão responsável não pode realizar a obra",
@@ -95,8 +99,8 @@ describe.skipIf(!qaEnabled)("QA-03 / encaminhamento, dashboard e gestão MASTER"
     expect(rejected.status, JSON.stringify(rejected.body)).toBe(200);
 
     const status = await qa.admin.from("occurrences")
-      .select("status").eq("id", occurrence.occurrenceId).single();
-    expect(status.data?.status).toBe("REJECTED");
+      .select("status,priority").eq("id", occurrence.occurrenceId).single();
+    expect(status.data).toMatchObject({ status: "REJECTED", priority: null });
     const history = await qa.admin.from("occurrence_history")
       .select("action,details,previous_data,new_data")
       .eq("occurrence_id", occurrence.occurrenceId)
@@ -105,6 +109,7 @@ describe.skipIf(!qaEnabled)("QA-03 / encaminhamento, dashboard e gestão MASTER"
     expect(history.data?.[0]?.previous_data?.status).toBe("CONFIRMED");
     expect(history.data?.[0]?.new_data?.status).toBe("REJECTED");
     expect(history.data?.[0]?.details?.rejection_type).toBe("SERVICE_IMPOSSIBILITY");
+    expect(history.data?.[0]?.details?.previous_priority).toBe("MEDIUM");
     expect(history.data?.[0]?.details?.agency_response).toContain("insuficiência");
     expect(history.data?.[0]?.details?.forwarding_id).toBe(forwarding.body.data.id);
 

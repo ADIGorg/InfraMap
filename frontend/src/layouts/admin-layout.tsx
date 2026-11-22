@@ -2,6 +2,7 @@ import { Menu, X, MapPin, BarChart3, List, Bell, Users, Building2, LogOut, MapPi
 import { NavLink, Outlet } from 'react-router-dom';
 import { useAdminIdentity } from '@/features/auth/hooks/use-admin-identity';
 import { useAdminLayoutViewModel } from '@/features/auth/view-models/use-admin-layout-view-model';
+import { useHasUnreadAdminAlerts } from '@/features/notifications/view-models/use-admin-notifications-view-model';
 import { Button } from '@/shared/components/button';
 import { cn } from '@/shared/utils/cn';
 
@@ -17,6 +18,7 @@ export function AdminLayout() {
   const { data: identity } = useAdminIdentity();
   const { logout, logoutError, isMobileNavOpen, setMobileNavOpen } = useAdminLayoutViewModel();
   const isMaster = identity?.admin_level === 'MASTER';
+  const hasUnreadAlerts = useHasUnreadAdminAlerts();
 
   return (
     <div className="min-h-screen bg-surface-page">
@@ -38,7 +40,14 @@ export function AdminLayout() {
           {menu.map(({ label, to, icon: Icon }) => (
             <NavLink key={to} to={to} onClick={() => setMobileNavOpen(false)}
               className={({ isActive }) => cn('side-nav-link', isActive && 'side-nav-link-active')}>
-              <Icon size={19} aria-hidden="true" /><span>{label}</span>
+              <span className="relative shrink-0">
+                <Icon size={19} aria-hidden="true" />
+                {to === '/admin/notifications' && hasUnreadAlerts && (
+                  <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-red-400 ring-2 ring-brand-primary" aria-hidden="true" />
+                )}
+              </span>
+              <span>{label}</span>
+              {to === '/admin/notifications' && hasUnreadAlerts && <span className="sr-only">com alertas não visualizados</span>}
             </NavLink>
           ))}
           {isMaster && (
@@ -52,7 +61,7 @@ export function AdminLayout() {
           <LogOut size={17} aria-hidden="true" /> Sair
         </Button>
         {logoutError && <p role="alert" className="mt-3 text-xs text-red-100">{logoutError}</p>}
-        <p className="mt-8 border-t border-white/10 pt-6 text-xs text-brand-secondary">Versão 0.1 • Sprint 3</p>
+        <p className="mt-8 border-t border-white/10 pt-6 text-xs text-brand-secondary">Versão 0.1</p>
       </aside>
       <div className="lg:pl-64">
         <header className="sticky top-0 z-10 flex min-h-[72px] items-center justify-between gap-4 border-b border-line-subtle bg-white px-4 md:px-8">

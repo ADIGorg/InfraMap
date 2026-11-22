@@ -16,14 +16,23 @@ const date = (value: string) => new Intl.DateTimeFormat('pt-BR', {
 }).format(new Date(value));
 const panel = 'rounded-2xl border border-line-subtle bg-white p-6';
 const priorities = { LOW: 'Baixa', MEDIUM: 'Média', HIGH: 'Alta' };
+const sourceLabels: Record<string, string> = {
+  AI_CONFIRMED: 'Sugestão da IA confirmada pelo cidadão',
+  AI_EDITED: 'Sugestão da IA editada pelo cidadão',
+  USER_MANUAL: 'Informada manualmente pelo cidadão',
+  ADMIN_CORRECTED: 'Corrigida pela administração',
+};
 const historyLabels: Record<string, string> = {
   CREATED: 'Ocorrência registrada', OCCURRENCE_CREATED: 'Ocorrência registrada',
   ANALYSIS_STARTED: 'Análise iniciada', OCCURRENCE_CONFIRMED: 'Ocorrência confirmada',
   OCCURRENCE_REJECTED: 'Ocorrência rejeitada', STATUS_CHANGED: 'Status alterado',
-  PRIORITY_DEFINED: 'Prioridade definida', PRIORITY_CHANGED: 'Prioridade alterada',
+  PRIORITY_DEFINED: 'Prioridade definida', PRIORITY_CHANGED: 'Prioridade alterada', PRIORITY_UPDATED: 'Prioridade alterada',
   LOCATION_ADJUSTED: 'Localização ajustada', CLASSIFICATION_CORRECTED: 'Classificação corrigida',
-  OBSERVATION_CREATED: 'Observação registrada', OBSERVATION_INTERNAL_ADDED: 'Observação interna registrada',
-  OBSERVATION_CITIZEN_RESPONSE_ADDED: 'Resposta enviada ao cidadão', FORWARDED_TO_AGENCY: 'Encaminhada ao órgão',
+  OBSERVATION_CREATED: 'Observação registrada', OBSERVATION_ADDED: 'Observação registrada',
+  OBSERVATION_INTERNAL_ADDED: 'Observação interna registrada',
+  OBSERVATION_CITIZEN_REPLY_ADDED: 'Resposta ao cidadão registrada',
+  OBSERVATION_CITIZEN_RESPONSE_ADDED: 'Resposta ao cidadão registrada',
+  FORWARDED_TO_AGENCY: 'Encaminhada ao órgão',
   FORWARDING_CREATED: 'Encaminhamento registrado',
   FORWARDING_SENT: 'Encaminhamento enviado', FORWARDING_FAILED: 'Falha no encaminhamento',
 };
@@ -31,8 +40,8 @@ const historyStatuses: Record<string, string> = {
   RECEIVED: 'Recebida', UNDER_ANALYSIS: 'Em análise', CONFIRMED: 'Confirmada',
   IN_SERVICE: 'Em atendimento', RESOLVED: 'Resolvida', REJECTED: 'Rejeitada',
 };
-function humanHistoryStatus(value: unknown): string {
-  return typeof value === 'string' ? historyStatuses[value] ?? value : '';
+function labelForCode(labels: Record<string, string>, code: string, fallback: string): string {
+  return Object.hasOwn(labels, code) ? labels[code] : fallback;
 }
 export function AdminOccurrenceDetailPage() {
   const { id = '' } = useParams();
@@ -47,6 +56,7 @@ function DetailContent({ id }: { id: string }) {
   const [failedPhotos, setFailedPhotos] = useState<string[]>([]);
   const item = vm.detail.data;
   const busy = vm.moderation.isPending || vm.forwarding.isPending;
+  const hasSentForwarding = vm.forwardings.isSuccess && vm.forwardings.data.some(entry => entry.status === 'SENT');
   async function forward() {
     const result = forwardingInputSchema.safeParse({ agency_id: agency, observations: forwardNotes });
     if (!result.success) { setForwardError(result.error.issues[0].message); return; }
@@ -82,7 +92,7 @@ function DetailContent({ id }: { id: string }) {
           </dl>
           <div className="mt-5"><h2 className="text-sm font-semibold">Endereço da posição atual</h2><OccurrenceAddress point={item.location} /></div>
           <h2 className="mb-2 mt-6 text-sm font-semibold">Descrição</h2><p className="whitespace-pre-wrap break-words">{item.description}</p>
-          <p className="mt-3 text-xs text-ink-secondary">Origem da categoria — {item.categorySource}. Origem da descrição — {item.descriptionSource}.</p>
+          <p className="mt-3 text-xs text-ink-secondary">Origem da categoria — {labelForCode(sourceLabels, item.categorySource, 'Não identificada')}. Origem da descrição — {labelForCode(sourceLabels, item.descriptionSource, 'Não identificada')}.</p>
         </section>
         <section className={panel}>
           <h2 className="mb-4 font-bold">Evidências fotográficas</h2>
@@ -131,23 +141,24 @@ function DetailContent({ id }: { id: string }) {
             <p className="text-sm">Quando o problema for solucionado, registre o que foi feito e conclua manualmente a ocorrência.</p>
             <Button className="w-full" disabled={!vm.canAct || busy} onClick={() => setAction('resolve')}>Marcar como resolvida</Button>
           </div>}
-          <div className="flex flex-col gap-3">{allowedActions(item).filter(value => value !== 'observations' && value !== 'resolve').map(value =>
-            <Button key={value} variant={value === 'reject' ? 'danger' : 'outline'} disabled={!vm.canAct || busy || (value === 'start-service' && !vm.forwardings.data?.some(entry => entry.status === 'SENT'))} onClick={() => setAction(value)}>{actionLabels[value]}</Button>)}</div>
+          <div className="flex flex-col gap-3">{allowedActions(item).filter(value => value !== 'observations' && value !== 'resolve'
+            && (value !== 'reject' || item.status !== 'CONFIRMED' || hasSentForwarding)).map(value =>
+            <Button key={value} variant={value === 'reject' ? 'danger' : 'outline'} disabled={!vm.canAct || busy || (value === 'start-service' && !hasSentForwarding)} onClick={() => setAction(value)}>{actionLabels[value]}</Button>)}</div>
           {item.status === 'CONFIRMED' && !item.priority && <p className="mt-3 text-sm">Defina a prioridade para iniciar o atendimento.</p>}
           {item.status === 'CONFIRMED' && vm.forwardings.isError && <p role="alert" className="mt-3 text-sm text-red-800">Não foi possível verificar os encaminhamentos. Recarregue a lista antes de iniciar o atendimento.</p>}
           {item.status === 'CONFIRMED' && vm.forwardings.isSuccess && !vm.forwardings.data.some(entry => entry.status === 'SENT') && <p className="mt-3 text-sm">É necessário registrar um encaminhamento aceito pelo provedor antes de iniciar o atendimento. O envio não comprova aceite do órgão.</p>}
           {item.status === 'CONFIRMED' && vm.forwardings.isSuccess && vm.forwardings.data.some(entry => entry.status === 'SENT') && <p className="mt-3 text-sm">Depois de iniciar o atendimento e registrar a ação concreta, você poderá marcar a ocorrência como resolvida nesta tela.</p>}
           {item.status === 'RESOLVED' && <p role="status" className="mt-3 text-sm">Esta ocorrência foi resolvida. A conclusão está registrada no histórico.</p>}
-          {vm.moderation.message && <p role="status" className="mt-4 text-sm">{vm.moderation.message}</p>}
+          {!action && vm.moderation.message && <p role="status" className="mt-4 text-sm">{vm.moderation.message}</p>}
         </section>
         <section className={panel}><h2 className="mb-4 font-bold">Histórico de ações</h2>
           {vm.history.isPending && <p role="status">Carregando histórico…</p>}
           {vm.history.isError && <div role="alert"><p>{safeErrorMessage(vm.history.error)}</p><Button onClick={() => void vm.history.refetch()}>Recarregar histórico</Button></div>}
           <ol className="space-y-5">{vm.history.data?.map(event => <li key={event.id} className="border-l-2 border-line pl-3">
             <time className="text-xs font-semibold" dateTime={event.createdAt}>{date(event.createdAt)}</time>
-            <p className="text-sm">{event.type === 'observation' ? 'Observação' : historyLabels[event.action] ?? event.action}</p>
+            <p className="text-sm">{event.type === 'observation' ? 'Observação' : labelForCode(historyLabels, event.action, 'Ação registrada')}</p>
             {typeof event.previousData?.status === 'string' && typeof event.newData?.status === 'string' &&
-              <p className="text-xs text-ink-secondary">De {humanHistoryStatus(event.previousData.status)} para {humanHistoryStatus(event.newData.status)}.</p>}
+              <p className="text-xs text-ink-secondary">De {labelForCode(historyStatuses, event.previousData.status, 'status não identificado')} para {labelForCode(historyStatuses, event.newData.status, 'status não identificado')}.</p>}
             {typeof event.details?.reason === 'string' && <p className="mt-1 whitespace-pre-wrap break-words text-xs text-ink-secondary">Justificativa: {event.details.reason}</p>}
             {event.visibility && <p className="text-xs text-ink-secondary">{event.visibility === 'INTERNAL' ? 'Interna — apenas administradores' : 'Resposta ao autor'}</p>}
             {event.content && <p className="mt-2 whitespace-pre-wrap break-words text-sm">{event.content}</p>}
@@ -157,7 +168,7 @@ function DetailContent({ id }: { id: string }) {
       </aside>
     </div>}
     {action && item && <ModerationForm key={action} action={action} detail={item} categories={vm.categories.data ?? []} pending={busy}
-      message={vm.moderation.message} onClose={() => setAction(null)} onSubmit={vm.moderation.submit} />}
+      message={vm.moderation.error} onClose={() => setAction(null)} onSubmit={vm.moderation.submit} />}
   </div>;
 }
 

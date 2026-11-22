@@ -13,11 +13,10 @@ function subscribeOnline(callback: () => void) {
   };
 }
 
-export function useAdminNotificationsViewModel() {
+function useAdminAlerts(page: number) {
   const identity = useAdminIdentity();
   const enabled = identity.isSuccess && identity.data.role === 'ADMIN' && identity.data.is_active;
   const online = useSyncExternalStore(subscribeOnline, () => navigator.onLine);
-  const [page, setPage] = useState(1);
   const client = useQueryClient();
   const viewedKey = ['admin', 'notifications', 'viewed', identity.data?.id] as const;
   // Memória da sessão: AuthProvider limpa o QueryClient no logout/troca de conta.
@@ -31,10 +30,6 @@ export function useAdminNotificationsViewModel() {
   });
   const dashboard = useQuery({ ...options, queryKey: queryKeys.dashboard,
     queryFn: AdminNotificationsService.dashboard });
-  const totalPages = Math.max(1, occurrences.data?.pagination.totalPages ?? 1);
-  useEffect(() => {
-    if (occurrences.isSuccess && page > totalPages) setPage(totalPages);
-  }, [occurrences.isSuccess, page, totalPages]);
   const alerts = deriveAlerts(occurrences.data?.data ?? [], dashboard.data);
   const isViewed = (alert: AdminAlert) => viewed.data[alert.id] === alert.revision;
   const markViewed = (items: AdminAlert[]) => {
@@ -44,6 +39,22 @@ export function useAdminNotificationsViewModel() {
     }));
   };
   const refresh = () => { void occurrences.refetch(); void dashboard.refetch(); };
-  return { identity, online, page, setPage, totalPages, occurrences, dashboard, alerts,
+  return { identity, enabled, online, occurrences, dashboard, alerts,
     isViewed, markViewed, refresh, busy: occurrences.isFetching || dashboard.isFetching };
+}
+
+export function useHasUnreadAdminAlerts() {
+  const { enabled, alerts, isViewed } = useAdminAlerts(1);
+  return enabled && alerts.some(alert => !isViewed(alert));
+}
+
+export function useAdminNotificationsViewModel() {
+  const [page, setPage] = useState(1);
+  const vm = useAdminAlerts(page);
+  const totalPages = Math.max(1, vm.occurrences.data?.pagination.totalPages ?? 1);
+  const { isSuccess } = vm.occurrences;
+  useEffect(() => {
+    if (isSuccess && page > totalPages) setPage(totalPages);
+  }, [isSuccess, page, totalPages]);
+  return { ...vm, page, setPage, totalPages };
 }
