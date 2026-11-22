@@ -9,7 +9,7 @@ export const actionSchemas = {
   reject: z.object({ justification: notes }),
   priority: z.object({ priority: z.enum(['LOW', 'MEDIUM', 'HIGH']) }),
   'start-service': z.object({ actionNotes: notes }),
-  resolve: z.object({ resolutionNotes: z.string().trim().max(2000).optional() }),
+  resolve: z.object({ resolutionNotes: notes }),
   location: z.object({ lat: z.coerce.number().min(-90).max(90), lng: z.coerce.number().min(-180).max(180) }),
   classification: z.object({
     categoryId: z.uuid().optional(), description: z.string().trim().min(1).max(500).optional(),
@@ -25,7 +25,7 @@ export type ModerationRequest = {
 }[ModerationAction];
 export const actionLabels: Record<ModerationAction, string> = {
   'start-analysis': 'Iniciar análise', confirm: 'Confirmar ocorrência', reject: 'Rejeitar ocorrência',
-  priority: 'Definir prioridade', 'start-service': 'Iniciar atendimento', resolve: 'Resolver ocorrência',
+  priority: 'Definir prioridade', 'start-service': 'Iniciar atendimento', resolve: 'Marcar como resolvida',
   location: 'Ajustar localização', classification: 'Corrigir classificação', observations: 'Salvar observação',
 };
 export function allowedActions(detail: OccurrenceDetail): ModerationAction[] {

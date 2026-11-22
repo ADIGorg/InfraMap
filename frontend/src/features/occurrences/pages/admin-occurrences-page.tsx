@@ -28,7 +28,6 @@ export function AdminOccurrencesPage() {
     { key: 'votes', title: 'Curtidas', render: item => <span className="inline-flex items-center gap-1.5 whitespace-nowrap tabular-nums text-ink-secondary"
       aria-label={`${item.votesCount.toLocaleString('pt-BR')} ${item.votesCount === 1 ? 'curtida' : 'curtidas'}`}>
       <ThumbsUp size={15} aria-hidden="true" />{item.votesCount.toLocaleString('pt-BR')}</span> },
-    { key: 'location', title: 'Localização', render: item => <span className="whitespace-nowrap text-xs" title="Latitude, longitude">{item.location.lat.toFixed(5)}, {item.location.lng.toFixed(5)}</span> },
     { key: 'date', title: 'Data', render: item => <time className="whitespace-nowrap text-ink-secondary" dateTime={item.createdAt}>{dateFormat.format(new Date(item.createdAt))}</time> },
     { key: 'actions', title: 'Ações', render: item => <div className="flex items-center gap-2">
       {item.status === 'RECEIVED' && <Button variant="ghost" className="px-2 text-green-700" aria-label={'Iniciar análise da ocorrência ' + item.id}

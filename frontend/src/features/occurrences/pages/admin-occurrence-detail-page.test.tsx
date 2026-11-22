@@ -18,6 +18,7 @@ vi.mock('@/infrastructure/api/supabase-client', () => ({
 const base = 'http://localhost:3000/api/v1';
 const id = '20000000-0000-4000-8000-000000000001';
 const agencyId = '30000000-0000-4000-8000-000000000001';
+const alternativeCategoryId = '30000000-0000-4000-8000-000000000002';
 const fixture: OccurrenceDetail = {
   id, category: { id: agencyId, name: 'Esgoto', code: 'CAT01' }, description: 'Vazamento de esgoto',
   status: 'RECEIVED', priority: null, location: { lat: -12, lng: -38 },
@@ -40,7 +41,7 @@ const forwarding = () => ({
 const server = setupServer(
   http.get(base + '/admin/me', () => HttpResponse.json({ id, role: 'ADMIN', is_active: true })),
   http.get(base + '/admin/occurrences/' + id, () => { reads++; return HttpResponse.json({ data: item }); }),
-  http.get(base + '/categories', () => HttpResponse.json({ data: [fixture.category] })),
+  http.get(base + '/categories', () => HttpResponse.json({ data: [fixture.category, { id: alternativeCategoryId, name: 'Saneamento e Drenagem', code: 'CAT02' }] })),
   http.get(base + '/admin/agencies', () => HttpResponse.json({ data: [{ id: agencyId, name: 'Órgão de teste', email: 'orgao@example.com', is_active: true }] })),
   http.get(base + '/admin/occurrences/' + id + '/forwardings', () => HttpResponse.json({ data: [forwarding()] })),
   http.get(base + '/occurrences/' + id + '/history', () => HttpResponse.json({ data: [{
@@ -55,6 +56,7 @@ const server = setupServer(
     if (!['PATCH', 'POST'].includes(request.method)) return HttpResponse.json({}, { status: 404 });
     calls.push({ method: request.method, action: String(params.action), body: await request.json() as Record<string, unknown> });
     if (conflict) { item.status = 'RESOLVED'; return HttpResponse.json({ error: { code: 'CONFLICT', message: 'Conflito' } }, { status: 409 }); }
+    if (params.action === 'resolve') item.status = 'RESOLVED';
     return HttpResponse.json({ message: 'Registrado' });
   }),
 );
@@ -87,7 +89,6 @@ describe('Detalhe administrativo API1-97', () => {
     ['RECEIVED', 'Iniciar análise', 'start-analysis', 'PATCH', null, null],
     ['UNDER_ANALYSIS', 'Confirmar ocorrência', 'confirm', 'POST', null, null],
     ['CONFIRMED', 'Iniciar atendimento', 'start-service', 'POST', 'Ação concreta do atendimento', 'Equipe enviada ao local'],
-    ['IN_SERVICE', 'Resolver ocorrência', 'resolve', 'POST', 'Notas de resolução', 'Reparo concluído'],
     ['CONFIRMED', 'Definir prioridade', 'priority', 'PATCH', null, null],
     ['UNDER_ANALYSIS', 'Ajustar localização', 'location', 'PATCH', 'Latitude', '-13'],
     ['UNDER_ANALYSIS', 'Corrigir classificação', 'classification', 'PATCH', 'Descrição corrigida', 'Descrição corrigida do vazamento'],
@@ -106,6 +107,46 @@ describe('Detalhe administrativo API1-97', () => {
     if (action === 'location') expect(calls[0].body).toEqual({ lat: -13, lng: -38 });
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(reads).toBeGreaterThan(1);
+  });
+
+  it('corrige a categoria selecionada enviando categoryId para a API', async () => {
+    item.status = 'UNDER_ANALYSIS';
+    mount();
+    const dialog = await openAction('Corrigir classificação');
+    selectOption(dialog.getByLabelText('Categoria'), alternativeCategoryId);
+    fireEvent.click(dialog.getByRole('button', { name: 'Confirmar' }));
+    await waitFor(() => expect(calls).toHaveLength(1));
+    expect(calls[0]).toMatchObject({
+      action: 'classification', method: 'PATCH', body: { categoryId: alternativeCategoryId },
+    });
+  });
+
+  it('conclui manualmente o atendimento somente após revisar a resolução', async () => {
+    item.status = 'IN_SERVICE';
+    item.priority = 'HIGH';
+    mount();
+    const dialog = await openAction('Marcar como resolvida');
+    const notes = 'Serviço executado pela equipe e problema solucionado.';
+    fireEvent.change(dialog.getByLabelText('Notas de resolução'), { target: { value: notes } });
+    fireEvent.click(dialog.getByRole('button', { name: 'Revisar resolução' }));
+    expect(calls).toHaveLength(0);
+    expect(dialog.getByText(notes)).toBeInTheDocument();
+    fireEvent.click(dialog.getByRole('button', { name: 'Confirmar resolução' }));
+    await waitFor(() => expect(calls).toHaveLength(1));
+    expect(calls[0]).toMatchObject({
+      action: 'resolve', method: 'POST', body: { resolutionNotes: notes },
+    });
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Marcar como resolvida' })).not.toBeInTheDocument());
+    expect(screen.getByText('Esta ocorrência foi resolvida. A conclusão está registrada no histórico.')).toBeInTheDocument();
+  });
+
+  it('não permite concluir manualmente uma ocorrência que não iniciou atendimento', async () => {
+    item.status = 'CONFIRMED';
+    item.priority = 'HIGH';
+    mount();
+    await screen.findByRole('heading', { name: /Detalhes da ocorrência/ });
+    expect(screen.queryByRole('button', { name: 'Marcar como resolvida' })).not.toBeInTheDocument();
+    expect(calls).toHaveLength(0);
   });
 
   it('rejeita somente após justificativa e segunda confirmação', async () => {

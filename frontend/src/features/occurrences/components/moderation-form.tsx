@@ -38,7 +38,7 @@ export function ModerationForm({ action, detail, categories, pending, message, o
     }
     setError('');
     const next = { action, body: result.data } as ModerationRequest;
-    if (action === 'reject') { setRequest(next); return; }
+    if (action === 'reject' || action === 'resolve') { setRequest(next); return; }
     if (await onSubmit(next)) onClose();
   }
   async function confirmLocationChange() {
@@ -46,9 +46,8 @@ export function ModerationForm({ action, detail, categories, pending, message, o
     if (!result.success) { setError('Coordenadas inválidas.'); setConfirmLocation(false); return; }
     if (await onSubmit({ action: 'location', body: result.data })) onClose();
   }
-  async function confirmRejection() {
+  async function confirmReviewedAction() {
     if (request && await onSubmit(request)) onClose();
-    else setRequest(null);
   }
   const textField = { reject: ['justification', 'Justificativa'], 'start-service': ['actionNotes', 'Ação concreta do atendimento'], resolve: ['resolutionNotes', 'Notas de resolução'] }[action as 'reject' | 'start-service' | 'resolve'];
   return <Dialog.Root open onOpenChange={open => { if (!open && !pending) onClose(); }}>
@@ -62,13 +61,24 @@ export function ModerationForm({ action, detail, categories, pending, message, o
           <p className="font-semibold">{position.lat.toFixed(6)}, {position.lng.toFixed(6)}</p>
           <div className="flex gap-3"><Button variant="outline" disabled={pending} onClick={() => setConfirmLocation(false)}>Voltar</Button>
             <Button isLoading={pending} onClick={() => void confirmLocationChange()}>Confirmar ajuste</Button></div>
-        </div> : request ? <div>
-          <p className="mb-4 whitespace-pre-wrap">{'justification' in request.body ? request.body.justification : ''}</p>
-          <p className="mb-4">Confirmar a rejeição? A ocorrência será encerrada.</p>
+        </div> : request ? <div className="space-y-4">
+          {request.action === 'resolve' ? <>
+            <p>Confirma que o atendimento foi concluído e que a ocorrência deve passar para <strong>Resolvida</strong>?</p>
+            <div className="rounded-lg bg-surface-page p-3">
+              <p className="text-sm font-semibold">Registro da resolução</p>
+              <p className="mt-2 whitespace-pre-wrap break-words text-sm">{request.body.resolutionNotes}</p>
+            </div>
+            <p className="text-sm text-ink-secondary">A conclusão será registrada no histórico e comunicada ao cidadão. Confira as informações antes de confirmar.</p>
+          </> : <>
+            <p className="whitespace-pre-wrap">{'justification' in request.body ? request.body.justification : ''}</p>
+            <p>Confirmar a rejeição? A ocorrência será encerrada.</p>
+          </>}
           <div className="flex gap-3"><Button variant="outline" disabled={pending} onClick={() => setRequest(null)}>Voltar</Button>
-            <Button variant="danger" isLoading={pending} onClick={() => void confirmRejection()}>Sim, rejeitar</Button></div>
+            <Button variant={request.action === 'reject' ? 'danger' : 'primary'} isLoading={pending} onClick={() => void confirmReviewedAction()}>
+              {request.action === 'resolve' ? 'Confirmar resolução' : 'Sim, rejeitar'}
+            </Button></div>
         </div> : <form onSubmit={event => void submit(event)} className="space-y-4">
-          {textField && <label className="field-label">{textField[1]}<textarea className="field-input mt-2" name={textField[0]} required={action !== 'resolve'} minLength={action === 'resolve' ? undefined : 10} maxLength={2000} rows={5} /></label>}
+          {textField && <label className="field-label">{textField[1]}<textarea className="field-input mt-2" name={textField[0]} required minLength={10} maxLength={2000} rows={5} /></label>}
           {action === 'start-service' && <label className="flex items-start gap-2 text-sm"><input type="checkbox" required />O órgão responsável aceitou atender e a ação concreta foi definida.</label>}
           {action === 'priority' && <label className="field-label">Prioridade<Select className="mt-2" name="priority" defaultValue={detail.priority ?? 'MEDIUM'} options={[{ value: 'LOW', label: 'Baixa' }, { value: 'MEDIUM', label: 'Média' }, { value: 'HIGH', label: 'Alta' }]} /></label>}
           {action === 'location' && <>
@@ -89,7 +99,7 @@ export function ModerationForm({ action, detail, categories, pending, message, o
           </>}
           {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
           <div className="flex justify-end gap-3"><Button type="button" variant="outline" disabled={pending} onClick={onClose}>Cancelar</Button>
-            <Button type="submit" isLoading={pending}>{action === 'reject' ? 'Revisar rejeição' : action === 'location' ? 'Salvar posição' : 'Confirmar'}</Button></div>
+            <Button type="submit" isLoading={pending}>{action === 'reject' ? 'Revisar rejeição' : action === 'resolve' ? 'Revisar resolução' : action === 'location' ? 'Salvar posição' : 'Confirmar'}</Button></div>
         </form>}
       </Dialog.Content>
     </Dialog.Portal>

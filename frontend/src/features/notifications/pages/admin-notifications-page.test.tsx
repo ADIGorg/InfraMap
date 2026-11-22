@@ -12,7 +12,7 @@ vi.mock('@/features/auth/hooks/use-admin-identity', () => ({
 const item = {
   id: '20000000-0000-4000-8000-000000000001',
   category: { id: 'cat-1', code: 'CAT01', name: 'Esgoto' },
-  description: 'Vazamento', status: 'RECEIVED', priority: null,
+  description: 'Vazamento', status: 'RECEIVED', priority: null, votesCount: 0,
   location: { lat: -12, lng: -38 }, createdAt: '2026-11-18T14:00:00Z',
 };
 const dashboard = { data: {
