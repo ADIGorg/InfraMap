@@ -3,7 +3,7 @@ import { http } from '@/infrastructure/api/http-client';
 
 const level = z.enum(['MASTER', 'OPERATIONAL']);
 const identityFields = z.object({ id: z.uuid(), admin_level: level, is_active: z.boolean(), created_by: z.uuid().nullable() });
-const administrator = identityFields.extend({ name: z.string() });
+const administrator = identityFields.extend({ name: z.string(), email: z.email().nullable() });
 export type Administrator = z.infer<typeof administrator>;
 export const createAdministratorSchema = z.object({
   name: z.string().trim().min(1, 'Informe o nome.').max(150, 'Máximo de 150 caracteres.'),

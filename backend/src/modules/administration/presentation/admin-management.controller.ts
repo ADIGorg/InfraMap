@@ -27,7 +27,19 @@ export async function requireMaster(req: Request, _res: Response, next: NextFunc
 export async function listAdmins(req: Request, res: Response) {
   const { data, error } = await context(req).client.rpc("list_administrators");
   if (error) databaseError(error.code);
-  res.json({ data });
+
+  // Esta rota e protegida por requireMaster. Consultar o e-mail pelo servidor
+  // sem expor a tabela de autenticacao ou credenciais ao navegador.
+  const rows = (Array.isArray(data) ? data : []) as Array<Record<string, unknown>>;
+  const authAdmin = createSupabaseAdminClient().auth.admin;
+  const enriched = await Promise.all(rows.map(async row => {
+    const { data: authData, error: accountError } = await authAdmin.getUserById(String(row.id));
+    if (accountError || !authData.user) {
+      throw new AppError(502, "ADMIN_EMAIL_UNAVAILABLE", "Nao foi possivel carregar o e-mail do administrador.");
+    }
+    return { ...row, email: authData.user.email ?? null };
+  }));
+  res.json({ data: enriched });
 }
 
 export async function createAdmin(req: Request, res: Response) {
@@ -42,7 +54,7 @@ export async function createAdmin(req: Request, res: Response) {
     throw new ConflictError("Já existe uma conta com esse e-mail.");
   }
   if (error || !data.user) databaseError();
-  res.status(201).json({ data: { id: data.user.id, name, admin_level, is_active: true, created_by: actor } });
+  res.status(201).json({ data: { id: data.user.id, name, email, admin_level, is_active: true, created_by: actor } });
 }
 
 export async function updateAdmin(req: Request, res: Response) {

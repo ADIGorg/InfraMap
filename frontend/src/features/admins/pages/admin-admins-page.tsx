@@ -14,7 +14,10 @@ export function AdminAdminsPage() {
   if (!vm.allowed) return <ForbiddenScreen master />;
   const disabled = vm.pending || !vm.list.isSuccess || vm.list.isFetching;
   const columns: TableColumn<Administrator>[] = [
-    { key: 'name', title: 'Nome', render: item => <span className="font-semibold">{item.name}{item.id === vm.identity.data?.id && ' (você)'}</span> },
+    { key: 'name', title: 'Nome', render: item => <div className="min-w-0">
+      <p className="font-semibold">{item.name}{item.id === vm.identity.data?.id && ' (você)'}</p>
+      <p className="break-all text-xs text-ink-secondary">{item.email ?? 'E-mail indisponível'}</p>
+    </div> },
     { key: 'level', title: 'Perfil', render: item => item.admin_level === 'MASTER' ? 'Master' : 'Operacional' },
     { key: 'status', title: 'Situação', render: item => <span className={item.is_active ? 'text-green-700' : 'text-red-700'}>{item.is_active ? 'Ativo' : 'Inativo'}</span> },
     { key: 'actions', title: 'Ações', render: item => <div className="space-y-2">
