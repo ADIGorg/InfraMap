@@ -9,7 +9,7 @@ import { z } from "zod";
 const NODE_ENVS = ["development", "test", "production"] as const;
 const LOG_LEVELS = ["fatal", "error", "warn", "info", "debug", "trace", "silent"] as const;
 const AI_PROVIDERS = ["mock", "http", "gemini"] as const;
-const EMAIL_PROVIDERS = ["mock", "http"] as const;
+const EMAIL_PROVIDERS = ["mock", "http", "smtp"] as const;
 
 // ============================================================
 // Schema
@@ -38,11 +38,21 @@ const envSchema = z.object({
   AI_CONFIDENCE_THRESHOLD: z.coerce.number().min(0).max(1).default(0.7),
 
   // E-mail (FWD-01)
+ // E-mail (FWD-01)
   EMAIL_PROVIDER: z.enum(EMAIL_PROVIDERS).default("mock"),
+
   EMAIL_API_URL: z.string().url().optional(),
   EMAIL_API_KEY: z.string().optional(),
-    EMAIL_FROM: z.email().optional(),
+  EMAIL_FROM: z.email().optional(),
 
+  // SMTP - Gmail
+  SMTP_HOST: z.string().optional(),
+  SMTP_PORT: z.coerce.number().int().min(1).max(65535).default(465),
+  SMTP_SECURE: z.enum(["true", "false"])
+    .default("true")
+    .transform((value) => value === "true"),
+  SMTP_USER: z.email().optional(),
+  SMTP_APP_PASSWORD: z.string().optional(), 
   // Forwarding (FWD-02)
   FORWARDING_PUBLIC_URL_TEMPLATE: z.string()
     .min(1, "FORWARDING_PUBLIC_URL_TEMPLATE é obrigatória.")
@@ -64,6 +74,8 @@ function parseEnv(): RawEnv {
       .join("\n");
     throw new Error(`Configuração de ambiente inválida:\n${issues}`);
   }
+
+
 
   const data = result.data;
 
@@ -112,6 +124,22 @@ function parseEnv(): RawEnv {
     throw new Error(
       "CORS_ALLOWED_ORIGINS é obrigatório em NODE_ENV=production."
     );
+  }
+
+  // EMAIL_PROVIDER=smtp exige configuração SMTP
+  if (data.EMAIL_PROVIDER === "smtp") {
+    const missing: string[] = [];
+
+    if (!data.SMTP_HOST) missing.push("SMTP_HOST");
+    if (!data.SMTP_USER) missing.push("SMTP_USER");
+    if (!data.SMTP_APP_PASSWORD) missing.push("SMTP_APP_PASSWORD");
+    if (!data.EMAIL_FROM) missing.push("EMAIL_FROM");
+
+    if (missing.length > 0) {
+      throw new Error(
+        `EMAIL_PROVIDER=smtp exige as variáveis: ${missing.join(", ")}.`
+      );
+    }
   }
 
   return data;
@@ -163,6 +191,14 @@ export const env = {
     apiUrl: raw.EMAIL_API_URL,
     apiKey: raw.EMAIL_API_KEY,
     from: raw.EMAIL_FROM,
+
+    smtp: {
+      host: raw.SMTP_HOST,
+      port: raw.SMTP_PORT,
+      secure: raw.SMTP_SECURE,
+      user: raw.SMTP_USER,
+      appPassword: raw.SMTP_APP_PASSWORD,
+    },
   },
 
   forwarding: {

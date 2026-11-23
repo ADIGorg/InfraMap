@@ -28,7 +28,7 @@ export interface EmailInput {
     /** Corpo HTML — opcional. */
     html?: string;
   };
-  /** Anexos binários codificados em Base64 para o provedor HTTP. */
+  /** Anexos codificados em Base64, compatíveis com provedores HTTP e SMTP. */
   attachments?: Array<{ filename: string; content: string; contentType?: string }>;
 }
 

@@ -6,24 +6,32 @@ import type { EmailSender } from "./email-sender.interface.js";
 
 import { HttpEmailProvider } from "./providers/http-email.provider.js";
 import { MockEmailProvider } from "./providers/mock-email.provider.js";
+import { SmtpEmailProvider } from "./providers/smtp-email.provider.js";
 
 /**
- * Seleciona o provider de e-mail com base em `EMAIL_PROVIDER`.
- *
- * `env.ts` já garantiu no boot:
- *  - `EMAIL_PROVIDER` é `mock | http`
- *  - Se `http`, `EMAIL_API_URL`/`EMAIL_API_KEY`/`EMAIL_FROM` estão presentes
- *  - `EMAIL_API_URL` é HTTPS
- *  - `EMAIL_FROM` é um e-mail válido
+ * Seleciona o provider de e-mail com base em EMAIL_PROVIDER.
+ * env.ts valida as variáveis obrigatórias para cada provedor no boot.
  */
 export function createEmailSender(): EmailSender {
-  if (env.email.provider === "mock") {
-    return new MockEmailProvider();
-  }
+  switch (env.email.provider) {
+    case "mock":
+      return new MockEmailProvider();
 
-  return new HttpEmailProvider({
-    apiUrl: env.email.apiUrl!,
-    apiKey: env.email.apiKey!,
-    from: env.email.from!,
-  });
+    case "http":
+      return new HttpEmailProvider({
+        apiUrl: env.email.apiUrl!,
+        apiKey: env.email.apiKey!,
+        from: env.email.from!,
+      });
+
+    case "smtp":
+      return new SmtpEmailProvider({
+        host: env.email.smtp.host!,
+        port: env.email.smtp.port,
+        secure: env.email.smtp.secure,
+        user: env.email.smtp.user!,
+        appPassword: env.email.smtp.appPassword!,
+        from: env.email.from!,
+      });
+  }
 }
