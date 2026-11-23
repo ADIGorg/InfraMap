@@ -10,6 +10,21 @@ vi.mock('@/infrastructure/api/http-client', () => ({ http: vi.fn() }));
 vi.mock('@/features/auth/hooks/use-admin-identity', () => ({
   useAdminIdentity: () => ({ isSuccess: true, data: { id: 'admin-1', role: 'ADMIN', is_active: true } }),
 }));
+vi.mock('@/features/auth/hooks/use-auth', () => ({
+  useAuth: () => ({
+    session: { user: { id: 'admin-1', email: 'admin@example.com' } },
+    isLoading: false,
+    signOut: vi.fn(),
+  }),
+}));
+// A central de notificações não testa a API de perfil. Isolar sua consulta
+// preserva a contagem das duas requisições que fazem parte desse cenário.
+vi.mock('@/features/profile/hooks/use-admin-profile', () => ({
+  useAdminProfile: () => ({
+    data: { name: 'Administrador de teste', email: 'admin@example.com' },
+    isSuccess: true,
+  }),
+}));
 vi.mock('@/features/auth/view-models/use-admin-layout-view-model', () => ({
   useAdminLayoutViewModel: () => ({ isMobileNavOpen: false, setMobileNavOpen: vi.fn(), logout: vi.fn() }),
 }));
@@ -61,6 +76,7 @@ describe('Notificações administrativas derivadas', () => {
         <Route path="/admin/notifications" element={<AdminNotificationsPage />} />
       </Route></Routes>
     </MemoryRouter></QueryClientProvider>);
+    expect(screen.getByText('Administrador de teste')).toBeInTheDocument();
     const unread = 'Notificações com alertas não visualizados';
     fireEvent.click(await screen.findByRole('link', { name: unread }));
     fireEvent.click(screen.getByRole('button', { name: 'Marcar alertas exibidos como visualizados' }));
