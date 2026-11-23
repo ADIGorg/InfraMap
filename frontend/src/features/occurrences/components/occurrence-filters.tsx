@@ -60,11 +60,18 @@ export function OccurrenceFilters({ filters, categories, categoriesUnavailable, 
         <fieldset className="border-t border-line-subtle pt-3">
           <legend className="pr-2 text-xs font-semibold text-ink-secondary">Status</legend>
           <div className="flex flex-wrap gap-2">
+            <button type="button" aria-pressed={draft.status.length === 0}
+              onClick={form.selectAllStatuses}
+              className={draft.status.length === 0
+                ? 'flex min-h-9 items-center rounded-lg border border-brand-primary/40 bg-surface-info px-3 text-xs font-semibold text-brand-primary'
+                : 'flex min-h-9 items-center rounded-lg border border-line px-3 text-xs font-medium text-ink-primary transition hover:bg-surface-info'}>
+              Todos
+            </button>
             {statusOptions.map(([value, label]) => <label key={value} className="flex min-h-9 cursor-pointer items-center gap-2 rounded-lg border border-line px-3 text-xs text-ink-primary has-[:checked]:border-brand-primary/40 has-[:checked]:bg-surface-info has-[:checked]:text-brand-primary">
-              <input type="checkbox" name="status" value={value} checked={draft.status?.includes(value) ?? false} onChange={event => form.setStatus(value, event.target.checked)} className="h-3.5 w-3.5 accent-brand-primary" />{label}
+              <input type="checkbox" name="status" value={value} checked={draft.status.includes(value)} onChange={event => form.setStatus(value, event.target.checked)} className="h-3.5 w-3.5 accent-brand-primary" />{label}
             </label>)}
           </div>
-          <p className="mt-2 text-xs text-ink-secondary">Todos os status vêm selecionados. Desmarque os que deseja excluir.</p>
+          <p className="mt-2 text-xs text-ink-secondary">“Todos” mostra qualquer status. Marque os status desejados para restringir a busca.</p>
         </fieldset>
         {error && form.hasChanges && <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
       </div>
