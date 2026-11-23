@@ -25,7 +25,7 @@ export function AdminLayout() {
   const hasUnreadAlerts = useHasUnreadAdminAlerts();
   const accountName = profile?.name ?? 'Administrador';
   const accountEmail = profile?.email ?? session?.user.email ?? 'E-mail indisponível';
-  const accountLevel = isMaster ? 'Master' : identity?.admin_level === 'OPERATIONAL' ? 'Operacional' : 'Administrador';
+  const accountLevel = isMaster ? 'Master' : identity?.admin_level === 'OPERATIONAL' ? 'Operacional' : 'nível não informado';
 
   return (
     <div className="min-h-screen bg-surface-page">

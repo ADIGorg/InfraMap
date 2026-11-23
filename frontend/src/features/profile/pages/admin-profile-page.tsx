@@ -23,7 +23,7 @@ export function AdminProfilePage() {
   const profile = vm.profile.data;
   const email = profile?.email ?? vm.sessionEmail ?? 'Não informado';
   const level = vm.identity.data?.admin_level === 'MASTER' ? 'Master' :
-    vm.identity.data?.admin_level === 'OPERATIONAL' ? 'Operacional' : 'Administrador';
+    vm.identity.data?.admin_level === 'OPERATIONAL' ? 'Operacional' : 'nível não informado';
 
   return (
     <div className="page-container max-w-[1120px] space-y-6">
