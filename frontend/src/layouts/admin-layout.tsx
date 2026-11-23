@@ -1,6 +1,8 @@
-import { Menu, X, MapPin, BarChart3, List, Bell, Users, Building2, LogOut, MapPinned } from 'lucide-react';
+import { Menu, X, MapPin, BarChart3, List, Bell, Users, Building2, LogOut, MapPinned, CircleUserRound } from 'lucide-react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { useAdminIdentity } from '@/features/auth/hooks/use-admin-identity';
+import { useAuth } from '@/features/auth/hooks/use-auth';
+import { useAdminProfile } from '@/features/profile/hooks/use-admin-profile';
 import { useAdminLayoutViewModel } from '@/features/auth/view-models/use-admin-layout-view-model';
 import { useHasUnreadAdminAlerts } from '@/features/notifications/view-models/use-admin-notifications-view-model';
 import { Button } from '@/shared/components/button';
@@ -16,9 +18,14 @@ const menu = [
 
 export function AdminLayout() {
   const { data: identity } = useAdminIdentity();
+  const { session } = useAuth();
+  const { data: profile } = useAdminProfile();
   const { logout, logoutError, isMobileNavOpen, setMobileNavOpen } = useAdminLayoutViewModel();
   const isMaster = identity?.admin_level === 'MASTER';
   const hasUnreadAlerts = useHasUnreadAdminAlerts();
+  const accountName = profile?.name ?? 'Administrador';
+  const accountEmail = profile?.email ?? session?.user.email ?? 'E-mail indisponível';
+  const accountLevel = isMaster ? 'Master' : identity?.admin_level === 'OPERATIONAL' ? 'Operacional' : 'Administrador';
 
   return (
     <div className="min-h-screen bg-surface-page">
@@ -57,6 +64,10 @@ export function AdminLayout() {
             </NavLink>
           )}
         </nav>
+        <NavLink to="/admin/profile" onClick={() => setMobileNavOpen(false)}
+          className={({ isActive }) => cn('side-nav-link mb-3', isActive && 'side-nav-link-active')}>
+          <CircleUserRound size={19} aria-hidden="true" /> Meu perfil
+        </NavLink>
         <Button variant="secondary" onClick={() => void logout()} className="w-full">
           <LogOut size={17} aria-hidden="true" /> Sair
         </Button>
@@ -72,10 +83,17 @@ export function AdminLayout() {
             </button>
             <span className="text-sm font-semibold text-brand-primary">Painel de Controle Centralizado</span>
           </div>
-          <div className="text-right text-xs text-ink-secondary">
-            <p className="font-semibold text-ink-primary">Administrador</p>
-            <p>{isMaster ? 'Master' : identity?.admin_level === 'OPERATIONAL' ? 'Operacional' : 'Nível não informado'}</p>
-          </div>
+          <NavLink to="/admin/profile" aria-label="Abrir meu perfil" title="Abrir meu perfil"
+            className="group flex min-w-0 items-center gap-3 rounded-xl px-2 py-2 transition hover:bg-surface-info">
+            <div className="hidden min-w-0 text-right text-xs sm:block">
+              <p className="max-w-[190px] truncate font-semibold text-ink-primary" title={accountName}>{accountName}</p>
+              <p className="max-w-[190px] truncate text-ink-secondary" title={accountEmail}>{accountEmail}</p>
+              <p className="mt-0.5 text-brand-primary">Administrador {accountLevel}</p>
+            </div>
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-surface-info text-brand-primary group-hover:bg-brand-primary group-hover:text-white">
+              <CircleUserRound size={22} aria-hidden="true" />
+            </div>
+          </NavLink>
         </header>
         <main id="main-content"><Outlet /></main>
       </div>

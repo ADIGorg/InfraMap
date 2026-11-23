@@ -9,6 +9,7 @@ import { AdminOccurrenceDetailPage } from '@/features/occurrences/pages/admin-oc
 import { NotFoundPage } from '@/shared/pages/not-found-page';
 import { AgenciesPage } from '@/features/agencies/pages/agencies-page';
 import { AdminNotificationsPage } from '@/features/notifications/pages/admin-notifications-page';
+import { AdminProfilePage } from '@/features/profile/pages/admin-profile-page';
 
 vi.mock('@/config/env', () => ({ env: {
   apiBaseUrl: 'http://localhost:3000/api/v1',
@@ -33,7 +34,7 @@ describe('Integração das rotas por feature', () => {
   );
 
   it.each(['/admin', '/admin/dashboard', '/admin/map', '/admin/occurrences',
-    '/admin/occurrences/123', '/admin/notifications', '/admin/agencies', '/admin/admins'])(
+    '/admin/occurrences/123', '/admin/notifications', '/admin/agencies', '/admin/profile', '/admin/admins'])(
     'mantém %s protegida', path => {
       expect(componentsAt(path)).toContain(ProtectedRoute);
     },
@@ -42,11 +43,16 @@ describe('Integração das rotas por feature', () => {
   it('restringe a gestão de administradores também a MASTER', () => {
     expect(componentsAt('/admin/admins')).toContain(MasterRoute);
     expect(componentsAt('/admin/agencies')).not.toContain(MasterRoute);
+    expect(componentsAt('/admin/profile')).not.toContain(MasterRoute);
   });
 
   it('resolve lista e detalhes como páginas distintas', () => {
     expect(componentsAt('/admin/occurrences').at(-1)).toBe(AdminOccurrencesPage);
     expect(componentsAt('/admin/occurrences/123').at(-1)).toBe(AdminOccurrenceDetailPage);
+  });
+
+  it('abre o perfil administrativo na rota autenticada', () => {
+    expect(componentsAt('/admin/profile').at(-1)).toBe(AdminProfilePage);
   });
 
   it('mantém o fallback para endereço desconhecido', () => {
