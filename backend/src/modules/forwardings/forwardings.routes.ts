@@ -5,7 +5,7 @@ import { Router } from "express";
 import { authenticate } from "../../shared/middlewares/authenticate.js";
 import { authorizeRole } from "../../shared/middlewares/authorize-role.js";
 import { validateRequest } from "../../shared/middlewares/validate-request.js";
-
+import { listReplies } from "./forwarding-replies.controller.js";
 import { forward, list } from "./forwardings.controller.js";
 import {
   forwardOccurrenceBodySchema,
@@ -16,7 +16,8 @@ export function createForwardingsRoutes(): Router {
   const router = Router();
   router.use(authenticate);
   router.use(authorizeRole(["ADMIN"]));
-
+  router.get("/:id/forwardings/:forwardingId/messages", (req, res, next) => listReplies(req, res).catch(next));
+  
   router.post(
     "/:id/forwardings",
     validateRequest({
