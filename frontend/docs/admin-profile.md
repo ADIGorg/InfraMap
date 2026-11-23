@@ -42,3 +42,13 @@ Nenhuma migration ou alteração no backend é necessária para essa versão da 
 - Ícones Mostrar/Ocultar em cada um dos três campos de senha, independentes e acessíveis.
 - Conferir o resultado em janelas estreitas e largas, com o formulário aberto e fechado.
 - Testes adicionais em frontend/src/features/profile/pages/admin-profile-page.test.tsx.
+
+## Usabilidade de filtros e cadastro administrativo (23/11/2026)
+
+- Status da lista de ocorrências inicia com a opção `Todos` selecionada; nenhum status individual fica marcado por padrão.
+- Escolher status individuais desativa `Todos` e permite combinações; desmarcar o último status retorna a `Todos`.
+- `Todos` mantém a API sem parâmetro `status`, preservando os outros filtros e deep links com status específicos.
+- Cadastro de administradores possui botão acessível para mostrar/ocultar a senha inicial, sem enviar o formulário.
+- A senha volta a ficar oculta e seu campo é limpo ao finalizar uma tentativa de cadastro.
+
+Validação: executar `npm run typecheck`, `npm test -- src/features/occurrences/pages/admin-occurrences-page.test.tsx src/features/admins/components/administrator-form.test.tsx` e `npm run build` em `frontend`.
