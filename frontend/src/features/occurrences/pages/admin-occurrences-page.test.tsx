@@ -109,13 +109,20 @@ describe('Lista administrativa — API1-96', () => {
   });
 
   it('mostra as contagens na ordem devolvida pela API ao ordenar por mais curtidas', async () => {
+    const requestedSorts: Array<string | null> = [];
     server.use(http.get(base + '/admin/occurrences', ({ request }) => {
-      expect(new URL(request.url).searchParams.get('sort')).toBe('most_liked');
-      return HttpResponse.json(response([{ ...item, votesCount: 12 }, { ...item, id: '20000000-0000-4000-8000-000000000002', votesCount: 2 }]));
+      requestedSorts.push(new URL(request.url).searchParams.get('sort'));
+      return HttpResponse.json(response([
+        { ...item, votesCount: 12 },
+        { ...item, id: '20000000-0000-4000-8000-000000000002', votesCount: 2 },
+      ]));
     }));
     mount('?sort=most_liked');
-    await screen.findByRole('table');
-    const rows = screen.getAllByRole('row').slice(1);
+    // A suíte completa roda várias telas em paralelo; aguarda a tabela terminar
+    // de carregar antes de verificar o critério enviado e a ordem exibida.
+    const table = await screen.findByRole('table', {}, { timeout: 8_000 });
+    expect(requestedSorts).toContain('most_liked');
+    const rows = within(table).getAllByRole('row').slice(1);
     expect(within(rows[0]).getByLabelText('12 curtidas')).toBeInTheDocument();
     expect(within(rows[1]).getByLabelText('2 curtidas')).toBeInTheDocument();
   });

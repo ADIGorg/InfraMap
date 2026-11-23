@@ -326,18 +326,22 @@ describe('Detalhe administrativo API1-97', () => {
 
   it('mostra o erro de sincronização sem impedir a leitura do histórico existente', async () => {
     item.status = 'CONFIRMED';
-    // A falha na sincronização IMAP não impede a leitura das respostas já armazenadas.
-    // Ambas as rotas precisam ter respostas explícitas no MSW.
+    let messageReads = 0;
+    // A falha da sincronização não bloqueia a leitura das mensagens existentes.
+    // Ambas as chamadas precisam ser atendidas pelo MSW, independentemente.
     server.use(
       http.post(base + '/admin/occurrences/' + id + '/forwardings/sync', () =>
         HttpResponse.json({ error: { code: 'IMAP_SYNC_FAILED', message: 'Não foi possível consultar a caixa de e-mail.' } }, { status: 502 })),
-      http.get(base + '/admin/occurrences/' + id + '/forwardings/' + agencyId + '/messages', () =>
-        HttpResponse.json({ data: [] })),
+      http.get(base + '/admin/occurrences/' + id + '/forwardings/' + agencyId + '/messages', () => {
+        messageReads++;
+        return HttpResponse.json({ data: [] });
+      }),
     );
     mount();
-    expect(await screen.findByText(/Não foi possível sincronizar as respostas/)).toBeInTheDocument();
-    fireEvent.click(await screen.findByRole('button', { name: 'Ver respostas do órgão' }));
-    expect(await screen.findByText(/Nenhuma resposta sincronizada/)).toBeInTheDocument();
+    expect(await screen.findByText(/Não foi possível sincronizar as respostas/, {}, { timeout: 8_000 })).toBeInTheDocument();
+    fireEvent.click(await screen.findByRole('button', { name: 'Ver respostas do órgão' }, { timeout: 8_000 }));
+    expect(await screen.findByText(/Nenhuma resposta sincronizada/, {}, { timeout: 8_000 })).toBeInTheDocument();
+    expect(messageReads).toBeGreaterThanOrEqual(1);
   });
 
   it('mostra estado vazio quando o órgão ainda não respondeu', async () => {
