@@ -47,6 +47,7 @@ describe('AdminProfilePage', () => {
     expect(screen.getAllByText('maria@example.com').length).toBeGreaterThan(0);
     expect(screen.getByText('Administrador Operacional')).toBeInTheDocument();
     expect(screen.getByText('Sessão autenticada')).toBeInTheDocument();
+    expect(screen.getByText('Conta conectada')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Editar dados' }));
     expect(screen.getByLabelText('Nome completo')).toBeInTheDocument();
     expect(screen.queryByLabelText('E-mail de acesso')).not.toBeInTheDocument();
@@ -76,4 +77,47 @@ describe('AdminProfilePage', () => {
     expect(await screen.findByText(/Senha alterada com sucesso/)).toBeInTheDocument();
     expect(JSON.stringify(client.getQueryData(['admin', 'account-profile']))).not.toContain('nova12345678');
   });
+
+  it('mostra e oculta cada senha de maneira independente, como no login', async () => {
+    mount();
+    await screen.findByRole('heading', { name: 'Maria Silva' });
+    fireEvent.click(screen.getByRole('button', { name: 'Alterar minha senha' }));
+
+    const current = screen.getByLabelText('Senha atual');
+    const next = screen.getByLabelText('Nova senha');
+    const confirmation = screen.getByLabelText('Confirmar nova senha');
+    expect(current).toHaveAttribute('type', 'password');
+    expect(next).toHaveAttribute('type', 'password');
+    expect(confirmation).toHaveAttribute('type', 'password');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Mostrar senha atual' }));
+    expect(current).toHaveAttribute('type', 'text');
+    expect(next).toHaveAttribute('type', 'password');
+    expect(screen.getByRole('button', { name: 'Ocultar senha atual' })).toHaveAttribute('aria-pressed', 'true');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Mostrar nova senha' }));
+    expect(next).toHaveAttribute('type', 'text');
+    fireEvent.click(screen.getByRole('button', { name: 'Mostrar confirmação da nova senha' }));
+    expect(confirmation).toHaveAttribute('type', 'text');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ocultar senha atual' }));
+    expect(current).toHaveAttribute('type', 'password');
+    expect(next).toHaveAttribute('type', 'text');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Alterar minha senha' }));
+    expect(screen.getByLabelText('Senha atual')).toHaveAttribute('type', 'password');
+    expect(screen.getByLabelText('Nova senha')).toHaveAttribute('type', 'password');
+    expect(screen.getByLabelText('Confirmar nova senha')).toHaveAttribute('type', 'password');
+  });
+
+  it('mudar a visibilidade nao envia o formulario de alteracao de senha', async () => {
+    mount();
+    await screen.findByRole('heading', { name: 'Maria Silva' });
+    fireEvent.click(screen.getByRole('button', { name: 'Alterar minha senha' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Mostrar senha atual' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Mostrar nova senha' }));
+    expect(changeAdminPassword).not.toHaveBeenCalled();
+  });
+
 });

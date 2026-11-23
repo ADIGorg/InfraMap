@@ -88,17 +88,23 @@ export function AdminProfilePage() {
 
               {vm.isEditing ? (
                 <form className="space-y-3" onSubmit={(event) => { event.preventDefault(); void vm.saveProfile(); }}>
-                  <label className="field-label" htmlFor="profile-name">Nome completo</label>
-                  <input id="profile-name" className="field-input" type="text" required minLength={3} maxLength={150}
-                    autoComplete="name" value={vm.editName} disabled={vm.isSaving}
-                    onChange={(event) => vm.setEditName(event.target.value)} />
-                  <label className="field-label" htmlFor="profile-phone">Telefone (opcional)</label>
-                  <input id="profile-phone" className="field-input" type="tel" maxLength={20} autoComplete="tel"
-                    placeholder="Ex.: (75) 99999-9999" value={vm.editPhone} disabled={vm.isSaving}
-                    onChange={(event) => vm.setEditPhone(event.target.value)} />
-                  <p className="text-xs text-ink-secondary">Deixe o telefone vazio para removê-lo. O e-mail e o nível administrativo são somente leitura.</p>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="min-w-0">
+                      <label className="field-label" htmlFor="profile-name">Nome completo</label>
+                      <input id="profile-name" className="field-input" type="text" required minLength={3} maxLength={150}
+                        autoComplete="name" value={vm.editName} disabled={vm.isSaving}
+                        onChange={(event) => vm.setEditName(event.target.value)} />
+                    </div>
+                    <div className="min-w-0">
+                      <label className="field-label" htmlFor="profile-phone">Telefone (opcional)</label>
+                      <input id="profile-phone" className="field-input" type="tel" maxLength={20} autoComplete="tel"
+                        placeholder="Ex.: (75) 99999-9999" value={vm.editPhone} disabled={vm.isSaving}
+                        onChange={(event) => vm.setEditPhone(event.target.value)} />
+                    </div>
+                  </div>
+                  <p className="text-xs text-ink-secondary">Deixe o telefone vazio para removê-lo. E-mail e nível administrativo são somente leitura.</p>
                   {vm.profileError && <p role="alert" className="text-sm text-red-700">{vm.profileError}</p>}
-                  <div className="flex flex-wrap gap-3">
+                  <div className="flex flex-wrap gap-2 pt-1">
                     <Button type="submit" isLoading={vm.isSaving}>Salvar alterações</Button>
                     <Button type="button" variant="outline" disabled={vm.isSaving} onClick={vm.cancelEdit}>Cancelar</Button>
                   </div>
@@ -132,24 +138,24 @@ export function AdminProfilePage() {
             </Card>
 
             <Card className="min-w-0 border border-line-subtle p-5 md:p-6">
-              <div>
+              <div className="mb-4">
                 <h2 className="flex items-center gap-2 text-base font-bold">
                   <LockKeyhole size={20} className="text-brand-primary" aria-hidden="true" /> Segurança
                 </h2>
-                <p className="mt-1 text-sm text-ink-secondary">
+                <p className="mt-1 text-xs text-ink-secondary">
                   Proteja o acesso à sua conta administrativa.
                 </p>
               </div>
               <div className="mb-4 flex items-center gap-3 rounded-lg bg-surface-info px-3 py-2.5">
                 <CircleUserRound className="shrink-0 text-brand-primary" size={20} aria-hidden="true" />
                 <div>
-                  <p className="font-semibold text-brand-primary">Sessão autenticada</p>
+                  <p className="text-sm font-semibold text-brand-primary">Sessão autenticada</p>
                   <p className="mt-1 break-all text-xs text-ink-secondary">
                     Conectado como {email}
                   </p>
                 </div>
               </div>
-              {vm.passwordSuccess && <p role="status" className="flex items-center gap-2 text-sm text-brand-primary">
+              {vm.passwordSuccess && <p role="status" className="mb-4 flex items-center gap-2 rounded-lg bg-surface-info p-3 text-sm text-brand-primary">
                 <CheckCircle2 size={17} aria-hidden="true" /> {vm.passwordSuccess}
               </p>}
               {!vm.isPasswordOpen ? (

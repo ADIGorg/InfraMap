@@ -33,3 +33,12 @@ Valide com contas Master e Operacional, teste senha atual incorreta e atualizaç
 Verifique que um cidadão sem papel administrativo não abre /admin/profile.
 
 Nenhuma migration ou alteração no backend é necessária para essa versão da tela.
+
+## Refinamento visual do perfil (23/11/2026)
+
+- Faixa superior compacta sem espaço azul vazio; avatar, conta e nível alinhados.
+- Título e navegação em uma faixa, cartões de dados e segurança com espaçamentos uniformes.
+- Dados cadastrais em duas colunas em telas maiores; edição responsiva.
+- Ícones Mostrar/Ocultar em cada um dos três campos de senha, independentes e acessíveis.
+- Conferir o resultado em janelas estreitas e largas, com o formulário aberto e fechado.
+- Testes adicionais em frontend/src/features/profile/pages/admin-profile-page.test.tsx.
