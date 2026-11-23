@@ -1,5 +1,8 @@
 .
 ├── docs
+│   ├── API1-102-photo-consent.md
+│   ├── API1-103-dashboard-daily-counts.md
+│   ├── API1-104-admin-occurrence-filters.md
 │   ├── architecture.md
 │   ├── database-and-security.md
 │   ├── gemini-storage-and-query-fixes.md
@@ -36,7 +39,11 @@
 │   │   │   ├── email-sender.interface.ts
 │   │   │   └── providers
 │   │   │       ├── http-email.provider.ts
-│   │   │       └── mock-email.provider.ts
+│   │   │       ├── imap-email.provider.ts
+│   │   │       ├── mock-email.provider.ts
+│   │   │       └── smtp-email.provider.ts
+│   │   ├── geocoding
+│   │   │   └── reverse-geocode.ts
 │   │   ├── storage
 │   │   │   └── supabase-photo-url.service.ts
 │   │   └── supabase
@@ -79,6 +86,11 @@
 │   │   │   ├── categories.repository.ts
 │   │   │   └── categories.routes.ts
 │   │   ├── forwardings
+│   │   │   ├── forwarding-pdf.service.ts
+│   │   │   ├── forwarding-replies.controller.ts
+│   │   │   ├── forwarding-replies.repository.ts
+│   │   │   ├── forwarding-replies-sync.controller.ts
+│   │   │   ├── forwarding-replies-sync.service.ts
 │   │   │   ├── forwardings.controller.ts
 │   │   │   ├── forwardings.repository.ts
 │   │   │   ├── forwardings.routes.ts
@@ -129,9 +141,8 @@
 │   │   │   │       ├── start-analysis.use-case.ts
 │   │   │   │       └── start-service.use-case.ts
 │   │   │   ├── domain
-│   │   │   │   ├── repositories
-│   │   │   │   │   └── occurrence-moderation.repository.ts
-│   │   │   │   └── services
+│   │   │   │   └── repositories
+│   │   │   │       └── occurrence-moderation.repository.ts
 │   │   │   ├── infrastructure
 │   │   │   │   └── repositories
 │   │   │   │       └── supabase-moderation.repository.ts
@@ -142,6 +153,7 @@
 │   │   ├── notifications
 │   │   │   ├── application
 │   │   │   │   └── use-cases
+│   │   │   │       ├── count-unread-notifications.use-case.ts
 │   │   │   │       ├── list-notifications.use-case.ts
 │   │   │   │       ├── mark-all-notifications-read.use-case.ts
 │   │   │   │       └── mark-notification-read.use-case.ts
@@ -166,6 +178,7 @@
 │   │   │   │       ├── get-public-occurrence.use-case.ts
 │   │   │   │       ├── list-admin-occurrences.use-case.ts
 │   │   │   │       ├── list-my-occurrences.use-case.ts
+│   │   │   │       ├── list-neighborhoods.use-case.ts
 │   │   │   │       └── list-public-occurrences.use-case.ts
 │   │   │   ├── domain
 │   │   │   │   ├── repositories
@@ -215,10 +228,14 @@
 │   ├── routes
 │   │   ├── docs.routes.ts
 │   │   └── index.routes.ts
+│   ├── scripts
+│   │   └── sync-forwarding-replies.ts
 │   ├── server.ts
 │   └── shared
 │       ├── errors
 │       │   └── app-error.ts
+│       ├── geo
+│       │   └── parse-geo-point.ts
 │       ├── logger
 │       │   └── logger.ts
 │       ├── middlewares
@@ -240,9 +257,17 @@
 │   │   ├── 20261109140000_occ01_finalize_occurrence.sql
 │   │   ├── 20261109150000_occ02_read_queries.sql
 │   │   ├── 20261109235900_notify_citizen_response.sql
+│   │   ├── 20261116000000_add_confirmed_to_rejected_transition.sql
+│   │   ├── 20261118000000_photo_public_consent.sql
+│   │   ├── 20261119000000_dashboard_daily_counts.sql
+│   │   ├── 20261119010000_admin_occurrence_filters.sql
+│   │   ├── 20261122020000_fix_rejection_with_priority.sql
+│   │   ├── 20261122030000_close_service_without_resolution.sql
 │   │   └── README.md
 │   ├── config.toml
 │   ├── .gitignore
+│   ├── imports
+│   │   └── feira-de-santana-bairros-2022.sql
 │   ├── migrations
 │   │   ├── 20261101202618_create_profiles_and_user_roles.sql
 │   │   ├── 20261106231752_enable_postgis.sql
@@ -289,7 +314,10 @@
 │   │   ├── 20261112011150_add_missing_indexes.sql
 │   │   ├── 20261112153952_add_record_forwarding_result.sql
 │   │   ├── 20261114173000_fix_qa_rls_privacy_and_rpc_returns.sql
-│   │   └── 20261115020000_add_occurrence_query_filters_and_geo_api.sql
+│   │   ├── 20261115020000_add_occurrence_query_filters_and_geo_api.sql
+│   │   ├── 20261119000100_persist_photo_public_consent.sql
+│   │   ├── 20261122010000_fix_classification_and_forwardings_read.sql
+│   │   └── 20261123010000_forwarding_messages.sql
 │   ├── seed.sql
 │   ├── .temp
 │   │   ├── cli-latest
@@ -310,12 +338,17 @@
 │           ├── 05-forwarding-transactions.test.sql
 │           ├── 06-privacy-and-visibility.test.sql
 │           ├── 07-account-admin-and-sla.test.sql
-│           └── 08-query-filters-and-geo.test.sql
+│           ├── 08-query-filters-and-geo.test.sql
+│           ├── 09-dashboard-daily-counts.test.sql
+│           └── 10-admin-occurrence-filters.test.sql
 ├── tests
 │   ├── e2e
+│   │   ├── admin-identity-level.e2e.spec.ts
 │   │   ├── administration-forwarding.e2e.spec.ts
-│   │   └── citizen-moderation.e2e.spec.ts
+│   │   ├── citizen-moderation.e2e.spec.ts
+│   │   └── photo-public-consent.e2e.spec.ts
 │   ├── integration
+│   │   ├── admin-occurrence-filters.spec.ts
 │   │   ├── app.test.ts
 │   │   ├── authenticate.spec.ts
 │   │   ├── authorize-role.spec.ts
@@ -351,13 +384,16 @@
 │           ├── categories
 │           │   └── categories.repository.spec.ts
 │           ├── forwardings
-│           │   └── forwardings.service.spec.ts
+│           │   ├── forwarding-pdf.service.spec.ts
+│           │   ├── forwardings.service.spec.ts
+│           │   └── http-email-attachment.spec.ts
 │           ├── identity
 │           │   ├── deactivate-my-account.use-case.spec.ts
 │           │   ├── get-current-user.use-case.spec.ts
 │           │   ├── get-my-profile.use-case.spec.ts
 │           │   ├── supabase-account-auth.gateway.spec.ts
 │           │   ├── supabase-account-profile.repository.spec.ts
+│           │   ├── supabase-identity.repository.spec.ts
 │           │   ├── update-my-profile.use-case.spec.ts
 │           │   └── update-profile.schema.spec.ts
 │           ├── moderation
@@ -375,4 +411,4 @@
 ├── tsconfig.scripts.json
 └── vitest.config.ts
 
-102 directories, 274 files
+105 directories, 307 files

@@ -161,26 +161,64 @@ export function useAiAnalysisViewModel() {
     setCurrentStep(3);
     navigation.navigate('Review');
   }, [editedCategoryId, editedDescription, navigation, normalizeSources, setCurrentStep, status]);
-
+  
   const cancel = useCallback(() => {
-    const processing = status === 'PENDING' || status === 'PROCESSING';
+    const processing =
+      status === 'PENDING' ||
+      status === 'PROCESSING' ||
+      status === 'UPLOADING';
+
     Alert.alert(
-      processing ? 'Análise em andamento' : 'Cancelar registro?',
-      processing ? 'A análise está em andamento. Deseja descartar todo o registro?' : 'As informações deste registro serão descartadas.',
+      processing
+        ? 'Análise em andamento'
+        : 'Cancelar registro?',
+      processing
+        ? 'A análise está em andamento. Deseja descartar todo o registro?'
+        : 'As informações deste registro serão descartadas.',
       [
-        { text: 'Continuar', style: 'cancel' },
+        {
+          text: 'Continuar',
+          style: 'cancel',
+        },
         {
           text: 'Descartar',
           style: 'destructive',
           onPress: () => {
+            // Impede que uma resposta assíncrona da análise
+            // atualize o estado depois do descarte.
+            mountedRef.current = false;
+
             stopPolling();
+            attemptsRef.current = 0;
+
+            // Limpa fotos, análise, consentimento,
+            // localização e demais dados do rascunho.
             reset();
-            navigation.getParent()?.navigate('Map');
+
+            // Volta o NewOccurrenceStack para a primeira tela.
+            navigation.reset({
+              index: 0,
+              routes: [
+                {
+                  name: 'CaptureEvidence',
+                },
+              ],
+            });
+
+            // Abre a aba Mapa depois de reiniciar o fluxo.
+            navigation
+              .getParent()
+              ?.navigate('Map');
           },
         },
       ],
     );
-  }, [navigation, reset, status, stopPolling]);
+  }, [
+    navigation,
+    reset,
+    status,
+    stopPolling,
+  ]);
 
   const selectedCategory = useMemo(
     () => categories.find((category) => category.id === editedCategoryId) ?? null,
