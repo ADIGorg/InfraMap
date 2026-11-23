@@ -8,6 +8,7 @@ import { occurrenceRoutes } from '@/features/occurrences/routes';
 import { notificationRoutes } from '@/features/notifications/routes';
 import { agencyRoutes } from '@/features/agencies/routes';
 import { adminRoutes } from '@/features/admins/routes';
+import { profileRoutes } from '@/features/profile/routes';
 import { NotFoundPage } from '@/shared/pages/not-found-page';
 import { ProtectedRoute } from './protected-route';
 import { MasterRoute } from './master-route';
@@ -25,6 +26,7 @@ export const appRoutes: RouteObject[] = [
         ...occurrenceRoutes,
         ...notificationRoutes,
         ...agencyRoutes,
+        ...profileRoutes,
         { element: <MasterRoute />, children: adminRoutes },
       ],
     }],

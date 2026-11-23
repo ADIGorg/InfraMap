@@ -1,5 +1,6 @@
 export const queryKeys = {
   adminMe: ['admin', 'me'] as const,
+  adminProfile: ['admin', 'account-profile'] as const,
   dashboard: ['admin', 'dashboard'] as const,
   occurrences: ['admin', 'occurrences'] as const,
   occurrence: (id: string) => ['admin', 'occurrences', id] as const,

@@ -52,6 +52,62 @@ function mount(search = '') {
   return client;
 }
 describe('Lista administrativa — API1-96', () => {
+  it('inicia com Todos ativo sem status individual marcado nem filtro de status na API', async () => {
+    const queries: URLSearchParams[] = [];
+    server.use(http.get(base + '/admin/occurrences', ({ request }) => {
+      queries.push(new URL(request.url).searchParams);
+      return HttpResponse.json(response());
+    }));
+    mount();
+    await screen.findByRole('table');
+    expect(screen.getByRole('button', { name: 'Todos' })).toHaveAttribute('aria-pressed', 'true');
+    for (const label of ['Recebido', 'Em análise', 'Confirmado', 'Em atendimento', 'Resolvido', 'Rejeitado']) {
+      expect(screen.getByLabelText(label)).not.toBeChecked();
+    }
+    expect(queries[0].has('status')).toBe(false);
+    expect(screen.getByRole('button', { name: 'Aplicar filtros' })).toBeDisabled();
+  });
+
+  it('permite selecionar status específicos e retornar a Todos sem enviar status', async () => {
+    const queries: URLSearchParams[] = [];
+    server.use(http.get(base + '/admin/occurrences', ({ request }) => {
+      queries.push(new URL(request.url).searchParams);
+      return HttpResponse.json(response());
+    }));
+    mount();
+    await screen.findByRole('table');
+    fireEvent.click(screen.getByLabelText('Recebido'));
+    expect(screen.getByRole('button', { name: 'Todos' })).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByLabelText('Recebido')).toBeChecked();
+    fireEvent.click(screen.getByRole('button', { name: 'Aplicar filtros' }));
+    await waitFor(() => expect(queries.at(-1)?.get('status')).toBe('RECEIVED'));
+
+    fireEvent.click(screen.getByLabelText('Em análise'));
+    fireEvent.click(screen.getByRole('button', { name: 'Aplicar filtros' }));
+    await waitFor(() => expect(queries.at(-1)?.get('status')).toBe('RECEIVED,UNDER_ANALYSIS'));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Todos' }));
+    expect(screen.getByLabelText('Recebido')).not.toBeChecked();
+    expect(screen.getByLabelText('Em análise')).not.toBeChecked();
+    fireEvent.click(screen.getByRole('button', { name: 'Aplicar filtros' }));
+    await waitFor(() => expect(queries.at(-1)?.has('status')).toBe(false));
+    expect(screen.getByRole('button', { name: 'Todos' })).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('respeita status recebidos por link e restaura Todos ao desmarcar o ultimo status', async () => {
+    mount('?status=RESOLVED,REJECTED');
+    await screen.findByRole('table');
+    expect(screen.getByRole('button', { name: 'Todos' })).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByLabelText('Resolvido')).toBeChecked();
+    expect(screen.getByLabelText('Rejeitado')).toBeChecked();
+    fireEvent.click(screen.getByLabelText('Resolvido'));
+    fireEvent.click(screen.getByLabelText('Rejeitado'));
+    expect(screen.getByRole('button', { name: 'Todos' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Aplicar filtros' })).toBeEnabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Aplicar filtros' }));
+    await waitFor(() => expect(screen.getByTestId('location')).not.toHaveTextContent('status='));
+  });
+
   it('mostra as contagens na ordem devolvida pela API ao ordenar por mais curtidas', async () => {
     server.use(http.get(base + '/admin/occurrences', ({ request }) => {
       expect(new URL(request.url).searchParams.get('sort')).toBe('most_liked');
@@ -86,7 +142,7 @@ describe('Lista administrativa — API1-96', () => {
     fireEvent.change(screen.getByLabelText('Buscar por ID, categoria ou descrição'), { target: { value: 'Vazamento' } });
     selectOption(screen.getByLabelText('Prioridade'), 'HIGH');
     selectOption(screen.getByLabelText('Categoria'), categoryId);
-    for (const label of ['Recebido', 'Em análise', 'Em atendimento', 'Resolvido', 'Rejeitado']) fireEvent.click(screen.getByLabelText(label));
+    fireEvent.click(screen.getByLabelText('Confirmado'));
     fireEvent.change(screen.getByLabelText('Início do período (inclusivo)'), { target: { value: '2026-11-01T10:00' } });
     fireEvent.change(screen.getByLabelText('Fim do período (exclusivo)'), { target: { value: '2026-11-10T10:00' } });
     expect(queries).toHaveLength(1);
@@ -118,7 +174,7 @@ describe('Lista administrativa — API1-96', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Aplicar filtros' }));
     await waitFor(() => expect(queries.at(-1)?.get('categoryId')).toBe(categoryId));
     expect(queries.at(-1)?.get('page')).toBe('1');
-    for (const label of ['Recebido', 'Em análise', 'Confirmado', 'Em atendimento', 'Rejeitado']) fireEvent.click(screen.getByLabelText(label));
+    fireEvent.click(screen.getByLabelText('Resolvido'));
     fireEvent.click(screen.getByRole('button', { name: 'Aplicar filtros' }));
     await waitFor(() => expect(queries.at(-1)?.get('status')).toBe('RESOLVED'));
     selectOption(screen.getByLabelText('Ordenação'), 'most_liked');
@@ -252,7 +308,10 @@ describe('Lista administrativa — API1-96', () => {
 
   it('habilita aplicar apenas com mudanças e bloqueia um período invertido', async () => {
     mount(); await screen.findByRole('table');
-    for (const label of ['Recebido', 'Em análise', 'Confirmado', 'Em atendimento', 'Resolvido', 'Rejeitado']) expect(screen.getByLabelText(label)).toBeChecked();
+    expect(screen.getByRole('button', { name: 'Todos' })).toHaveAttribute('aria-pressed', 'true');
+    for (const label of ['Recebido', 'Em análise', 'Confirmado', 'Em atendimento', 'Resolvido', 'Rejeitado']) {
+      expect(screen.getByLabelText(label)).not.toBeChecked();
+    }
     const apply = () => screen.getByRole('button', { name: 'Aplicar filtros' });
     expect(apply()).toBeDisabled();
     selectOption(screen.getByLabelText('Prioridade'), 'HIGH'); expect(apply()).toBeEnabled();
@@ -268,7 +327,10 @@ describe('Lista administrativa — API1-96', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Limpar filtros' }));
     await waitFor(() => expect(apply()).toBeDisabled());
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
-    for (const label of ['Recebido', 'Em análise', 'Confirmado', 'Em atendimento', 'Resolvido', 'Rejeitado']) expect(screen.getByLabelText(label)).toBeChecked();
+    expect(screen.getByRole('button', { name: 'Todos' })).toHaveAttribute('aria-pressed', 'true');
+    for (const label of ['Recebido', 'Em análise', 'Confirmado', 'Em atendimento', 'Resolvido', 'Rejeitado']) {
+      expect(screen.getByLabelText(label)).not.toBeChecked();
+    }
   });
 
   it('não consulta ocorrências nem permite ações para identidade inativa', async () => {
