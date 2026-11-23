@@ -279,5 +279,66 @@ describe('Detalhe administrativo API1-97', () => {
     expect(screen.getByText(/Sugestão da IA confirmada pelo cidadão/)).toHaveTextContent('Sugestão da IA editada pelo cidadão');
     expect(screen.queryByText(/AI_CONFIRMED|AI_EDITED|OBSERVATION_CITIZEN_REPLY_ADDED/)).not.toBeInTheDocument();
   });
-});
 
+  it('exibe respostas de e-mail apenas ao expandir um encaminhamento enviado', async () => {
+    let consultations = 0;
+    server.use(http.get(base + '/admin/occurrences/' + id + '/forwardings/' + agencyId + '/messages', () => {
+      consultations++;
+      return HttpResponse.json({ data: [{
+        id: '40000000-0000-4000-8000-000000000001',
+        forwarding_id: agencyId,
+        message_id: 'resposta-1@example.com',
+        sender_email: 'orgao@example.com',
+        recipient_email: 'inframap@example.com',
+        subject: 'Re: InfraMap - Ocorrência',
+        body_text: 'Equipe de manutenção notificada.\nVistoria agendada.',
+        received_at: '2026-11-20T14:00:00Z',
+      }] });
+    }));
+    item.status = 'CONFIRMED';
+    mount();
+    const expand = await screen.findByRole('button', { name: 'Ver respostas do órgão' });
+    expect(consultations).toBe(0);
+    fireEvent.click(expand);
+    expect(await screen.findByText('Re: InfraMap - Ocorrência')).toBeInTheDocument();
+    expect(screen.getByText(/Equipe de manutenção notificada\.\s+Vistoria agendada\./)).toBeInTheDocument();
+    expect(screen.getByText('orgao@example.com', { selector: 'p' })).toBeInTheDocument();
+    expect(consultations).toBe(1);
+    fireEvent.click(screen.getByRole('button', { name: 'Ocultar respostas do órgão' }));
+    expect(screen.queryByText('Re: InfraMap - Ocorrência')).not.toBeInTheDocument();
+  });
+
+  it('mostra estado vazio quando o órgão ainda não respondeu', async () => {
+    item.status = 'CONFIRMED';
+    server.use(http.get(base + '/admin/occurrences/' + id + '/forwardings/' + agencyId + '/messages', () =>
+      HttpResponse.json({ data: [] })));
+    mount();
+    fireEvent.click(await screen.findByRole('button', { name: 'Ver respostas do órgão' }));
+    expect(await screen.findByText(/Nenhuma resposta sincronizada/)).toBeInTheDocument();
+  });
+
+  it('não oferece consulta de respostas para encaminhamentos que falharam', async () => {
+    forwardingStatus = 'FAILED';
+    mount();
+    await screen.findByText(/Órgão de teste — Falha de envio/);
+    expect(screen.queryByRole('button', { name: 'Ver respostas do órgão' })).not.toBeInTheDocument();
+  });
+
+  it('permite tentar novamente após erro ao consultar respostas', async () => {
+    item.status = 'CONFIRMED';
+    let attempts = 0;
+    server.use(http.get(base + '/admin/occurrences/' + id + '/forwardings/' + agencyId + '/messages', () => {
+      attempts++;
+      return attempts === 1
+        ? HttpResponse.json({ error: { code: 'FORWARDING_REPLIES_FAILED', message: 'Consulta indisponível.' } }, { status: 503 })
+        : HttpResponse.json({ data: [] });
+    }));
+    mount();
+    fireEvent.click(await screen.findByRole('button', { name: 'Ver respostas do órgão' }));
+    expect(await screen.findByRole('alert')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Tentar novamente' }));
+    expect(await screen.findByText(/Nenhuma resposta sincronizada/)).toBeInTheDocument();
+    expect(attempts).toBe(2);
+  });
+
+});

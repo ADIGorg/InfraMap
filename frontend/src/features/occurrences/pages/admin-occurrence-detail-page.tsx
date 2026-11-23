@@ -10,6 +10,7 @@ import { useAdminOccurrenceDetailViewModel } from '../view-models/use-admin-occu
 import { actionLabels, allowedActions, type ModerationAction } from '../services/detail-moderation.service';
 import { forwardingInputSchema } from '../services/forwardings.service';
 import { ModerationForm } from '../components/moderation-form';
+import { ForwardingReplies } from '../components/forwarding-replies';
 
 const date = (value: string) => new Intl.DateTimeFormat('pt-BR', {
   dateStyle: 'short', timeStyle: 'short', timeZone: 'America/Sao_Paulo',
@@ -130,6 +131,7 @@ function DetailContent({ id }: { id: string }) {
           {vm.forwardings.isSuccess && <ul className="mt-4 space-y-4">{vm.forwardings.data.map(entry => <li key={entry.id} className="border-t border-line-subtle pt-3">
             <p className="font-semibold">{entry.agencyName ?? 'Órgão'} — {entry.status === 'SENT' ? 'Aceito pelo provedor' : entry.status === 'FAILED' ? 'Falha de envio' : 'Pendente'}</p>
             <p className="text-sm">{date(entry.createdAt)} · {entry.recipientEmail}</p><p className="whitespace-pre-wrap text-sm">{entry.observations}</p>
+            {entry.status === 'SENT' && <ForwardingReplies occurrenceId={id} forwardingId={entry.id} />}
           </li>)}{!vm.forwardings.data.length && <li>Nenhum encaminhamento registrado.</li>}</ul>}
           {vm.forwarding.needsReview && vm.forwardings.isSuccess && !vm.forwardings.isFetching && <Button variant="outline" className="mt-3" onClick={vm.forwarding.acknowledgeReview}>Revisei o histórico, habilitar novo envio</Button>}
         </section>
@@ -174,4 +176,3 @@ function DetailContent({ id }: { id: string }) {
       message={vm.moderation.error} onClose={() => setAction(null)} onSubmit={vm.moderation.submit} />}
   </div>;
 }
-

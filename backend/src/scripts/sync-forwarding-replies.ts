@@ -138,6 +138,13 @@ async function loadSentForwardings(
       .range(start, start + FORWARDINGS_PAGE_SIZE - 1);
 
     if (error) {
+      console.error("Erro ao consultar forwardings:", {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+      });
+
       throw new Error(
         `Falha ao consultar encaminhamentos: ${error.code}`,
       );
@@ -351,12 +358,15 @@ async function main(): Promise<void> {
 }
 
 main().catch((error: unknown) => {
-  console.error("Sincronização IMAP falhou", {
-    errorType:
-      error instanceof Error
-        ? error.name
-        : typeof error,
-  });
+  if (error instanceof Error) {
+    console.error("Sincronização IMAP falhou:", {
+      name: error.name,
+      message: error.message,
+      stack: error.stack,
+    });
+  } else {
+    console.error("Erro desconhecido na sincronização IMAP.");
+  }
 
   process.exitCode = 1;
 });
