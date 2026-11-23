@@ -326,8 +326,14 @@ describe('Detalhe administrativo API1-97', () => {
 
   it('mostra o erro de sincronização sem impedir a leitura do histórico existente', async () => {
     item.status = 'CONFIRMED';
-    server.use(http.post(base + '/admin/occurrences/' + id + '/forwardings/sync', () =>
-      HttpResponse.json({ error: { code: 'IMAP_SYNC_FAILED', message: 'Não foi possível consultar a caixa de e-mail.' } }, { status: 502 })));
+    // A falha na sincronização IMAP não impede a leitura das respostas já armazenadas.
+    // Ambas as rotas precisam ter respostas explícitas no MSW.
+    server.use(
+      http.post(base + '/admin/occurrences/' + id + '/forwardings/sync', () =>
+        HttpResponse.json({ error: { code: 'IMAP_SYNC_FAILED', message: 'Não foi possível consultar a caixa de e-mail.' } }, { status: 502 })),
+      http.get(base + '/admin/occurrences/' + id + '/forwardings/' + agencyId + '/messages', () =>
+        HttpResponse.json({ data: [] })),
+    );
     mount();
     expect(await screen.findByText(/Não foi possível sincronizar as respostas/)).toBeInTheDocument();
     fireEvent.click(await screen.findByRole('button', { name: 'Ver respostas do órgão' }));
