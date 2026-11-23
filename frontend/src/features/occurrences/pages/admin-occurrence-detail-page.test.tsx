@@ -199,7 +199,22 @@ describe('Detalhe administrativo API1-97', () => {
     expect(dialog.getByText(`Justificativa: ${reason}`)).toBeInTheDocument();
   });
 
-  it.each(['RESOLVED', 'REJECTED', 'CONFIRMED', 'IN_SERVICE'] as const)('bloqueia rejeição em %s sem encaminhamento aceito ou fora da etapa permitida', async status => {
+  it('encerra atendimento sem resolução após revisar a justificativa, sem exigir resposta do órgão', async () => {
+    item.status = 'IN_SERVICE';
+    item.priority = 'MEDIUM';
+    mount();
+    const dialog = await openAction('Encerrar sem resolução');
+    const justification = 'A vistoria constatou impedimento técnico permanente.';
+    expect(dialog.getByLabelText('Resposta do órgão responsável (opcional)')).not.toBeRequired();
+    fireEvent.change(dialog.getByLabelText('Justificativa'), { target: { value: justification } });
+    fireEvent.click(dialog.getByRole('button', { name: 'Revisar encerramento' }));
+    expect(dialog.getByText(/ocorrência será encerrada sem resolução/)).toBeInTheDocument();
+    expect(calls).toHaveLength(0);
+    fireEvent.click(dialog.getByRole('button', { name: 'Confirmar encerramento' }));
+    await waitFor(() => expect(calls).toEqual([{ action: 'reject', method: 'POST', body: { justification } }]));
+  });
+
+  it.each(['RESOLVED', 'REJECTED', 'CONFIRMED'] as const)('bloqueia rejeição em %s sem encaminhamento aceito ou fora da etapa permitida', async status => {
     item.status = status;
     if (status === 'CONFIRMED') forwardingStatus = 'FAILED';
     mount();

@@ -34,7 +34,7 @@ export function allowedActions(detail: OccurrenceDetail): ModerationAction[] {
   if (detail.status === 'UNDER_ANALYSIS') actions.push('confirm', 'reject');
   if (detail.status === 'CONFIRMED') actions.push('reject');
   if (detail.status === 'CONFIRMED' && detail.priority) actions.push('start-service');
-  if (detail.status === 'IN_SERVICE') actions.push('resolve');
+  if (detail.status === 'IN_SERVICE') actions.push('resolve', 'reject');
   if (['CONFIRMED', 'IN_SERVICE', 'RESOLVED'].includes(detail.status)) actions.push('priority');
   if (!['RESOLVED', 'REJECTED'].includes(detail.status)) {
     actions.push('location');

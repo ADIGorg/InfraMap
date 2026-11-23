@@ -23,7 +23,8 @@ export function useModerationViewModel(detail: OccurrenceDetail | undefined, can
       return true;
     } catch (error) {
       if (request.action === 'reject' && isAppError(error) && error.statusCode >= 500) {
-        setMessage('Não foi possível confirmar a rejeição. Confira o status atualizado da ocorrência antes de tentar novamente.');
+        const operation = detail.status === 'IN_SERVICE' ? 'o encerramento' : 'a rejeição';
+        setMessage(`Não foi possível confirmar ${operation}. Confira o status atualizado da ocorrência antes de tentar novamente.`);
       } else {
         setMessage(isAppError(error) && error.statusCode === 409
           ? 'A ocorrência foi alterada. Confira os dados atualizados antes de tentar novamente.'

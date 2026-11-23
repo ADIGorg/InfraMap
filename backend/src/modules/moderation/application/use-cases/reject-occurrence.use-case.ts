@@ -10,33 +10,36 @@ export class RejectOccurrenceUseCase {
   constructor(private readonly repository: IOccurrenceModerationRepository) {}
 
   async execute(occurrenceId: string, justification: string, agencyResponse?: string): Promise<void> {
-    if (!justification || justification.trim().length < 10) {
+    const reason = justification.trim();
+    const response = agencyResponse?.trim() || undefined;
+    if (reason.length < 10 || reason.length > 2000) {
       throw new BadRequestError(
-        "Rejeição exige justificativa com pelo menos 10 caracteres (RN037).",
+        "Informe uma justificativa de 10 a 2000 caracteres.",
       );
     }
 
     const occurrence = await this.repository.getOccurrenceById(occurrenceId);
     if (!occurrence) throw new NotFoundError("Ocorrência não encontrada.");
 
-    if (occurrence.status !== "UNDER_ANALYSIS" && occurrence.status !== "CONFIRMED") {
+    if (occurrence.status !== "UNDER_ANALYSIS" && occurrence.status !== "CONFIRMED" && occurrence.status !== "IN_SERVICE") {
       throw new ConflictError(
-        `Apenas ocorrências UNDER_ANALYSIS ou CONFIRMED podem ser rejeitadas. Status atual: ${occurrence.status}.`,
+        "A ocorrência precisa estar em análise, confirmada ou em atendimento para ser encerrada sem resolução.",
       );
     }
 
-    if (occurrence.status === "CONFIRMED" &&
-        (!agencyResponse || agencyResponse.trim().length < 10 || agencyResponse.trim().length > 2000)) {
-      throw new BadRequestError(
-        "Rejeição de CONFIRMED exige resposta do órgão responsável entre 10 e 2000 caracteres (RN029).",
-      );
+    const usesAgencyResponse = occurrence.status !== "UNDER_ANALYSIS";
+    if (occurrence.status === "CONFIRMED" && !response) {
+      throw new BadRequestError("Registre a resposta do órgão responsável.");
+    }
+    if (usesAgencyResponse && response && (response.length < 10 || response.length > 2000)) {
+      throw new BadRequestError("A resposta do órgão deve ter de 10 a 2000 caracteres.");
     }
 
     await this.repository.transitionStatus(
       occurrenceId,
       "REJECTED",
-      justification.trim(),
-      occurrence.status === "CONFIRMED" ? agencyResponse!.trim() : undefined,
+      reason,
+      usesAgencyResponse ? response : undefined,
     );
   }
 }

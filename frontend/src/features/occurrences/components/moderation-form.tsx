@@ -26,10 +26,15 @@ export function ModerationForm({ action, detail, categories, pending, message, o
   const [resolutionDraft, setResolutionDraft] = useState('');
   const [agencyResponse, setAgencyResponse] = useState('');
   const [justification, setJustification] = useState('');
+  const closingService = action === 'reject' && detail.status === 'IN_SERVICE';
   const requiresAgencyResponse = action === 'reject' && detail.status === 'CONFIRMED';
+  const reviewLabel = closingService ? 'Revisar encerramento' : 'Revisar rejeição';
+  const rejectLabel = closingService ? 'Confirmar encerramento' : 'Sim, rejeitar';
+  const rejectingLabel = closingService ? 'Registrando encerramento…' : 'Registrando rejeição…';
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const values = Object.fromEntries(new FormData(event.currentTarget));
+    if (typeof values.agencyResponse === 'string') values.agencyResponse = values.agencyResponse.trim();
     const body = action === 'location' ? position : Object.fromEntries(Object.entries(values).filter(([, value]) => value !== ''));
     const result = actionSchemas[action].safeParse(body);
     if (!result.success) { setError(result.error.issues.map(issue => issue.message).join(' ')); return; }
@@ -60,7 +65,7 @@ export function ModerationForm({ action, detail, categories, pending, message, o
   return <Dialog.Root open onOpenChange={open => { if (!open && !pending) onClose(); }}>
     <Dialog.Portal><Dialog.Overlay className="fixed inset-0 z-40 bg-black/50" />
       <Dialog.Content className="fixed left-1/2 top-1/2 z-50 max-h-[90vh] w-[min(92vw,560px)] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-2xl bg-white p-6 shadow-xl focus-visible:outline-none">
-        <Dialog.Title className="text-xl font-bold">{actionLabels[action]}</Dialog.Title>
+        <Dialog.Title className="text-xl font-bold">{closingService ? 'Encerrar sem resolução' : actionLabels[action]}</Dialog.Title>
         <Dialog.Description className="my-3 text-sm text-ink-secondary">Revise os dados antes de confirmar a alteração.</Dialog.Description>
         {message && <p role="alert" className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-800">{message}</p>}
         {confirmLocation ? <div className="space-y-3">
@@ -77,20 +82,20 @@ export function ModerationForm({ action, detail, categories, pending, message, o
             </div>
             <p className="text-sm text-ink-secondary">A conclusão será registrada no histórico e comunicada ao cidadão. Confira as informações antes de confirmar.</p>
           </> : request.action === 'reject' && <>
-            <p>Confirmar a rejeição? A ocorrência será encerrada e o cidadão será informado.</p>
+            <p>{closingService ? 'A ocorrência será encerrada sem resolução e o cidadão será informado.' : 'Confirmar a rejeição? A ocorrência será encerrada e o cidadão será informado.'}</p>
             <p className="whitespace-pre-wrap break-words text-sm">Justificativa: {request.body.justification}</p>
             {request.body.agencyResponse && <p className="whitespace-pre-wrap break-words text-sm">Resposta do órgão: {request.body.agencyResponse}</p>}
           </>}
           <div className="flex gap-3"><Button variant="outline" disabled={pending} onClick={() => setRequest(null)}>Voltar</Button>
             <Button variant={request.action === 'reject' ? 'danger' : 'primary'} isLoading={pending} onClick={() => void confirmReviewedAction()}>
-              {request.action === 'resolve' ? 'Confirmar resolução' : pending ? 'Registrando rejeição…' : 'Sim, rejeitar'}
+              {request.action === 'resolve' ? 'Confirmar resolução' : pending ? rejectingLabel : rejectLabel}
             </Button></div>
         </div> : <form onSubmit={event => void submit(event)} className="space-y-4">
           {textField && <label className="field-label">{textField[1]}<textarea className="field-input mt-2" name={textField[0]} required minLength={10} maxLength={2000} rows={5}
             value={action === 'resolve' ? resolutionDraft : action === 'reject' ? justification : undefined}
             onChange={action === 'resolve' ? event => setResolutionDraft(event.target.value) : action === 'reject' ? event => setJustification(event.target.value) : undefined} /></label>}
-          {requiresAgencyResponse && <label className="field-label">Resposta do órgão responsável
-            <textarea className="field-input mt-2" name="agencyResponse" required minLength={10} maxLength={2000} rows={4}
+          {(requiresAgencyResponse || closingService) && <label className="field-label">Resposta do órgão responsável{closingService ? ' (opcional)' : ''}
+            <textarea className="field-input mt-2" name="agencyResponse" required={requiresAgencyResponse} minLength={10} maxLength={2000} rows={4}
               value={agencyResponse} onChange={event => setAgencyResponse(event.target.value)} />
           </label>}
           {action === 'start-service' && <label className="flex items-start gap-2 text-sm"><input type="checkbox" required />O órgão responsável aceitou atender e a ação concreta foi definida.</label>}
@@ -119,7 +124,7 @@ export function ModerationForm({ action, detail, categories, pending, message, o
           {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
           <div className="flex flex-wrap justify-end gap-3">
             <Button type="button" variant="outline" disabled={pending} onClick={onClose}>Cancelar</Button>
-            <Button type="submit" isLoading={pending}>{action === 'reject' ? 'Revisar rejeição' : action === 'resolve' ? 'Revisar resolução' : action === 'location' ? 'Salvar posição' : 'Confirmar'}</Button></div>
+            <Button type="submit" isLoading={pending}>{action === 'reject' ? reviewLabel : action === 'resolve' ? 'Revisar resolução' : action === 'location' ? 'Salvar posição' : 'Confirmar'}</Button></div>
         </form>}
       </Dialog.Content>
     </Dialog.Portal>

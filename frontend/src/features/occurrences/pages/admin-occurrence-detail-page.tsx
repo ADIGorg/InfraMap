@@ -140,9 +140,10 @@ function DetailContent({ id }: { id: string }) {
             <p className="font-semibold text-brand-primary">Atendimento em andamento</p>
             <p className="text-sm">Quando o problema for solucionado, registre o que foi feito e conclua manualmente a ocorrência.</p>
             <Button className="w-full" disabled={!vm.canAct || busy} onClick={() => setAction('resolve')}>Marcar como resolvida</Button>
+            <Button variant="outline" className="w-full border-red-200 text-red-700 hover:bg-red-50" disabled={!vm.canAct || busy} onClick={() => setAction('reject')}>Encerrar sem resolução</Button>
           </div>}
           <div className="flex flex-col gap-3">{allowedActions(item).filter(value => value !== 'observations' && value !== 'resolve'
-            && (value !== 'reject' || item.status !== 'CONFIRMED' || hasSentForwarding)).map(value =>
+            && (value !== 'reject' || item.status === 'UNDER_ANALYSIS' || (item.status === 'CONFIRMED' && hasSentForwarding))).map(value =>
             <Button key={value} variant={value === 'reject' ? 'danger' : 'outline'} disabled={!vm.canAct || busy || (value === 'start-service' && !hasSentForwarding)} onClick={() => setAction(value)}>{actionLabels[value]}</Button>)}</div>
           {item.status === 'CONFIRMED' && !item.priority && <p className="mt-3 text-sm">Defina a prioridade para iniciar o atendimento.</p>}
           {item.status === 'CONFIRMED' && vm.forwardings.isError && <p role="alert" className="mt-3 text-sm text-red-800">Não foi possível verificar os encaminhamentos. Recarregue a lista antes de iniciar o atendimento.</p>}
@@ -156,10 +157,12 @@ function DetailContent({ id }: { id: string }) {
           {vm.history.isError && <div role="alert"><p>{safeErrorMessage(vm.history.error)}</p><Button onClick={() => void vm.history.refetch()}>Recarregar histórico</Button></div>}
           <ol className="space-y-5">{vm.history.data?.map(event => <li key={event.id} className="border-l-2 border-line pl-3">
             <time className="text-xs font-semibold" dateTime={event.createdAt}>{date(event.createdAt)}</time>
-            <p className="text-sm">{event.type === 'observation' ? 'Observação' : labelForCode(historyLabels, event.action, 'Ação registrada')}</p>
+            <p className="text-sm">{event.details?.rejection_type === 'SERVICE_INTERRUPTED' ? 'Atendimento encerrado sem resolução'
+              : event.type === 'observation' ? 'Observação' : labelForCode(historyLabels, event.action, 'Ação registrada')}</p>
             {typeof event.previousData?.status === 'string' && typeof event.newData?.status === 'string' &&
               <p className="text-xs text-ink-secondary">De {labelForCode(historyStatuses, event.previousData.status, 'status não identificado')} para {labelForCode(historyStatuses, event.newData.status, 'status não identificado')}.</p>}
             {typeof event.details?.reason === 'string' && <p className="mt-1 whitespace-pre-wrap break-words text-xs text-ink-secondary">Justificativa: {event.details.reason}</p>}
+            {typeof event.details?.agency_response === 'string' && <p className="mt-1 whitespace-pre-wrap break-words text-xs text-ink-secondary">Resposta do órgão: {event.details.agency_response}</p>}
             {event.visibility && <p className="text-xs text-ink-secondary">{event.visibility === 'INTERNAL' ? 'Interna — apenas administradores' : 'Resposta ao autor'}</p>}
             {event.content && <p className="mt-2 whitespace-pre-wrap break-words text-sm">{event.content}</p>}
           </li>)}</ol>

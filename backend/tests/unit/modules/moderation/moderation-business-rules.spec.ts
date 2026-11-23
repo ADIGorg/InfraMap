@@ -68,7 +68,19 @@ describe("MOD-01 / RN026–RN037: transições válidas e negativas", () => {
     );
   });
 
-  it.each(["RECEIVED", "IN_SERVICE", "RESOLVED", "REJECTED"] as const)(
+  it("encerra atendimento com justificativa e aceita resposta opcional do órgão", async () => {
+    const { repo, repository } = setup("IN_SERVICE");
+    const rejection = new RejectOccurrenceUseCase(repo);
+    const reason = "Não foi possível concluir o atendimento";
+    await rejection.execute(id, reason);
+    expect(repository.transitionStatus).toHaveBeenLastCalledWith(id, "REJECTED", reason, undefined);
+    await rejection.execute(id, reason, "  O órgão informou impedimento técnico.  ");
+    expect(repository.transitionStatus).toHaveBeenLastCalledWith(id, "REJECTED", reason, "O órgão informou impedimento técnico.");
+    await expect(rejection.execute(id, reason, "curta")).rejects.toHaveProperty("statusCode", 400);
+    expect(repository.transitionStatus).toHaveBeenCalledTimes(2);
+  });
+
+  it.each(["RECEIVED", "RESOLVED", "REJECTED"] as const)(
     "impede rejeição de status %s", async status => {
       const { repo } = setup(status);
       await expect(new RejectOccurrenceUseCase(repo).execute(
