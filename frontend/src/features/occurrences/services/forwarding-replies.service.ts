@@ -50,3 +50,19 @@ export async function getForwardingReplies(
     receivedAt: message.received_at,
   }));
 }
+
+
+const syncResultSchema = z.object({
+  consulted: z.number().int().nonnegative(),
+  eligible: z.number().int().nonnegative(),
+  skipped: z.number().int().nonnegative(),
+});
+
+/** Solicita ao backend a consulta IMAP para os encaminhamentos da ocorrência. */
+export async function syncForwardingReplies(occurrenceId: string) {
+  const payload = await http<unknown>(
+    `/admin/occurrences/${occurrenceId}/forwardings/sync`,
+    { method: 'POST' },
+  );
+  return z.object({ data: syncResultSchema }).parse(payload).data;
+}

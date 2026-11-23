@@ -11,8 +11,7 @@ export function useForwardingRepliesViewModel(occurrenceId: string, forwardingId
     queryFn: ({ signal }) => getForwardingReplies(occurrenceId, forwardingId, signal),
     enabled: expanded,
     staleTime: 10_000,
-    // Consulta apenas a API do backend. O agendamento IMAP é independente.
-    refetchInterval: expanded ? 60_000 : false,
+    // Não há polling; ao abrir ou sincronizar, o React Query consulta a API.
   });
 
   return {

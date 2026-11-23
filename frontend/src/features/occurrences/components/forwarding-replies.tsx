@@ -2,6 +2,7 @@ import { useId } from 'react';
 import { Button } from '@/shared/components/button';
 import { safeErrorMessage } from '@/shared/errors/app-error';
 import { useForwardingRepliesViewModel } from '../view-models/use-forwarding-replies-view-model';
+import { extractReplyText } from '../services/extract-reply-text';
 
 const formatDate = (value: string) => new Intl.DateTimeFormat('pt-BR', {
   dateStyle: 'short',
@@ -12,10 +13,12 @@ const formatDate = (value: string) => new Intl.DateTimeFormat('pt-BR', {
 interface ForwardingRepliesProps {
   occurrenceId: string;
   forwardingId: string;
+  onSync: () => Promise<void>;
+  isSyncing: boolean;
 }
 
 /** Somente leitura: as mensagens são importadas pelo backend via IMAP. */
-export function ForwardingReplies({ occurrenceId, forwardingId }: ForwardingRepliesProps) {
+export function ForwardingReplies({ occurrenceId, forwardingId, onSync, isSyncing }: ForwardingRepliesProps) {
   const vm = useForwardingRepliesViewModel(occurrenceId, forwardingId);
   const contentId = useId();
 
@@ -42,8 +45,9 @@ export function ForwardingReplies({ occurrenceId, forwardingId }: ForwardingRepl
             <Button
               type="button"
               variant="ghost"
-              disabled={vm.replies.isFetching}
-              onClick={() => void vm.replies.refetch()}
+              disabled={isSyncing || vm.replies.isFetching}
+              isLoading={isSyncing}
+              onClick={() => { void onSync().catch(() => undefined); }}
             >
               Atualizar respostas
             </Button>
@@ -80,7 +84,7 @@ export function ForwardingReplies({ occurrenceId, forwardingId }: ForwardingRepl
                   </div>
                   <p className="mt-1 break-words text-sm font-medium">{reply.subject || '(Sem assunto)'}</p>
                   <p className="mt-2 whitespace-pre-wrap break-words text-sm">
-                    {reply.bodyText || '(Mensagem sem texto)'}
+                    {extractReplyText(reply.bodyText) || '(Nenhum texto novo identificado nesta resposta)'}
                   </p>
                 </li>
               ))}

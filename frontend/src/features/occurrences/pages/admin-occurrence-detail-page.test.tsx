@@ -31,6 +31,7 @@ const fixture: OccurrenceDetail = {
 let item: OccurrenceDetail;
 let calls: Array<{ method: string; action: string; body: Record<string, unknown> }>;
 let forwards = 0;
+let syncCalls = 0;
 let forwardingStatus = 'SENT';
 let conflict = false;
 let reads = 0;
@@ -44,6 +45,10 @@ const server = setupServer(
   http.get(base + '/categories', () => HttpResponse.json({ data: [fixture.category, { id: alternativeCategoryId, name: 'Saneamento e Drenagem', code: 'CAT02' }] })),
   http.get(base + '/admin/agencies', () => HttpResponse.json({ data: [{ id: agencyId, name: 'Órgão de teste', email: 'orgao@example.com', is_active: true }] })),
   http.get(base + '/admin/occurrences/' + id + '/forwardings', () => HttpResponse.json({ data: [forwarding()] })),
+  http.post(base + '/admin/occurrences/' + id + '/forwardings/sync', () => {
+    syncCalls++;
+    return HttpResponse.json({ data: { consulted: 10, eligible: 1, skipped: 9 } });
+  }),
   http.get(base + '/occurrences/' + id + '/history', () => HttpResponse.json({ data: [{
     id: 'history1', type: 'observation', action: 'OBSERVATION_CREATED', actorId: id,
     createdAt: '2026-11-18T14:00:00Z', content: 'Nota interna registrada', visibility: 'INTERNAL', details: null,
@@ -64,7 +69,7 @@ beforeAll(() => {
   vi.stubGlobal('AbortController', class { constructor() { return transferableAbortController(); } });
   server.listen({ onUnhandledRequest: 'error' });
 });
-beforeEach(() => { item = structuredClone(fixture); calls = []; forwards = 0; forwardingStatus = 'SENT'; conflict = false; reads = 0; });
+beforeEach(() => { item = structuredClone(fixture); calls = []; forwards = 0; syncCalls = 0; forwardingStatus = 'SENT'; conflict = false; reads = 0; });
 afterEach(() => server.resetHandlers());
 afterAll(() => { server.close(); vi.unstubAllGlobals(); });
 function mount() {
@@ -303,9 +308,30 @@ describe('Detalhe administrativo API1-97', () => {
     expect(await screen.findByText('Re: InfraMap - Ocorrência')).toBeInTheDocument();
     expect(screen.getByText(/Equipe de manutenção notificada\.\s+Vistoria agendada\./)).toBeInTheDocument();
     expect(screen.getByText('orgao@example.com', { selector: 'p' })).toBeInTheDocument();
-    expect(consultations).toBe(1);
+    expect(consultations).toBeGreaterThanOrEqual(1);
     fireEvent.click(screen.getByRole('button', { name: 'Ocultar respostas do órgão' }));
     expect(screen.queryByText('Re: InfraMap - Ocorrência')).not.toBeInTheDocument();
+  });
+
+  it('executa IMAP ao abrir a página e novamente ao clicar em Atualizar respostas', async () => {
+    item.status = 'CONFIRMED';
+    mount();
+    await waitFor(() => expect(syncCalls).toBe(1));
+    fireEvent.click(await screen.findByRole('button', { name: 'Ver respostas do órgão' }));
+    const refresh = await screen.findByRole('button', { name: 'Atualizar respostas' });
+    await waitFor(() => expect(refresh).toBeEnabled());
+    fireEvent.click(refresh);
+    await waitFor(() => expect(syncCalls).toBe(2));
+  });
+
+  it('mostra o erro de sincronização sem impedir a leitura do histórico existente', async () => {
+    item.status = 'CONFIRMED';
+    server.use(http.post(base + '/admin/occurrences/' + id + '/forwardings/sync', () =>
+      HttpResponse.json({ error: { code: 'IMAP_SYNC_FAILED', message: 'Não foi possível consultar a caixa de e-mail.' } }, { status: 502 })));
+    mount();
+    expect(await screen.findByText(/Não foi possível sincronizar as respostas/)).toBeInTheDocument();
+    fireEvent.click(await screen.findByRole('button', { name: 'Ver respostas do órgão' }));
+    expect(await screen.findByText(/Nenhuma resposta sincronizada/)).toBeInTheDocument();
   });
 
   it('mostra estado vazio quando o órgão ainda não respondeu', async () => {
@@ -322,6 +348,7 @@ describe('Detalhe administrativo API1-97', () => {
     mount();
     await screen.findByText(/Órgão de teste — Falha de envio/);
     expect(screen.queryByRole('button', { name: 'Ver respostas do órgão' })).not.toBeInTheDocument();
+    expect(syncCalls).toBe(0);
   });
 
   it('permite tentar novamente após erro ao consultar respostas', async () => {

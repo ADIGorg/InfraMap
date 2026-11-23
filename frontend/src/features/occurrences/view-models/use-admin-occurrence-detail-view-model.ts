@@ -10,6 +10,7 @@ import { getForwardings } from '../services/forwardings.service';
 import { AdminOccurrencesService } from '../services/admin-occurrences.service';
 import { useModerationViewModel } from './use-moderation-view-model';
 import { useForwardingViewModel } from './use-forwarding-view-model';
+import { useForwardingRepliesSyncViewModel } from './use-forwarding-replies-sync-view-model';
 import { useObservationsViewModel } from './use-observations-view-model';
 
 export function useAdminOccurrenceDetailViewModel(id: string) {
@@ -29,6 +30,10 @@ export function useAdminOccurrenceDetailViewModel(id: string) {
   });
   const history = useQuery({ queryKey: [...queryKeys.occurrence(id), 'history'], queryFn: ({ signal }) => getOccurrenceHistory(id, signal), enabled });
   const forwardings = useQuery({ queryKey: [...queryKeys.occurrence(id), 'forwardings'], queryFn: ({ signal }) => getForwardings(id, signal), enabled });
+  const replySync = useForwardingRepliesSyncViewModel(
+    id,
+    enabled && forwardings.isSuccess && forwardings.data.some((entry) => entry.status === 'SENT'),
+  );
   const agencies = useQuery({ queryKey: [...queryKeys.agencies, 'forwarding-options'], queryFn: ({ signal }) => getAgencies(signal), enabled });
   const categories = useQuery({ queryKey: ['categories'], queryFn: ({ signal }) => AdminOccurrencesService.categories(signal), enabled });
   const refresh = useCallback(async () => {
@@ -41,6 +46,5 @@ export function useAdminOccurrenceDetailViewModel(id: string) {
   const moderation = useModerationViewModel(detail.data, canAct, refresh);
   const forwarding = useForwardingViewModel(id, canAct && detail.data?.status === 'CONFIRMED' && !moderation.isPending, refresh);
   const observations = useObservationsViewModel(moderation.submit);
-  return { validId, identity, detail, history, forwardings, agencies, categories, moderation, forwarding, observations, canAct };
+  return { validId, identity, detail, history, forwardings, agencies, categories, moderation, forwarding, observations, replySync, canAct };
 }
-

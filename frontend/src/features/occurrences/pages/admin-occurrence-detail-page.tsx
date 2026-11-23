@@ -116,6 +116,8 @@ function DetailContent({ id }: { id: string }) {
         </section>
         <section className={panel}>
           <h2 className="mb-4 font-bold">Encaminhamentos</h2>
+          {vm.replySync.isPending && <p role="status" className="mb-3 text-sm text-ink-secondary">Sincronizando respostas do Gmail…</p>}
+          {vm.replySync.isError && <p role="alert" className="mb-3 text-sm text-red-700">Não foi possível sincronizar as respostas: {safeErrorMessage(vm.replySync.error)}</p>}
           {item.status === 'CONFIRMED' && <form onSubmit={event => { event.preventDefault(); void forward(); }} className="space-y-3">
             <p className="text-sm text-ink-secondary">O encaminhamento envia o relatório ao órgão e mantém a ocorrência confirmada. O aceite do e-mail pelo provedor não comprova recebimento nem aceite do órgão. Para iniciar o atendimento, confirme a atuação do órgão e registre a ação concreta.</p>
             <label className="field-label">Órgão responsável<Select className="mt-2" required value={agency} onValueChange={setAgency} disabled={!vm.agencies.isSuccess}
@@ -131,7 +133,12 @@ function DetailContent({ id }: { id: string }) {
           {vm.forwardings.isSuccess && <ul className="mt-4 space-y-4">{vm.forwardings.data.map(entry => <li key={entry.id} className="border-t border-line-subtle pt-3">
             <p className="font-semibold">{entry.agencyName ?? 'Órgão'} — {entry.status === 'SENT' ? 'Aceito pelo provedor' : entry.status === 'FAILED' ? 'Falha de envio' : 'Pendente'}</p>
             <p className="text-sm">{date(entry.createdAt)} · {entry.recipientEmail}</p><p className="whitespace-pre-wrap text-sm">{entry.observations}</p>
-            {entry.status === 'SENT' && <ForwardingReplies occurrenceId={id} forwardingId={entry.id} />}
+            {entry.status === 'SENT' && <ForwardingReplies
+              occurrenceId={id}
+              forwardingId={entry.id}
+              onSync={vm.replySync.sync}
+              isSyncing={vm.replySync.isPending}
+            />}
           </li>)}{!vm.forwardings.data.length && <li>Nenhum encaminhamento registrado.</li>}</ul>}
           {vm.forwarding.needsReview && vm.forwardings.isSuccess && !vm.forwardings.isFetching && <Button variant="outline" className="mt-3" onClick={vm.forwarding.acknowledgeReview}>Revisei o histórico, habilitar novo envio</Button>}
         </section>
