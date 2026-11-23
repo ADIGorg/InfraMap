@@ -308,7 +308,10 @@ describe('Lista administrativa — API1-96', () => {
 
   it('habilita aplicar apenas com mudanças e bloqueia um período invertido', async () => {
     mount(); await screen.findByRole('table');
-    for (const label of ['Recebido', 'Em análise', 'Confirmado', 'Em atendimento', 'Resolvido', 'Rejeitado']) expect(screen.getByLabelText(label)).toBeChecked();
+    expect(screen.getByRole('button', { name: 'Todos' })).toHaveAttribute('aria-pressed', 'true');
+    for (const label of ['Recebido', 'Em análise', 'Confirmado', 'Em atendimento', 'Resolvido', 'Rejeitado']) {
+      expect(screen.getByLabelText(label)).not.toBeChecked();
+    }
     const apply = () => screen.getByRole('button', { name: 'Aplicar filtros' });
     expect(apply()).toBeDisabled();
     selectOption(screen.getByLabelText('Prioridade'), 'HIGH'); expect(apply()).toBeEnabled();
@@ -324,7 +327,10 @@ describe('Lista administrativa — API1-96', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Limpar filtros' }));
     await waitFor(() => expect(apply()).toBeDisabled());
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
-    for (const label of ['Recebido', 'Em análise', 'Confirmado', 'Em atendimento', 'Resolvido', 'Rejeitado']) expect(screen.getByLabelText(label)).toBeChecked();
+    expect(screen.getByRole('button', { name: 'Todos' })).toHaveAttribute('aria-pressed', 'true');
+    for (const label of ['Recebido', 'Em análise', 'Confirmado', 'Em atendimento', 'Resolvido', 'Rejeitado']) {
+      expect(screen.getByLabelText(label)).not.toBeChecked();
+    }
   });
 
   it('não consulta ocorrências nem permite ações para identidade inativa', async () => {
